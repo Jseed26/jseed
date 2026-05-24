@@ -39,95 +39,106 @@ public/leaflet/images/
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "/leaflet/images/marker-icon-2x.png",
-  iconUrl: "/leaflet/images/marker-icon.png",
-  shadowUrl: "/leaflet/images/marker-shadow.png",
+    iconRetinaUrl: "/leaflet/images/marker-icon-2x.png",
+    iconUrl: "/leaflet/images/marker-icon.png",
+    shadowUrl: "/leaflet/images/marker-shadow.png",
 });
 
+
+
 export default function Map() {
-  const mapRef = useRef<HTMLDivElement | null>(null);
+    const mapRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!mapRef.current) return;
+    const goldIcon = L.icon({
+        iconUrl: "/leaflet/images/gold-marker.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: "/leaflet/images/marker-shadow.png",
+        shadowSize: [41, 41],
+    });
 
-    /*
-    =====================================================================
-    🛑 מניעת יצירה כפולה של המפה
-    =====================================================================
+    useEffect(() => {
+        if (!mapRef.current) return;
 
-    Next.js (במצב dev) לפעמים מרנדר קומפוננטות פעמיים.
-    Leaflet לא מאפשר ליצור מפה פעמיים על אותו DOM element.
+        /*
+        =====================================================================
+        🛑 מניעת יצירה כפולה של המפה
+        =====================================================================
+    
+        Next.js (במצב dev) לפעמים מרנדר קומפוננטות פעמיים.
+        Leaflet לא מאפשר ליצור מפה פעמיים על אותו DOM element.
+    
+        לכן אנחנו בודקים אם כבר קיימת מפה ומונעים יצירה נוספת.
+        */
+        if ((mapRef.current as any)._leaflet_id) return;
 
-    לכן אנחנו בודקים אם כבר קיימת מפה ומונעים יצירה נוספת.
-    */
-    if ((mapRef.current as any)._leaflet_id) return;
+        /*
+        =====================================================================
+        🌍 יצירת המפה עצמה
+        =====================================================================
+    
+        setView:
+        [latitude, longitude] + zoom level
+    
+        כאן אנחנו ממקמים את המפה על ישראל כברירת מחדל.
+        */
+        const map = L.map(mapRef.current).setView(
+            [31.7683, 35.2137],
+            8
+        );
 
-    /*
-    =====================================================================
-    🌍 יצירת המפה עצמה
-    =====================================================================
+        /*
+        =====================================================================
+        🗺️ שכבת המפה (Tiles)
+        =====================================================================
+    
+        אנחנו משתמשים ב-OpenStreetMap שהוא חינמי.
+    
+        כל ריבוע במפה הוא tile שמגיע משרת חיצוני:
+        https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+        */
+        L.tileLayer(
+            "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            {
+                attribution: "&copy; OpenStreetMap & CARTO",
+            }
+        ).addTo(map);
 
-    setView:
-    [latitude, longitude] + zoom level
+        /*
+        =====================================================================
+        📍 הוספת Marker לדוגמה
+        =====================================================================
+    
+        זה סימון בסיסי על המפה.
+        בעתיד זה יגיע מה-DB (נ"צים של משתמשים / עצים וכו').
+        */
+        L.marker([31.7683, 35.2137], { icon: goldIcon })
+            .addTo(map)
+            .bindPopup("Jseed 🌱");
 
-    כאן אנחנו ממקמים את המפה על ישראל כברירת מחדל.
-    */
-    const map = L.map(mapRef.current).setView(
-      [31.7683, 35.2137],
-      8
+        /*
+        =====================================================================
+        🧹 ניקוי (Cleanup)
+        =====================================================================
+    
+        כשעוברים דפים / הקומפוננטה יורדת → אנחנו מוחקים את המפה
+        כדי למנוע זליגת זיכרון (memory leak).
+        */
+        return () => {
+            map.remove();
+        };
+    }, []);
+
+    return (
+        <div
+            ref={mapRef}
+            style={{
+                width: "100%",
+                height: "70vh",
+                borderRadius: "24px",
+                overflow: "hidden",
+            }}
+        />
     );
-
-    /*
-    =====================================================================
-    🗺️ שכבת המפה (Tiles)
-    =====================================================================
-
-    אנחנו משתמשים ב-OpenStreetMap שהוא חינמי.
-
-    כל ריבוע במפה הוא tile שמגיע משרת חיצוני:
-    https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-    */
-    L.tileLayer(
-      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      {
-        attribution: "&copy; OpenStreetMap contributors",
-      }
-    ).addTo(map);
-
-    /*
-    =====================================================================
-    📍 הוספת Marker לדוגמה
-    =====================================================================
-
-    זה סימון בסיסי על המפה.
-    בעתיד זה יגיע מה-DB (נ"צים של משתמשים / עצים וכו').
-    */
-    L.marker([31.7683, 35.2137])
-      .addTo(map)
-      .bindPopup("Jseed 🌱");
-
-    /*
-    =====================================================================
-    🧹 ניקוי (Cleanup)
-    =====================================================================
-
-    כשעוברים דפים / הקומפוננטה יורדת → אנחנו מוחקים את המפה
-    כדי למנוע זליגת זיכרון (memory leak).
-    */
-    return () => {
-      map.remove();
-    };
-  }, []);
-
-  return (
-    <div
-      ref={mapRef}
-      style={{
-        width: "100%",
-        height: "70vh",
-        borderRadius: "24px",
-        overflow: "hidden",
-      }}
-    />
-  );
 }

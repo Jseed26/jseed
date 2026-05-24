@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState } from "react";
 
 /*
 ================================================================================
@@ -25,6 +26,15 @@ const Map = dynamic(() => import("@/src/components/Map"), {
 });
 
 export default function Home() {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const categories = [
+    { key: "star", label: "Star of David" },
+    { key: "triangle", label: "Triangle" },
+    { key: "leaf", label: "Leaf" },
+    { key: "circle", label: "Circle" },
+  ];
+
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-between overflow-hidden">
 
@@ -41,25 +51,28 @@ export default function Home() {
       </div>
 
       {/* ================= ACTION BUTTON ================= */}
-      <button
-        className="
-          mb-10
-          w-36
-          h-36
-          rounded-full
-          border
-          border-yellow-500
-          text-yellow-500
-          text-3xl
-          font-light
-          transition-all
-          duration-300
-          hover:scale-105
-          hover:shadow-[0_0_30px_rgba(234,179,8,0.4)]
-        "
-      >
-        plant
-      </button>
+      <div className="mb-10 flex gap-6">
+        {categories.map((cat) => {
+          const isActive = activeCategory === cat.key;
+
+          return (
+            <button
+              key={cat.key}
+              onClick={() =>
+                setActiveCategory(isActive ? null : cat.key)
+              }
+              className="transition-transform hover:scale-110"
+            >
+              <img
+                src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"
+                  }.png`}
+                alt={cat.label}
+                className="w-16 h-16"
+              />
+            </button>
+          );
+        })}
+      </div>
     </main>
   );
 }
