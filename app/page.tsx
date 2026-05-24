@@ -1,30 +1,46 @@
-//C:\Users\hadar\Desktop\jseed\jseed-web\app\page.tsx
 "use client";
 
 import dynamic from "next/dynamic";
 
-const Globe = dynamic(() => import("@/src/components/Globe"), {
+/*
+================================================================================
+🌍 Jseed Home Page
+================================================================================
+
+📌 מה יש פה?
+זה עמוד הבית של האפליקציה שמציג:
+✔ כותרת מותג
+✔ מפה אינטראקטיבית
+✔ כפתור פעולה ראשי ("plant")
+
+📌 למה משתמשים ב-dynamic import?
+Leaflet משתמש ב-DOM ולכן חייבים:
+ssr: false → כדי שלא ירוץ בצד שרת
+
+================================================================================
+*/
+
+const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
 });
-
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col items-center justify-between overflow-hidden">
-      
-      {/* Title */}
+
+      {/* ================= TITLE ================= */}
       <h1 className="mt-8 text-5xl md:text-7xl font-light tracking-wide text-yellow-500">
         Jseed
       </h1>
 
-      {/* Globe */}
+      {/* ================= MAP ================= */}
       <div className="w-full flex-1 flex items-center justify-center">
         <div className="w-full h-[70vh]">
-          <Globe />
+          <Map />
         </div>
       </div>
 
-      {/* Plant Button */}
+      {/* ================= ACTION BUTTON ================= */}
       <button
         className="
           mb-10
