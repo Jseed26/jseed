@@ -48,6 +48,8 @@ export default function Map({
 }: MapProps) {
     const mapRef = useRef<HTMLDivElement | null>(null);
 
+    const leafletMapRef = useRef<L.Map | null>(null);
+
     useEffect(() => {
         if (!mapRef.current) return;
 
@@ -69,13 +71,17 @@ export default function Map({
         🌍 יצירת מפה
         ================================================================================
         */
-  const map = L.map(mapRef.current).setView(
-            [31.7683, 35.2137],
-            8
-        );
+        leafletMapRef.current = L.map(mapRef.current, {
+            center: [20, 0],
+            zoom: 2,
+            minZoom: 1,
+            maxZoom: 18,
+        });
+
+        const map = leafletMapRef.current;
 
         L.tileLayer(
-            "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
             {
                 attribution: "&copy; OpenStreetMap & CARTO",
             }
