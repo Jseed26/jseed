@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { PointCategory } from "@/src/types/point";
 
 const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
@@ -9,7 +10,7 @@ const Map = dynamic(() => import("@/src/components/Map"), {
 
 export default function Home() {
   const [activeCategory, setActiveCategory] =
-    useState<string | null>(null);
+    useState<PointCategory | null>(null);
 
   const [compassActive, setCompassActive] =
     useState(false);
@@ -17,12 +18,18 @@ export default function Home() {
   const [contactActive, setContactActive] =
     useState(false);
 
-  const categories = [
-    { key: "star", label: "Star of David" },
-    { key: "triangle", label: "Triangle" },
-    { key: "leaf", label: "Leaf" },
-    { key: "circle", label: "Circle" },
-  ];
+  const categories: {
+    key: PointCategory;
+    label: string;
+  }[] = [
+      { key: "star", label: "Star of David" },
+
+      { key: "triangle", label: "Triangle" },
+
+      { key: "leaf", label: "Leaf" },
+
+      { key: "circle", label: "Circle" },
+    ];
 
   return (
     <main className="relative min-h-screen bg-black text-white flex flex-col items-center justify-between overflow-hidden">
@@ -39,11 +46,10 @@ export default function Home() {
           }
         >
           <img
-            src={`/icons/ui/compass/${
-              compassActive
+            src={`/icons/ui/compass/${compassActive
                 ? "active"
                 : "default"
-            }.png`}
+              }.png`}
             className="w-12 h-12"
           />
         </button>
@@ -56,11 +62,10 @@ export default function Home() {
           }
         >
           <img
-            src={`/icons/ui/contact/${
-              contactActive
+            src={`/icons/ui/contact/${contactActive
                 ? "active"
                 : "default"
-            }.png`}
+              }.png`}
             className="w-12 h-12"
           />
         </button>
@@ -100,13 +105,11 @@ export default function Home() {
               className="transition-transform hover:scale-110"
             >
               <img
-                src={`/icons/categories/${
-                  cat.key
-                }/${
-                  isActive
+                src={`/icons/categories/${cat.key
+                  }/${isActive
                     ? "active"
                     : "default"
-                }.png`}
+                  }.png`}
                 className="w-16 h-16"
               />
             </button>
