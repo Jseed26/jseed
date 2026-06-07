@@ -1,3 +1,4 @@
+//C:\Users\hadar\Desktop\jseed\jseed-web\src\lib\map\icons.ts
 import L from "leaflet";
 
 export const createCategoryIcon = (
