@@ -1,3 +1,5 @@
+//C:\Users\hadar\Desktop\jseed\jseed-web\src\types\point.ts
+
 export type PointCategory =
   | "circle"
   | "triangle"
@@ -6,10 +8,8 @@ export type PointCategory =
 
 export type Point = {
   id: number;
-
   name: string;
-
   category: PointCategory;
-
-  coords: [number, number];
+  latitude: number;
+  longitude: number;
 };

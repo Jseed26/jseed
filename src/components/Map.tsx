@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { points } from "@/src/data/points";
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
 
@@ -12,13 +11,12 @@ type MapProps = {
   activeCategory: Point["category"] | null;
 };
 
-export default function Map({
-  activeCategory,
-}: MapProps) {
-  const mapRef =
-    useRef<HTMLDivElement | null>(null);
+export default function Map({ activeCategory }: MapProps) {
+  const mapRef = useRef<HTMLDivElement | null>(null);
 
   const [map, setMap] = useState<L.Map | null>(null);
+
+  const [points, setPoints] = useState<Point[]>([]);
 
   /*
   ================================================================================
@@ -42,8 +40,7 @@ export default function Map({
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
-        attribution:
-          "&copy; OpenStreetMap & CARTO",
+        attribution: "&copy; OpenStreetMap & CARTO",
       }
     ).addTo(newMap);
 
@@ -52,6 +49,29 @@ export default function Map({
     return () => {
       newMap.remove();
     };
+  }, []);
+
+  /*
+  ================================================================================
+  📡 Load points from API
+  ================================================================================
+  */
+  useEffect(() => {
+    async function loadPoints() {
+      try {
+        const res = await fetch("/api/points");
+        const data = await res.json();
+
+        console.log("API DATA:", data);
+
+        // 👇 חשוב מאוד
+        setPoints(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load points:", err);
+      }
+    }
+
+    loadPoints();
   }, []);
 
   /*

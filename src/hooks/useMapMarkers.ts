@@ -1,3 +1,4 @@
+//C:\Users\hadar\Desktop\jseed\jseed-web\src\hooks\useMapMarkers.ts
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -48,16 +49,19 @@ export function useMapMarkers({
     // פילטור נקודות
     const filteredPoints = activeCategory
       ? points.filter(
-          (p) => p.category === activeCategory
-        )
+        (p) => p.category === activeCategory
+      )
       : points;
 
     // יצירת markers חדשים
     filteredPoints.forEach((point) => {
-      const marker = L.marker(point.coords, {
-        icon: createCategoryIcon(point.category),
-      }).bindPopup(point.name);
-
+      const marker = L.marker(
+        [point.latitude, point.longitude],
+        {
+          icon: createCategoryIcon(point.category),
+        }
+      ).bindPopup(point.name);
+      
       layerRef.current?.addLayer(marker);
     });
   }, [map, points, activeCategory]);
