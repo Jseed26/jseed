@@ -9,14 +9,22 @@ import { Point } from "@/src/types/point";
 
 type MapProps = {
   activeCategory: Point["category"] | null;
+  isCompassMode: boolean;
 };
 
-export default function Map({ activeCategory }: MapProps) {
+export default function Map({
+  activeCategory,
+  isCompassMode,
+}: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
   const [map, setMap] = useState<L.Map | null>(null);
-
   const [points, setPoints] = useState<Point[]>([]);
+
+  const [createModal, setCreateModal] = useState<null | {
+    lat: number;
+    lng: number;
+  }>(null);
 
   /*
   ================================================================================
@@ -26,6 +34,7 @@ export default function Map({ activeCategory }: MapProps) {
   useEffect(() => {
     if (!mapRef.current) return;
 
+    // prevent duplicate init
     if ((mapRef.current as any)._leaflet_id) {
       (mapRef.current as any)._leaflet_id = null;
     }
@@ -53,7 +62,7 @@ export default function Map({ activeCategory }: MapProps) {
 
   /*
   ================================================================================
-  📡 Load points from API
+  📡 Load points
   ================================================================================
   */
   useEffect(() => {
@@ -62,9 +71,6 @@ export default function Map({ activeCategory }: MapProps) {
         const res = await fetch("/api/points");
         const data = await res.json();
 
-        console.log("API DATA:", data);
-
-        // 👇 חשוב מאוד
         setPoints(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to load points:", err);
@@ -76,7 +82,38 @@ export default function Map({ activeCategory }: MapProps) {
 
   /*
   ================================================================================
-  📍 Use markers hook
+  📍 Click on map → open modal
+  ================================================================================
+  */
+  useEffect(() => {
+    if (!map) return;
+
+    const container = map.getContainer();
+    container.style.cursor = isCompassMode ? "crosshair" : "";
+
+    const handleClick = (e: any) => {
+      if (!isCompassMode) return;
+
+      if (!activeCategory) {
+        alert("בחרי קטגוריה קודם");
+        return;
+      }
+
+      const { lat, lng } = e.latlng;
+
+      setCreateModal({ lat, lng });
+    };
+
+    map.on("click", handleClick);
+
+    return () => {
+      map.off("click", handleClick);
+    };
+  }, [map, isCompassMode, activeCategory]);
+
+  /*
+  ================================================================================
+  📍 Markers
   ================================================================================
   */
   useMapMarkers({
@@ -85,16 +122,113 @@ export default function Map({ activeCategory }: MapProps) {
     activeCategory,
   });
 
+  /*
+  ================================================================================
+  🧠 UI
+  ================================================================================
+  */
   return (
-    <div
-      ref={mapRef}
-      style={{
-        width: "100%",
-        height: "70vh",
-        borderRadius: "24px",
-        overflow: "hidden",
-        background: "#000",
-      }}
-    />
+    <>
+      {/* MAP */}
+      <div
+        ref={mapRef}
+        style={{
+          width: "100%",
+          height: "70vh",
+          borderRadius: "24px",
+          overflow: "hidden",
+          background: "#000",
+          position: "relative",
+          zIndex: 1,
+        }}
+      />
+
+      {/* MODAL */}
+      {createModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/50 z-[9999]"
+          onClick={() => setCreateModal(null)}
+        >
+          <div
+            className="bg-white text-black p-6 rounded-xl w-[300px] space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold">יצירת נקודה</h2>
+
+            <p className="text-sm">
+              Lat: {createModal.lat.toFixed(5)} <br />
+              Lng: {createModal.lng.toFixed(5)}
+            </p>
+
+            <input
+              id="pointName"
+              placeholder="שם הנקודה"
+              className="w-full border p-2 rounded"
+            />
+
+            <textarea
+              id="pointDesc"
+              placeholder="תיאור קצר"
+              className="w-full border p-2 rounded"
+            />
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => setCreateModal(null)}
+                className="text-red-500"
+              >
+                ביטול
+              </button>
+
+              <button
+                onClick={async () => {
+                  const name = (
+                    document.getElementById(
+                      "pointName"
+                    ) as HTMLInputElement
+                  ).value;
+
+                  const desc = (
+                    document.getElementById(
+                      "pointDesc"
+                    ) as HTMLTextAreaElement
+                  ).value;
+
+                  await fetch("/api/points", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      name,
+                      description: desc,
+                      category: activeCategory,
+                      latitude: createModal.lat,
+                      longitude: createModal.lng,
+                    }),
+                  });
+
+                  setPoints((prev) => [
+                    ...prev,
+                    {
+                      id: Date.now(), // זמני עד שהשרת מחזיר id
+                      name,
+                      category: activeCategory!,
+                      latitude: createModal.lat,
+                      longitude: createModal.lng,
+                    },
+                  ]);
+
+                  setCreateModal(null);
+                }}
+                className="bg-black text-white px-3 py-1 rounded"
+              >
+                שמור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

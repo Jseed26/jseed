@@ -12,8 +12,9 @@ export default function Home() {
   const [activeCategory, setActiveCategory] =
     useState<PointCategory | null>(null);
 
-  const [compassActive, setCompassActive] =
+  const [isCompassMode, setCompassMode] = 
     useState(false);
+
 
   const [contactActive, setContactActive] =
     useState(false);
@@ -31,6 +32,8 @@ export default function Home() {
       { key: "circle", label: "Circle" },
     ];
 
+
+
   return (
     <main className="relative min-h-screen bg-black text-white flex flex-col items-center justify-between overflow-hidden">
 
@@ -42,13 +45,13 @@ export default function Home() {
 
         <button
           onClick={() =>
-            setCompassActive((v) => !v)
+            setCompassMode((v) => !v)
           }
         >
           <img
-            src={`/icons/ui/compass/${compassActive
-                ? "active"
-                : "default"
+            src={`/icons/ui/compass/${isCompassMode
+              ? "active"
+              : "default"
               }.png`}
             className="w-12 h-12"
           />
@@ -63,8 +66,8 @@ export default function Home() {
         >
           <img
             src={`/icons/ui/contact/${contactActive
-                ? "active"
-                : "default"
+              ? "active"
+              : "default"
               }.png`}
             className="w-12 h-12"
           />
@@ -83,6 +86,8 @@ export default function Home() {
         <div className="w-full h-[70vh]">
           <Map
             activeCategory={activeCategory}
+            isCompassMode={isCompassMode}
+
           />
         </div>
       </div>
