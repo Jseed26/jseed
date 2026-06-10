@@ -21,6 +21,8 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
 
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+
   const [createModal, setCreateModal] = useState<null | {
     lat: number;
     lng: number;
@@ -88,8 +90,12 @@ export default function Map({
   useEffect(() => {
     if (!map) return;
 
+    // const container = map.getContainer();
+    // container.style.cursor = isCompassMode ? "crosshair" : "";
+
     const container = map.getContainer();
-    container.style.cursor = isCompassMode ? "crosshair" : "";
+
+    container.style.cursor = isCompassMode ? "none" : "";
 
     const handleClick = (e: any) => {
       if (!isCompassMode) return;
@@ -111,6 +117,20 @@ export default function Map({
     };
   }, [map, isCompassMode, activeCategory]);
 
+
+  useEffect(() => {
+    if (!isCompassMode) return;
+
+    const handleMove = (e: MouseEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener("mousemove", handleMove);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+    };
+  }, [isCompassMode]);
   /*
   ================================================================================
   📍 Markers
@@ -129,6 +149,24 @@ export default function Map({
   */
   return (
     <>
+
+      {isCompassMode && (
+        <img
+          src="/icons/ui/compass/default.png"
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 12,
+            top: cursorPos.y + 12,
+            width: 32,
+            height: 32,
+            pointerEvents: "none",
+            zIndex: 99999,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      )}
+
+
       {/* MAP */}
       <div
         ref={mapRef}
@@ -183,15 +221,11 @@ export default function Map({
               <button
                 onClick={async () => {
                   const name = (
-                    document.getElementById(
-                      "pointName"
-                    ) as HTMLInputElement
+                    document.getElementById("pointName") as HTMLInputElement
                   ).value;
 
                   const desc = (
-                    document.getElementById(
-                      "pointDesc"
-                    ) as HTMLTextAreaElement
+                    document.getElementById("pointDesc") as HTMLTextAreaElement
                   ).value;
 
                   await fetch("/api/points", {
@@ -211,7 +245,7 @@ export default function Map({
                   setPoints((prev) => [
                     ...prev,
                     {
-                      id: Date.now(), // זמני עד שהשרת מחזיר id
+                      id: Date.now(),
                       name,
                       category: activeCategory!,
                       latitude: createModal.lat,
@@ -221,9 +255,12 @@ export default function Map({
 
                   setCreateModal(null);
                 }}
-                className="bg-black text-white px-3 py-1 rounded"
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-black hover:scale-105 transition"
               >
-                שמור
+                <img
+                  src="/icons/ui/compass/default.png"
+                  className="w-6 h-6"
+                />
               </button>
             </div>
           </div>
