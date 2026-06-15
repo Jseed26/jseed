@@ -210,6 +210,18 @@ export default function Map({
               className="w-full border p-2 rounded"
             />
 
+            <input
+              id="pointAddress"
+              placeholder="כתובת"
+              className="w-full border p-2 rounded"
+            />
+
+            <input
+              id="pointWebsite"
+              placeholder="קישור"
+              className="w-full border p-2 rounded"
+            />
+
             <div className="flex justify-between">
               <button
                 onClick={() => setCreateModal(null)}
@@ -224,34 +236,37 @@ export default function Map({
                     document.getElementById("pointName") as HTMLInputElement
                   ).value;
 
-                  const desc = (
+                  const description = (
                     document.getElementById("pointDesc") as HTMLTextAreaElement
                   ).value;
 
-                  await fetch("/api/points", {
+                  const address = (
+                    document.getElementById("pointAddress") as HTMLInputElement
+                  ).value;
+
+                  const website = (
+                    document.getElementById("pointWebsite") as HTMLInputElement
+                  ).value;
+
+                  const res = await fetch("/api/points", {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
                       name,
-                      description: desc,
+                      description,
+                      address,
+                      website,
                       category: activeCategory,
                       latitude: createModal.lat,
                       longitude: createModal.lng,
                     }),
                   });
 
-                  setPoints((prev) => [
-                    ...prev,
-                    {
-                      id: Date.now(),
-                      name,
-                      category: activeCategory!,
-                      latitude: createModal.lat,
-                      longitude: createModal.lng,
-                    },
-                  ]);
+                  const newPoint = await res.json();
+
+                  setPoints((prev) => [...prev, newPoint]);
 
                   setCreateModal(null);
                 }}

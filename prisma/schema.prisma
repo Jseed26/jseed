@@ -10,9 +10,12 @@ datasource db {
 model Point {
   id          Int      @id @default(autoincrement())
   name        String
-  description String?
   category    String
   latitude    Float
   longitude   Float
   createdAt   DateTime @default(now())
+
+  description String?
+  address     String?
+  website     String?
 }

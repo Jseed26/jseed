@@ -12,7 +12,7 @@ export default function Home() {
   const [activeCategory, setActiveCategory] =
     useState<PointCategory | null>(null);
 
-  const [isCompassMode, setCompassMode] = 
+  const [isCompassMode, setCompassMode] =
     useState(false);
 
 
@@ -23,15 +23,11 @@ export default function Home() {
     key: PointCategory;
     label: string;
   }[] = [
-      { key: "star", label: "Star of David" },
-
-      { key: "triangle", label: "Triangle" },
-
-      { key: "leaf", label: "Leaf" },
-
-      { key: "circle", label: "Circle" },
+      { key: "leaf", label: "קהילה" },
+      { key: "star", label: "רוח" },
+      { key: "triangle", label: "מורשת" },
+      { key: "circle", label: "עסקים" },
     ];
-
 
 
   return (
@@ -107,16 +103,17 @@ export default function Home() {
                   isActive ? null : cat.key
                 )
               }
-              className="transition-transform hover:scale-110"
+              className="flex flex-col items-center transition-transform hover:scale-110"
             >
               <img
-                src={`/icons/categories/${cat.key
-                  }/${isActive
-                    ? "active"
-                    : "default"
+                src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"
                   }.png`}
                 className="w-16 h-16"
               />
+
+              <span className="mt-2 text-sm font-medium text-yellow-500">
+                {cat.label}
+              </span>
             </button>
           );
         })}

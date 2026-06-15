@@ -1,30 +1,53 @@
 import { prisma } from "@/src/lib/prisma";
 
 /**
- * GET - מחזיר את כל הנקודות
+ * GET - כל הנקודות
  */
 export async function GET() {
-  const points = await prisma.point.findMany();
+  try {
+    const points = await prisma.point.findMany({
+      orderBy: { createdAt: "desc" },
+    });
 
-  return Response.json(points);
+    return Response.json(points);
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: "Failed to fetch points" }, { status: 500 });
+  }
 }
 
 /**
- * POST - מוסיף נקודה חדשה
+ * POST - יצירת נקודה
  */
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  const { name, category, latitude, longitude } = body;
-
-  const newPoint = await prisma.point.create({
-    data: {
+    const {
       name,
       category,
       latitude,
       longitude,
-    },
-  });
+      description,
+      address,
+      website,
+    } = body;
 
-  return Response.json(newPoint);
+    const newPoint = await prisma.point.create({
+      data: {
+        name,
+        category,
+        latitude,
+        longitude,
+        description: description || null,
+        address: address || null,
+        website: website || null,
+      },
+    });
+
+    return Response.json(newPoint);
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: "Failed to create point" }, { status: 500 });
+  }
 }
