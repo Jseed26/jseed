@@ -211,6 +211,12 @@ export default function Map({
             />
 
             <input
+              type="file"
+              id="pointImage"
+              accept="image/*"
+            />
+
+            <input
               id="pointAddress"
               placeholder="כתובת"
               className="w-full border p-2 rounded"
@@ -240,6 +246,11 @@ export default function Map({
                     document.getElementById("pointDesc") as HTMLTextAreaElement
                   ).value;
 
+                  const fileInput =
+                    document.getElementById("pointImage") as HTMLInputElement;
+
+                  const file = fileInput.files?.[0];
+
                   const address = (
                     document.getElementById("pointAddress") as HTMLInputElement
                   ).value;
@@ -248,21 +259,25 @@ export default function Map({
                     document.getElementById("pointWebsite") as HTMLInputElement
                   ).value;
 
+                  const formData = new FormData();
+
+                  formData.append("name", name);
+                  formData.append("description", description);
+                  formData.append("address", address);
+                  formData.append("website", website);
+                  formData.append("category", activeCategory ?? "");
+                  formData.append("latitude", String(createModal.lat));
+                  formData.append("longitude", String(createModal.lng));
+
+                  if (file) {
+                    formData.append("image", file);
+                  }
+
                   const res = await fetch("/api/points", {
                     method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      name,
-                      description,
-                      address,
-                      website,
-                      category: activeCategory,
-                      latitude: createModal.lat,
-                      longitude: createModal.lng,
-                    }),
+                    body: formData,
                   });
+
 
                   const newPoint = await res.json();
 

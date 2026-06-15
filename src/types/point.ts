@@ -13,6 +13,7 @@ export type Point = {
   createdAt?: string;
 
   description?: string | null;
+  imageUrl?: string | null;
   address?: string | null;
   website?: string | null;
 };

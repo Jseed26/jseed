@@ -24,6 +24,49 @@ export function useMapMarkers({ map, points, activeCategory }: Props) {
     };
   }, [map]);
 
+  function createPopup(point: Point) {
+    return `
+      <div style="min-width:220px">
+
+        <h3 style="font-weight:bold;font-size:16px;margin-bottom:8px">
+          ${point.name}
+        </h3>
+
+        ${
+          point.imageUrl && point.imageUrl.trim() !== ""
+            ? `
+          <img
+            src="${point.imageUrl}"
+            style="
+              width:100%;
+              max-height:140px;
+              object-fit:cover;
+              border-radius:8px;
+              margin-bottom:10px;
+            "
+          />
+        `
+            : ""
+        }
+
+        <p><strong>תיאור:</strong><br/>${point.description || "-"}</p>
+
+        <p style="margin-top:8px">
+          <strong>כתובת:</strong><br/>${point.address || "-"}</p>
+
+        <p style="margin-top:8px">
+          <strong>קישור:</strong><br/>
+          ${
+            point.website
+              ? `<a href="${point.website}" target="_blank">למעבר</a>`
+              : "-"
+          }
+        </p>
+
+      </div>
+    `;
+  }
+
   useEffect(() => {
     if (!map || !layerRef.current) return;
 
@@ -34,34 +77,16 @@ export function useMapMarkers({ map, points, activeCategory }: Props) {
       : points;
 
     filtered.forEach((point) => {
-      const marker = L.marker([point.latitude, point.longitude], {
-        icon: createCategoryIcon(point.category),
-      });
+      console.log("POINT IMAGE:", point.imageUrl); // 👈 דיבוג חשוב
 
-      const popupHtml = `
-        <div style="min-width:220px">
-          <h3 style="font-weight:bold;font-size:16px;margin-bottom:8px">
-            ${point.name}
-          </h3>
+      const marker = L.marker(
+        [point.latitude, point.longitude],
+        {
+          icon: createCategoryIcon(point.category),
+        }
+      );
 
-          <p><strong>תיאור:</strong><br/>${point.description || "-"}</p>
-
-          <p style="margin-top:8px">
-            <strong>כתובת:</strong><br/>${point.address || "-"}
-          </p>
-
-          <p style="margin-top:8px">
-            <strong>קישור:</strong><br/>
-            ${
-              point.website
-                ? `<a href="${point.website}" target="_blank">למעבר</a>`
-                : "-"
-            }
-          </p>
-        </div>
-      `;
-
-      marker.bindPopup(popupHtml);
+      marker.bindPopup(createPopup(point));
 
       marker.on("click", () => {
         marker.openPopup();

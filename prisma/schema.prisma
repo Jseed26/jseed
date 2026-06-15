@@ -18,4 +18,6 @@ model Point {
   description String?
   address     String?
   website     String?
+
+  imageUrl    String?
 }
