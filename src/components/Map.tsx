@@ -279,11 +279,17 @@ export default function Map({
                   });
 
 
-                  const newPoint = await res.json();
+                  const data = await res.json();
 
-                  setPoints((prev) => [...prev, newPoint]);
+                  if (!res.ok) {
+                    alert(data.error);
+                    return;
+                  }
+
+                  setPoints((prev) => [...prev, data]);
 
                   setCreateModal(null);
+
                 }}
                 className="flex items-center justify-center w-10 h-10 rounded-full bg-black hover:scale-105 transition"
               >
