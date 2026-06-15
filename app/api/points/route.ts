@@ -37,6 +37,9 @@ export async function POST(req: Request) {
 
     let imageUrl: string | null = null;
 
+    let finalLatitude = latitude;
+    let finalLongitude = longitude;
+
     if (file) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -58,12 +61,54 @@ export async function POST(req: Request) {
       imageUrl = uploadResult.secure_url;
     }
 
+    if (address?.trim()) {
+      try {
+        console.log("ADDRESS:", address);
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            address
+          )}&limit=1`,
+          {
+            headers: {
+              "User-Agent": "JSeed/1.0",
+            },
+          }
+        );
+
+        const results = await response.json();
+
+        console.log("GEOCODE RESULTS:", results);
+
+        if (results.length > 0) {
+          finalLatitude = Number(results[0].lat);
+          finalLongitude = Number(results[0].lon);
+
+          console.log(
+            "FOUND:",
+            finalLatitude,
+            finalLongitude
+          );
+        } else {
+          console.log("NO RESULTS FOUND");
+        }
+
+        console.log(
+          "SAVING:",
+          finalLatitude,
+          finalLongitude
+        );
+      } catch (error) {
+        console.error("Geocoding failed:", error);
+      }
+    }
+
     const newPoint = await prisma.point.create({
       data: {
         name,
         category,
-        latitude,
-        longitude,
+        latitude: finalLatitude,
+        longitude: finalLongitude,
         description: description || null,
         imageUrl: imageUrl ?? null,
         address: address || null,
