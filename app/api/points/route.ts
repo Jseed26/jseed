@@ -1,26 +1,57 @@
 import { prisma } from "@/src/lib/prisma";
 import cloudinary from "@/src/lib/cloudinary";
+import { TAG_DICTIONARY } from "@/src/lib/tagsDictionary";
 
 
 /**
- * GET - כל הנקודות
+ * GET - כל הנקודות (עם חיפוש + קטגוריה)
  */
-export async function GET() {
-  try {
-    const points = await prisma.point.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
 
-    return Response.json(points);
-  } catch (error) {
-    console.error(error);
-    return Response.json({ error: "Failed to fetch points" }, { status: 500 });
-  }
+  const qRaw = searchParams.get("q")?.trim().toLowerCase() || "";
+  const category = searchParams.get("category") || undefined;
+
+  const translated = qRaw ? (TAG_DICTIONARY[qRaw] || [qRaw]) : [];
+
+  const results = await prisma.point.findMany({
+    where: {
+      AND: [
+        category ? { category } : undefined,
+
+        qRaw
+          ? {
+              OR: [
+                {
+                  name: {
+                    contains: qRaw,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  description: {
+                    contains: qRaw,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  tags: {
+                    hasSome: translated,
+                  },
+                },
+              ],
+            }
+          : undefined,
+      ].filter(Boolean),
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return Response.json(results);
 }
 
-/**
- * POST - יצירת נקודה + העלאת תמונה ל-Cloudinary
- */
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
@@ -35,10 +66,15 @@ export async function POST(req: Request) {
 
     const file = formData.get("image") as File | null;
 
-    let imageUrl: string | null = null;
+    // ✅ מגיע מהקליינט
+    const tagsRaw = formData.get("tags") as string | null;
 
-    let finalLatitude = latitude;
-    let finalLongitude = longitude;
+    const tags: string[] =
+      tagsRaw && tagsRaw !== "[]"
+        ? JSON.parse(tagsRaw)
+        : extractTags(description || "");
+
+    let imageUrl: string | null = null;
 
     if (file) {
       const arrayBuffer = await file.arrayBuffer();
@@ -46,64 +82,36 @@ export async function POST(req: Request) {
 
       const uploadResult: any = await new Promise((resolve, reject) => {
         cloudinary.uploader
-          .upload_stream(
-            {
-              folder: "points",
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          )
+          .upload_stream({ folder: "points" }, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          })
           .end(buffer);
       });
 
       imageUrl = uploadResult.secure_url;
     }
 
+    let finalLatitude = latitude;
+    let finalLongitude = longitude;
+
     if (address?.trim()) {
-      try {
-        console.log("ADDRESS:", address);
-
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            address
-          )}&limit=1`,
-          {
-            headers: {
-              "User-Agent": "JSeed/1.0",
-            },
-          }
-        );
-
-        const results = await response.json();
-
-        console.log("GEOCODE RESULTS:", results);
-
-        if (results.length === 0) {
-          return Response.json(
-            { error: "הכתובת לא נמצאה" },
-            { status: 400 }
-          );
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          address
+        )}&limit=1`,
+        {
+          headers: {
+            "User-Agent": "JSeed/1.0",
+          },
         }
+      );
 
+      const results = await response.json();
+
+      if (results?.length) {
         finalLatitude = Number(results[0].lat);
         finalLongitude = Number(results[0].lon);
-
-        console.log(
-          "FOUND:",
-          finalLatitude,
-          finalLongitude,
-          results[0].display_name
-        );
-
-        console.log(
-          "SAVING:",
-          finalLatitude,
-          finalLongitude
-        );
-      } catch (error) {
-        console.error("Geocoding failed:", error);
       }
     }
 
@@ -114,15 +122,42 @@ export async function POST(req: Request) {
         latitude: finalLatitude,
         longitude: finalLongitude,
         description: description || null,
-        imageUrl: imageUrl ?? null,
+        imageUrl,
         address: address || null,
         website: website || null,
+        tags,
       },
     });
 
     return Response.json(newPoint);
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Failed to create point" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to create point" },
+      { status: 500 }
+    );
   }
+}
+
+/**
+ * fallback tags
+ */
+function extractTags(text: string) {
+  const keywords = [
+    "בית כנסת",
+    "תפילה",
+    "קהילה",
+    "מורשת",
+    "עסק",
+    "חנות",
+    "אירוע",
+    "זיכרון",
+    "אומנות",
+    "גלריה",
+    "שיעור",
+    "תורה",
+    "אוכל",
+  ];
+
+  return keywords.filter((k) => text.includes(k));
 }

@@ -10,11 +10,13 @@ import { Point } from "@/src/types/point";
 type MapProps = {
   activeCategory: Point["category"] | null;
   isCompassMode: boolean;
+  searchQuery: string;
 };
 
 export default function Map({
   activeCategory,
   isCompassMode,
+  searchQuery,
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
@@ -22,6 +24,8 @@ export default function Map({
   const [points, setPoints] = useState<Point[]>([]);
 
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const [createModal, setCreateModal] = useState<null | {
     lat: number;
@@ -31,6 +35,22 @@ export default function Map({
   const isMobile =
     typeof window !== "undefined" &&
     window.innerWidth < 768;
+
+  const AVAILABLE_TAGS = [
+    "בית כנסת",
+    "תפילה",
+    "קהילה",
+    "מורשת",
+    "עסק",
+    "חנות",
+    "אירוע",
+    "זיכרון",
+    "אומנות",
+    "גלריה",
+    "שיעור",
+    "תורה",
+    "אוכל",
+  ];
 
   /*
   ================================================================================
@@ -135,6 +155,18 @@ export default function Map({
       window.removeEventListener("mousemove", handleMove);
     };
   }, [isCompassMode]);
+
+  useEffect(() => {
+    async function search() {
+      const url = `/api/points?q=${searchQuery}&category=${activeCategory || ""}`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+      setPoints(data);
+    }
+
+    search();
+  }, [searchQuery, activeCategory]);
   /*
   ================================================================================
   📍 Markers
@@ -145,6 +177,15 @@ export default function Map({
     points,
     activeCategory,
   });
+
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : [...prev, tag]
+    );
+  }
 
   /*
   ================================================================================
@@ -286,6 +327,28 @@ export default function Map({
               className="w-full border p-2 rounded"
             />
 
+            {/* TAGS */}
+            <div className="flex flex-wrap gap-2">
+              {AVAILABLE_TAGS.map((tag) => {
+                const active = selectedTags.includes(tag);
+
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`px-3 py-1 rounded-full border text-sm transition
+          ${active
+                        ? "bg-black text-white"
+                        : "bg-white text-black"
+                      }`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+
             <input
               type="file"
               id="pointImage"
@@ -344,6 +407,7 @@ export default function Map({
                   formData.append("category", activeCategory ?? "");
                   formData.append("latitude", String(createModal.lat));
                   formData.append("longitude", String(createModal.lng));
+                  formData.append("tags", JSON.stringify(selectedTags));
 
                   if (file) {
                     formData.append("image", file);

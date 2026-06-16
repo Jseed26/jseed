@@ -19,6 +19,9 @@ export default function Home() {
   const [contactActive, setContactActive] =
     useState(false);
 
+
+  const [searchQuery, setSearchQuery] = useState("");
+
   const categories: {
     key: PointCategory;
     label: string;
@@ -76,6 +79,13 @@ export default function Home() {
         Jseed
       </h1>
 
+      <input
+        type="text"
+        placeholder="חיפוש מקום, בית כנסת, אירוע..."
+        className="w-80 p-2 rounded bg-white text-black"
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+
       {/* ================= MAP ================= */}
 
       <div className="w-full flex-1 flex items-center justify-center">
@@ -83,7 +93,7 @@ export default function Home() {
           <Map
             activeCategory={activeCategory}
             isCompassMode={isCompassMode}
-
+            searchQuery={searchQuery}
           />
         </div>
       </div>

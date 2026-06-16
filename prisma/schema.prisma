@@ -19,5 +19,7 @@ model Point {
   website     String?
   imageUrl    String?
 
+  tags        String[] @default([])  // 👈 חדש חשוב
+
   @@map("Point")
 }
