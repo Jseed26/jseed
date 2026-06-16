@@ -158,10 +158,21 @@ export default function Map({
 
   useEffect(() => {
     async function search() {
-      const url = `/api/points?q=${searchQuery}&category=${activeCategory || ""}`;
+      const params = new URLSearchParams();
+
+      if (searchQuery.trim()) {
+        params.append("q", searchQuery);
+      }
+
+      if (activeCategory) {
+        params.append("category", activeCategory);
+      }
+
+      const url = `/api/points?${params.toString()}`;
 
       const res = await fetch(url);
       const data = await res.json();
+
       setPoints(data);
     }
 
