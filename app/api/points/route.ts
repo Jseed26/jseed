@@ -12,37 +12,51 @@ export async function GET(req: Request) {
   const qRaw = searchParams.get("q")?.trim().toLowerCase() || "";
   const category = searchParams.get("category") || undefined;
 
-  const translated = qRaw ? (TAG_DICTIONARY[qRaw] || [qRaw]) : [];
-
   const andConditions: any[] = [];
+
+  const searchTerms = qRaw
+    ? Array.from(new Set([
+      qRaw,
+      ...(TAG_DICTIONARY[qRaw] || []),
+    ]))
+    : [];
 
   if (category) {
     andConditions.push({ category });
   }
 
   if (qRaw) {
-    andConditions.push({
-      OR: [
-        {
-          name: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
+  andConditions.push({
+    OR: [
+      {
+        name: {
+          contains: qRaw,
+          mode: "insensitive",
         },
-        {
-          description: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
+      },
+
+      ...searchTerms.map((term) => ({
+        name: {
+          contains: term,
+          mode: "insensitive",
         },
-        {
-          tags: {
-            hasSome: translated,
-          },
+      })),
+
+      {
+        description: {
+          contains: qRaw,
+          mode: "insensitive",
         },
-      ],
-    });
-  }
+      },
+
+      {
+        tags: {
+          hasSome: searchTerms,
+        },
+      },
+    ],
+  });
+}
 
   const results = await prisma.point.findMany({
     where: {
