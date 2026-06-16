@@ -28,6 +28,10 @@ export default function Map({
     lng: number;
   }>(null);
 
+  const isMobile =
+    typeof window !== "undefined" &&
+    window.innerWidth < 768;
+
   /*
   ================================================================================
   🌍 Create map once
@@ -148,9 +152,9 @@ export default function Map({
   ================================================================================
   */
   return (
-    <>
+    <div className="relative w-full h-full">
 
-      {isCompassMode && (
+      {isCompassMode && !isMobile && (
         <img
           src="/icons/ui/compass/default.png"
           style={{
@@ -164,6 +168,56 @@ export default function Map({
             transform: "translate(-50%, -50%)",
           }}
         />
+      )}
+
+      {isCompassMode && (
+        <div
+          className="
+      absolute
+      top-6
+      left-1/2
+      -translate-x-1/2
+      z-[9998]
+      bg-black/70
+      backdrop-blur-md
+      text-white
+      px-5
+      py-3
+      rounded-2xl
+      text-center
+      shadow-lg
+      pointer-events-none
+    "
+        >
+          <div className="font-semibold">
+            🧭 מצב יצירת נקודה
+          </div>
+
+          <div className="text-sm opacity-80">
+            לחצי על מקום במפה
+            <br />
+            כדי ליצור נקודה חדשה
+          </div>
+        </div>
+      )}
+
+      {isCompassMode && (
+        <div
+          className="
+      absolute
+      left-1/2
+      top-1/2
+      -translate-x-1/2
+      -translate-y-1/2
+      z-[9997]
+      pointer-events-none
+    "
+        >
+          <div className="relative w-10 h-10">
+            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-yellow-400 -translate-x-1/2 opacity-70" />
+            <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-yellow-400 -translate-y-1/2 opacity-70" />
+          </div>
+        </div>
       )}
 
 
@@ -188,15 +242,37 @@ export default function Map({
           onClick={() => setCreateModal(null)}
         >
           <div
-            className="bg-white text-black p-6 rounded-xl w-[300px] space-y-3"
+            className="bg-white text-black p-6 rounded-xl w-[380px] space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-bold">יצירת נקודה</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">יצירת נקודה</h2>
 
-            <p className="text-sm">
-              Lat: {createModal.lat.toFixed(5)} <br />
-              Lng: {createModal.lng.toFixed(5)}
-            </p>
+                <p className="text-sm text-gray-500">
+                  Lat: {createModal.lat.toFixed(5)}
+                  <br />
+                  Lng: {createModal.lng.toFixed(5)}
+                </p>
+              </div>
+
+              {activeCategory && (
+                <div className="flex flex-col items-center">
+                  <img
+                    src={`/icons/categories/${activeCategory}/active.png`}
+                    alt={activeCategory}
+                    className="w-14 h-14 object-contain"
+                  />
+
+                  <span className="text-xs mt-1 text-gray-600">
+                    {activeCategory === "leaf" && "קהילה"}
+                    {activeCategory === "star" && "רוח"}
+                    {activeCategory === "triangle" && "מורשת"}
+                    {activeCategory === "circle" && "עסקים"}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <input
               id="pointName"
@@ -302,6 +378,6 @@ export default function Map({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
