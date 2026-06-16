@@ -14,10 +14,10 @@ model Point {
   latitude    Float
   longitude   Float
   createdAt   DateTime @default(now())
-
   description String?
   address     String?
   website     String?
-
   imageUrl    String?
+
+  @@map("Point")
 }

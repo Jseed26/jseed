@@ -80,15 +80,22 @@ export async function POST(req: Request) {
 
         console.log("GEOCODE RESULTS:", results);
 
-        if (
-          results.length === 0 ||
-          Number(results[0].importance) < 0.3
-        ) {
+        if (results.length === 0) {
           return Response.json(
             { error: "הכתובת לא נמצאה" },
             { status: 400 }
           );
         }
+
+        finalLatitude = Number(results[0].lat);
+        finalLongitude = Number(results[0].lon);
+
+        console.log(
+          "FOUND:",
+          finalLatitude,
+          finalLongitude,
+          results[0].display_name
+        );
 
         console.log(
           "SAVING:",
