@@ -14,41 +14,44 @@ export async function GET(req: Request) {
 
   const translated = qRaw ? (TAG_DICTIONARY[qRaw] || [qRaw]) : [];
 
+  const andConditions: any[] = [];
+
+  if (category) {
+    andConditions.push({ category });
+  }
+
+  if (qRaw) {
+    andConditions.push({
+      OR: [
+        {
+          name: {
+            contains: qRaw,
+            mode: "insensitive",
+          },
+        },
+        {
+          description: {
+            contains: qRaw,
+            mode: "insensitive",
+          },
+        },
+        {
+          tags: {
+            hasSome: translated,
+          },
+        },
+      ],
+    });
+  }
+
   const results = await prisma.point.findMany({
     where: {
-      AND: [
-        category ? { category } : undefined,
-
-        qRaw
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: qRaw,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: qRaw,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  tags: {
-                    hasSome: translated,
-                  },
-                },
-              ],
-            }
-          : undefined,
-      ].filter(Boolean),
+      AND: andConditions,
     },
     orderBy: {
       createdAt: "desc",
     },
   });
-
   return Response.json(results);
 }
 
