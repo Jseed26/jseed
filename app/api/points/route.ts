@@ -128,7 +128,7 @@ export async function POST(req: Request) {
         imageUrl,
         address: address || null,
         website: website || null,
-        tags: tags || null,
+        tags: tags ?? [],
       },
     });
 
