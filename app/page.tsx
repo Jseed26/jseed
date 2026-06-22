@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { PointCategory } from "@/src/types/point";
+import Image from "next/image";
 
 const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
@@ -75,14 +76,22 @@ export default function Home() {
 
       {/* ================= TITLE ================= */}
 
-      <h1 className="mt-8 text-5xl md:text-7xl font-light tracking-wide text-yellow-500">
-        Jseed
-      </h1>
 
+
+      <Image
+        src="/icons/ui/title/title.png"
+        alt="JSeed"
+        width={300}
+        height={100}
+        className="mt-8"
+      />
+
+
+      {/* search */}
       <input
         type="text"
         placeholder="חיפוש מקום, בית כנסת, אירוע..."
-        className="w-80 p-2 rounded bg-white text-black"
+        className="w-80 p-2 rounded bg-black text-white border border-white placeholder-gray-300"
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
