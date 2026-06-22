@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { PointCategory } from "@/src/types/point";
 import Image from "next/image";
+import { Search } from "lucide-react";
 
 const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
@@ -13,130 +14,113 @@ export default function Home() {
   const [activeCategory, setActiveCategory] =
     useState<PointCategory | null>(null);
 
-  const [isCompassMode, setCompassMode] =
-    useState(false);
-
-
-  const [contactActive, setContactActive] =
-    useState(false);
-
-
+  const [isCompassMode, setCompassMode] = useState(false);
+  const [contactActive, setContactActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const categories: {
-    key: PointCategory;
-    label: string;
-  }[] = [
-      { key: "leaf", label: "קהילה" },
-      { key: "star", label: "רוח" },
-      { key: "triangle", label: "מורשת" },
-      { key: "circle", label: "עסקים" },
-    ];
-
+  const categories: { key: PointCategory; label: string }[] = [
+    { key: "leaf", label: "קהילה" },
+    { key: "star", label: "רוח" },
+    { key: "triangle", label: "מורשת" },
+    { key: "circle", label: "עסקים" },
+  ];
 
   return (
-    <main className="relative min-h-screen bg-black text-white flex flex-col items-center justify-between overflow-hidden">
+    <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
 
-      {/* ================= TOP UI ================= */}
-
-      <div className="absolute top-6 left-0 w-full flex justify-between px-6 z-50">
-
-        {/* Compass */}
-
-        <button
-          onClick={() =>
-            setCompassMode((v) => !v)
-          }
-        >
+      {/* ================= TOP ICONS ================= */}
+      <div className="absolute top-4 left-0 w-full flex justify-between px-6 z-50">
+        <button onClick={() => setCompassMode(v => !v)}>
           <img
-            src={`/icons/ui/compass/${isCompassMode
-              ? "active"
-              : "default"
-              }.png`}
+            src={`/icons/ui/compass/${isCompassMode ? "active" : "default"}.png`}
             className="w-12 h-12"
           />
         </button>
 
-        {/* Contact */}
-
-        <button
-          onClick={() =>
-            setContactActive((v) => !v)
-          }
-        >
+        <button onClick={() => setContactActive(v => !v)}>
           <img
-            src={`/icons/ui/contact/${contactActive
-              ? "active"
-              : "default"
-              }.png`}
+            src={`/icons/ui/contact/${contactActive ? "active" : "default"}.png`}
             className="w-12 h-12"
           />
         </button>
       </div>
 
-      {/* ================= TITLE ================= */}
+      {/* ================= HEADER (LOGO + SEARCH) ================= */}
+      <div className="flex flex-col items-center pt-2 gap-2">
 
+        {/* LOGO */}
+        <Image
+          src="/icons/ui/logo/logo.png"
+          alt="JSeed"
+          width={100}
+          height={80}
+        />
 
+        {/* SEARCH */}
+        <div className="relative w-64" dir="rtl">
+          <Search
+            size={16}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-500"
+          />
 
-      <Image
-        src="/icons/ui/title/title.png"
-        alt="JSeed"
-        width={300}
-        height={100}
-        className="mt-8"
-      />
-
-
-      {/* search */}
-      <input
-        type="text"
-        placeholder="חיפוש מקום, בית כנסת, אירוע..."
-        className="w-80 p-2 rounded bg-black text-white border border-white placeholder-gray-300"
-        onChange={(e) => setSearchQuery(e.target.value)}
-      />
-
-      {/* ================= MAP ================= */}
-
-      <div className="w-full flex-1 flex items-center justify-center">
-        <div className="w-full h-[70vh]">
-          <Map
-            activeCategory={activeCategory}
-            isCompassMode={isCompassMode}
-            searchQuery={searchQuery}
+          <input
+            type="text"
+            placeholder="חיפוש seed"
+            className="
+              w-full
+              p-2
+              pr-10
+              rounded-xl
+              bg-black
+              text-white
+              border
+              border-yellow-500
+              placeholder-gray-400
+              focus:outline-none
+              focus:ring-2
+              focus:ring-yellow-500
+              text-right
+            "
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
-      {/* ================= CATEGORIES ================= */}
+      {/* ================= MAP ================= */}
+      <div className="flex-1 w-full px-2">
+        <Map
+          activeCategory={activeCategory}
+          isCompassMode={isCompassMode}
+          searchQuery={searchQuery}
+        />
+      </div>
 
-      <div className="mb-10 flex gap-6">
+      {/* ================= CATEGORIES ================= */}
+      <div className="flex justify-center gap-6 py-3">
         {categories.map((cat) => {
-          const isActive =
-            activeCategory === cat.key;
+          const isActive = activeCategory === cat.key;
 
           return (
             <button
               key={cat.key}
               onClick={() =>
-                setActiveCategory(
-                  isActive ? null : cat.key
-                )
+                setActiveCategory(isActive ? null : cat.key)
               }
               className="flex flex-col items-center transition-transform hover:scale-110"
             >
               <img
-                src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"
-                  }.png`}
-                className="w-16 h-16"
+                src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
+                className="w-14 h-14"
               />
 
-              <span className="mt-2 text-sm font-medium text-yellow-500">
+              <span className="text-xs mt-1 text-yellow-500">
                 {cat.label}
               </span>
             </button>
           );
         })}
       </div>
+
     </main>
   );
 }
