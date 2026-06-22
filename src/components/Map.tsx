@@ -70,12 +70,25 @@ export default function Map({
       zoom: 2,
       minZoom: 1,
       maxZoom: 18,
+
+      worldCopyJump: false,
+      maxBounds: [
+        [-85, -180],
+        [85, 180],
+      ],
+      maxBoundsViscosity: 1.0,
     });
 
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
         attribution: "&copy; OpenStreetMap & CARTO",
+
+        noWrap: true,          // ⭐ זה מה שמפסיק שכפול אופקי
+        bounds: [
+          [-85, -180],
+          [85, 180],
+        ],
       }
     ).addTo(newMap);
 
