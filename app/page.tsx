@@ -28,66 +28,67 @@ export default function Home() {
   return (
     <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
 
-      {/* ================= TOP ICONS ================= */}
-      <div className="absolute top-4 left-0 w-full flex justify-between px-6 z-50">
-        <button onClick={() => setCompassMode(v => !v)}>
-          <img
-            src={`/icons/ui/compass/${isCompassMode ? "active" : "default"}.png`}
-            className="w-12 h-12"
-          />
-        </button>
+      {/* ================= HEADER ================= */}
+      <div className="shrink-0 flex flex-col items-center pt-2 gap-2 relative">
 
-        <button onClick={() => setContactActive(v => !v)}>
-          <img
-            src={`/icons/ui/contact/${contactActive ? "active" : "default"}.png`}
-            className="w-12 h-12"
-          />
-        </button>
-      </div>
+        {/* top icons */}
+        <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50">
+          <button onClick={() => setCompassMode(v => !v)}>
+            <img
+              src={`/icons/ui/compass/${isCompassMode ? "active" : "default"}.png`}
+              className="w-10 h-10"
+            />
+          </button>
 
-      {/* ================= HEADER (LOGO + SEARCH) ================= */}
-      <div className="flex flex-col items-center pt-2 gap-2">
+          <button onClick={() => setContactActive(v => !v)}>
+            <img
+              src={`/icons/ui/contact/${contactActive ? "active" : "default"}.png`}
+              className="w-10 h-10"
+            />
+          </button>
+        </div>
 
         {/* LOGO */}
         <Image
           src="/icons/ui/logo/logo.png"
           alt="JSeed"
-          width={100}
-          height={80}
+          width={90}
+          height={60}
         />
 
         {/* SEARCH */}
-        <div className="relative w-64" dir="rtl">
+        <div className="relative w-52 mx-auto" dir="rtl">
           <Search
-            size={16}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-500"
+            size={14}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"
           />
 
           <input
             type="text"
             placeholder="חיפוש seed"
             className="
-              w-full
-              p-2
-              pr-10
-              rounded-xl
-              bg-black
-              text-white
-              border
-              border-yellow-500
-              placeholder-gray-400
-              focus:outline-none
-              focus:ring-2
-              focus:ring-yellow-500
-              text-right
-            "
+      w-full
+      py-1.5
+      px-8
+      text-center
+      text-sm
+      rounded-lg
+      bg-black
+      text-white
+      border
+      border-gray-600
+      placeholder-gray-500
+      focus:outline-none
+      focus:border-gray-400
+      focus:ring-0
+    "
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
 
       {/* ================= MAP ================= */}
-      <div className="flex-1 w-full px-2">
+      <div className="flex-1 min-h-0 w-full px-2 overflow-hidden">
         <Map
           activeCategory={activeCategory}
           isCompassMode={isCompassMode}
@@ -96,7 +97,7 @@ export default function Home() {
       </div>
 
       {/* ================= CATEGORIES ================= */}
-      <div className="flex justify-center gap-6 py-3">
+      <div className="shrink-0 flex justify-center gap-6 py-2">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
 
@@ -106,7 +107,7 @@ export default function Home() {
               onClick={() =>
                 setActiveCategory(isActive ? null : cat.key)
               }
-              className="flex flex-col items-center transition-transform hover:scale-110"
+              className="flex flex-col items-center"
             >
               <img
                 src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
