@@ -1,6 +1,7 @@
 import { prisma } from "@/src/lib/prisma";
 import cloudinary from "@/src/lib/cloudinary";
 import { TAG_DICTIONARY } from "@/src/lib/tagsDictionary";
+import { auth } from "@/src/lib/auth/auth";
 
 
 /**
@@ -26,37 +27,37 @@ export async function GET(req: Request) {
   }
 
   if (qRaw) {
-  andConditions.push({
-    OR: [
-      {
-        name: {
-          contains: qRaw,
-          mode: "insensitive",
+    andConditions.push({
+      OR: [
+        {
+          name: {
+            contains: qRaw,
+            mode: "insensitive",
+          },
         },
-      },
 
-      ...searchTerms.map((term) => ({
-        name: {
-          contains: term,
-          mode: "insensitive",
-        },
-      })),
+        ...searchTerms.map((term) => ({
+          name: {
+            contains: term,
+            mode: "insensitive",
+          },
+        })),
 
-      {
-        description: {
-          contains: qRaw,
-          mode: "insensitive",
+        {
+          description: {
+            contains: qRaw,
+            mode: "insensitive",
+          },
         },
-      },
 
-      {
-        tags: {
-          hasSome: searchTerms,
+        {
+          tags: {
+            hasSome: searchTerms,
+          },
         },
-      },
-    ],
-  });
-}
+      ],
+    });
+  }
 
   const results = await prisma.point.findMany({
     where: {
@@ -92,6 +93,14 @@ export async function POST(req: Request) {
         : extractTags(description || "");
 
     let imageUrl: string | null = null;
+
+    const session = await auth();
+
+    if (!session?.user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    userId: session.user.id
 
     if (file) {
       const arrayBuffer = await file.arrayBuffer();

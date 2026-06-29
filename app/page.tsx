@@ -5,6 +5,8 @@ import { useState } from "react";
 import { PointCategory } from "@/src/types/point";
 import Image from "next/image";
 import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
@@ -18,12 +20,22 @@ export default function Home() {
   const [contactActive, setContactActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const router = useRouter();
+
+  const { data: session, status } = useSession();
+
+  const isLoggedIn = status === "authenticated";
+  const isLoading = status === "loading";
+
   const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: "קהילה" },
     { key: "star", label: "רוח" },
     { key: "triangle", label: "מורשת" },
     { key: "circle", label: "עסקים" },
   ];
+
+  console.log("SESSION:", session);
+console.log("STATUS:", status);
 
   return (
     <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
@@ -40,9 +52,20 @@ export default function Home() {
             />
           </button>
 
-          <button onClick={() => setContactActive(v => !v)}>
+          <button
+            onClick={() => {
+              if (status === "loading") return;
+
+              if (isLoggedIn) {
+                router.push("/my-points");
+              } else {
+                router.push("/auth");
+              }
+            }}
+          >
             <img
-              src={`/icons/ui/contact/${contactActive ? "active" : "default"}.png`}
+              src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"
+                }.png`}
               className="w-10 h-10"
             />
           </button>
