@@ -195,6 +195,21 @@ export default function Map({
 
     search();
   }, [searchQuery, activeCategory]);
+
+
+  useEffect(() => {
+  const refresh = async () => {
+    const res = await fetch("/api/points");
+    const data = await res.json();
+    setPoints(data);
+  };
+
+  window.addEventListener("points-updated", refresh);
+
+  return () => {
+    window.removeEventListener("points-updated", refresh);
+  };
+}, []);
   /*
   ================================================================================
   📍 Markers
