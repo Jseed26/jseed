@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css";
 
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
+import { useSession } from "next-auth/react";
 
 type MapProps = {
   activeCategory: Point["category"] | null;
@@ -51,6 +52,9 @@ export default function Map({
     "תורה",
     "אוכל",
   ];
+
+  const { data: session, status } = useSession();
+  const isLoggedIn = status === "authenticated";
 
   /*
   ================================================================================
@@ -401,6 +405,10 @@ export default function Map({
 
               <button
                 onClick={async () => {
+                  if (!isLoggedIn) {
+                    alert("אי אפשר להוסיף נקודות מבלי להתחבר");
+                    return;
+                  }
                   const name = (
                     document.getElementById("pointName") as HTMLInputElement
                   ).value;
@@ -436,6 +444,7 @@ export default function Map({
                   if (file) {
                     formData.append("image", file);
                   }
+
 
                   const res = await fetch("/api/points", {
                     method: "POST",
