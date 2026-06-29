@@ -36,3 +36,36 @@ export async function PUT(req: Request, context: any) {
 
   return Response.json(updated);
 }
+
+export async function DELETE(
+  req: Request,
+  context: any
+) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { params } = context;
+  const { id } = await params;
+
+  const pointId = Number(id);
+
+  const existing = await prisma.point.findFirst({
+    where: {
+      id: pointId,
+      userId: session.user.id,
+    },
+  });
+
+  if (!existing) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await prisma.point.delete({
+    where: { id: pointId },
+  });
+
+  return Response.json({ success: true });
+}

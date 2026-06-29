@@ -66,6 +66,18 @@ export default function MyPointsPage() {
         }
     }
 
+    async function deletePoint(id: number) {
+        const res = await fetch(`/api/points/${id}`, {
+            method: "DELETE",
+        });
+
+        if (res.ok) {
+            setPoints((prev) => prev.filter((p) => p.id !== id));
+
+            window.dispatchEvent(new Event("points-updated"));
+        }
+    }
+
     useEffect(() => {
         async function load() {
             const res = await fetch("/api/my-points");
@@ -85,6 +97,13 @@ export default function MyPointsPage() {
     return (
         <div className="p-6 text-white bg-black min-h-screen">
             <h1 className="text-2xl mb-6">הנקודות שלי</h1>
+
+            <button
+                onClick={() => router.push("/")}
+                className="flex items-center gap-2 text-white bg-gray-800 px-3 py-2 rounded hover:bg-gray-700"
+            >
+                ← חזרה למפה
+            </button>
 
             {points.length === 0 ? (
                 <p className="text-gray-400">אין לך עדיין נקודות</p>
@@ -172,12 +191,21 @@ export default function MyPointsPage() {
                                         קטגוריה: {p.category}
                                     </p>
 
-                                    <button
-                                        onClick={() => startEdit(p)}
-                                        className="mt-3 bg-blue-500 text-black px-3 py-1 rounded"
-                                    >
-                                        ערוך
-                                    </button>
+                                    <div className="flex gap-2 mt-3">
+                                        <button
+                                            onClick={() => startEdit(p)}
+                                            className="bg-blue-500 text-black px-3 py-1 rounded"
+                                        >
+                                            ערוך
+                                        </button>
+
+                                        <button
+                                            onClick={() => deletePoint(p.id)}
+                                            className="bg-red-500 text-black px-3 py-1 rounded"
+                                        >
+                                            מחק
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
