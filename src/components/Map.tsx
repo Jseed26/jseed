@@ -12,7 +12,9 @@ import PointForm from "@/src/components/PointForm";
 type MapProps = {
   activeCategory: Point["category"] | null;
   isCompassMode: boolean;
+  setCompassMode: (value: boolean) => void; 
   searchQuery: string;
+  isLoggedIn: boolean;
 };
 
 type ModalState = {
@@ -24,17 +26,18 @@ export default function Map({
   activeCategory,
   isCompassMode,
   searchQuery,
+  setCompassMode,
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-
   const [modal, setModal] = useState<ModalState>(null);
 
   const { status } = useSession();
   const isLoggedIn = status === "authenticated";
+
+  const cursorMarkerRef = useRef<L.Marker | null>(null);
 
   /*
   ================================================================================
@@ -93,6 +96,56 @@ export default function Map({
 
   /*
   ================================================================================
+  🖱️ PREVIEW CURSOR (DESKTOP ONLY)
+  ================================================================================
+  */
+  useEffect(() => {
+    if (!map) return;
+
+    const isMobile =
+      typeof window !== "undefined" && window.innerWidth < 768;
+
+    if (!isCompassMode || isMobile) {
+      if (cursorMarkerRef.current) {
+        map.removeLayer(cursorMarkerRef.current);
+        cursorMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const previewIcon = L.icon({
+      iconUrl: "/icons/ui/compass/active.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+
+    const handleMove = (e: any) => {
+      const latlng = e.latlng;
+
+      if (!cursorMarkerRef.current) {
+        cursorMarkerRef.current = L.marker(latlng, {
+          icon: previewIcon,
+          opacity: 0.9,
+        }).addTo(map);
+      } else {
+        cursorMarkerRef.current.setLatLng(latlng);
+      }
+    };
+
+    map.on("mousemove", handleMove);
+
+    return () => {
+      map.off("mousemove", handleMove);
+
+      if (cursorMarkerRef.current) {
+        map.removeLayer(cursorMarkerRef.current);
+        cursorMarkerRef.current = null;
+      }
+    };
+  }, [map, isCompassMode]);
+
+  /*
+  ================================================================================
   🔄 SEARCH
   ================================================================================
   */
@@ -141,7 +194,16 @@ export default function Map({
 
     const handleClick = (e: any) => {
       if (!isCompassMode) return;
-      if (!activeCategory) return;
+
+      if (!activeCategory) {
+        alert("צריך לבחור קטגוריה לפני הוספת נקודה");
+        return;
+      }
+
+      if (!isLoggedIn) {
+        alert("צריך להתחבר כדי להוסיף נקודה");
+        return;
+      }
 
       setModal({
         lat: e.latlng.lat,
@@ -185,6 +247,7 @@ export default function Map({
       {modal && (
         <PointForm
           mode="create"
+          category={activeCategory}
           initialData={{
             lat: modal.lat,
             lng: modal.lng,
@@ -219,8 +282,12 @@ export default function Map({
               return;
             }
 
+
             setPoints((prev) => [...prev, data]);
             setModal(null);
+
+            // 🔥 לכבות מצב הוספה
+            setCompassMode(false);
           }}
         />
       )}

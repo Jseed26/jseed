@@ -10,55 +10,24 @@ import { auth } from "@/src/lib/auth/auth";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
-  const qRaw = searchParams.get("q")?.trim() || "";
-  const category = searchParams.get("category") || undefined;
-
-  const andConditions: any[] = [];
-
-  if (category) {
-    andConditions.push({ category });
-  }
-
-  if (qRaw) {
-    andConditions.push({
-      OR: [
-        {
-          name: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
-        },
-        {
-          description: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
-        },
-        {
-          address: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
-        },
-        {
-          website: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
-        },
-        {
-          keywords: {
-            contains: qRaw,
-            mode: "insensitive",
-          },
-        },
-      ],
-    });
-  }
+  const qRaw = searchParams.get("q")?.trim();
+  const category = searchParams.get("category");
 
   const results = await prisma.point.findMany({
     where: {
-      AND: andConditions,
+      ...(category ? { category } : {}),
+
+      ...(qRaw
+        ? {
+            OR: [
+              { name: { contains: qRaw, mode: "insensitive" } },
+              { description: { contains: qRaw, mode: "insensitive" } },
+              { address: { contains: qRaw, mode: "insensitive" } },
+              { website: { contains: qRaw, mode: "insensitive" } },
+              { keywords: { contains: qRaw.trim(), mode: "insensitive" } },
+            ],
+          }
+        : {}),
     },
     orderBy: {
       createdAt: "desc",
@@ -86,13 +55,6 @@ export async function POST(req: Request) {
 
     const keywords = formData.get("keywords") as string | null;
 
-    // ✅ מגיע מהקליינט
-    const tagsRaw = formData.get("tags") as string | null;
-
-    const tags: string[] =
-      tagsRaw && tagsRaw !== "[]"
-        ? JSON.parse(tagsRaw)
-        : extractTags(description || "");
 
     let imageUrl: string | null = null;
 

@@ -15,7 +15,7 @@ type Point = {
     imageUrl?: string;
     latitude: number;
     longitude: number;
-    tags: string[];
+    keywords: string[];
 };
 
 export default function MyPointsPage() {

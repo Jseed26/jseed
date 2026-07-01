@@ -20,6 +20,9 @@ export default function Home() {
   const [contactActive, setContactActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [toast, setToast] = useState<string | null>(null);
+
+
   const router = useRouter();
 
   const { data: session, status } = useSession();
@@ -35,7 +38,7 @@ export default function Home() {
   ];
 
   console.log("SESSION:", session);
-console.log("STATUS:", status);
+  console.log("STATUS:", status);
 
   return (
     <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
@@ -45,7 +48,15 @@ console.log("STATUS:", status);
 
         {/* top icons */}
         <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50">
-          <button onClick={() => setCompassMode(v => !v)}>
+          <button
+            onClick={() => {
+              setCompassMode(v => !v);
+
+              setToast(!isCompassMode ? "במצב הוספת נקודה" : null);
+
+              setTimeout(() => setToast(null), 2000);
+            }}
+          >
             <img
               src={`/icons/ui/compass/${isCompassMode ? "active" : "default"}.png`}
               className="w-10 h-10"
@@ -110,12 +121,19 @@ console.log("STATUS:", status);
         </div>
       </div>
 
+      {toast && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white text-black px-3 py-1 rounded-lg z-50 text-sm">
+          {toast}
+        </div>
+      )}
       {/* ================= MAP ================= */}
       <div className="flex-1 min-h-0 w-full px-2 overflow-hidden">
         <Map
           activeCategory={activeCategory}
           isCompassMode={isCompassMode}
+          setCompassMode={setCompassMode}
           searchQuery={searchQuery}
+          isLoggedIn={isLoggedIn}
         />
       </div>
 
