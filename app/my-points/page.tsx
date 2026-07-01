@@ -99,18 +99,7 @@ export default function MyPointsPage() {
                                 </p>
                             </div>
 
-                            {/* תגיות */}
-                            <div className="flex flex-wrap gap-1 mt-2">
-                                {p.tags?.map((tag) => (
-                                    <span
-                                        key={tag}
-                                        className="text-xs bg-gray-700 px-2 py-1 rounded"
-                                    >
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-
+                           
                             {/* כפתורים */}
                             <div className="flex gap-2 mt-3">
                                 <button
@@ -141,10 +130,9 @@ export default function MyPointsPage() {
                         description: editingPoint.description,
                         address: editingPoint.address,
                         website: editingPoint.website,
-                        tags: editingPoint.tags,
                     }}
                     onClose={() => setEditingPoint(null)}
-                    onSubmit={async ({ form, tags }) => {
+                    onSubmit={async ({ form }) => {
                         const formData = new FormData();
 
                         formData.append("name", form.name);
@@ -152,7 +140,6 @@ export default function MyPointsPage() {
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", editingPoint.category);
-                        formData.append("tags", JSON.stringify(tags));
 
                         // 🔥 חשוב מאוד:
                         if (form.image) {

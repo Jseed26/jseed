@@ -190,7 +190,7 @@ export default function Map({
             lng: modal.lng,
           }}
           onClose={() => setModal(null)}
-          onSubmit={async ({ form, tags }) => {
+          onSubmit={async ({ form }) => {
             if (status !== "authenticated") return;
 
             const formData = new FormData();
@@ -202,7 +202,6 @@ export default function Map({
             formData.append("category", activeCategory ?? "");
             formData.append("latitude", String(modal.lat));
             formData.append("longitude", String(modal.lng));
-            formData.append("tags", JSON.stringify(tags));
 
             if (form.image) {
               formData.append("image", form.image);

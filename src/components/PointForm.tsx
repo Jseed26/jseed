@@ -8,12 +8,12 @@ type FormState = {
   address: string;
   website: string;
   image: File | null;
+  keywords: string; // 👈 חדש
 };
 
 type Props = {
   mode: "create" | "edit";
   initialData?: Partial<FormState> & {
-    tags?: string[];
     lat?: number;
     lng?: number;
   };
@@ -22,25 +22,8 @@ type Props = {
 
   onSubmit: (data: {
     form: FormState;
-    tags: string[];
   }) => void;
 };
-
-const AVAILABLE_TAGS = [
-  "בית כנסת",
-  "תפילה",
-  "קהילה",
-  "מורשת",
-  "עסק",
-  "חנות",
-  "אירוע",
-  "זיכרון",
-  "אומנות",
-  "גלריה",
-  "שיעור",
-  "תורה",
-  "אוכל",
-];
 
 export default function PointForm({
   mode,
@@ -54,27 +37,12 @@ export default function PointForm({
     address: initialData?.address || "",
     website: initialData?.website || "",
     image: null,
+    keywords: initialData?.keywords || "",
   });
 
-  const [tags, setTags] = useState<string[]>(
-    initialData?.tags || []
-  );
-
-  function toggleTag(tag: string) {
-    setTags((prev) =>
-      prev.includes(tag)
-        ? prev.filter((t) => t !== tag)
-        : [...prev, tag]
-    );
-  }
-
   function handleSubmit() {
-    onSubmit({
-      form,
-      tags,
-    });
+    onSubmit({ form });
   }
-  
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
@@ -104,23 +72,15 @@ export default function PointForm({
           }
         />
 
-        {/* תגיות */}
-        <div className="flex flex-wrap gap-2">
-          {AVAILABLE_TAGS.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => toggleTag(tag)}
-              className={`px-3 py-1 rounded-full border text-sm ${
-                tags.includes(tag)
-                  ? "bg-black text-white"
-                  : "bg-white"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
+        {/* מילות חיפוש */}
+        <textarea
+          placeholder="ניתן להוסיף מילות חיפוש"
+          className="w-full border p-2 rounded bg-gray-50"
+          value={form.keywords}
+          onChange={(e) =>
+            setForm({ ...form, keywords: e.target.value })
+          }
+        />
 
         {/* כתובת */}
         <input
