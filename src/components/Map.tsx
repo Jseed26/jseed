@@ -7,12 +7,18 @@ import "leaflet/dist/leaflet.css";
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
 import { useSession } from "next-auth/react";
+import PointForm from "@/src/components/PointForm";
 
 type MapProps = {
   activeCategory: Point["category"] | null;
   isCompassMode: boolean;
   searchQuery: string;
 };
+
+type ModalState = {
+  lat: number;
+  lng: number;
+} | null;
 
 export default function Map({
   activeCategory,
@@ -23,48 +29,21 @@ export default function Map({
 
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
-
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
 
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [modal, setModal] = useState<ModalState>(null);
 
-  const [createModal, setCreateModal] = useState<null | {
-    lat: number;
-    lng: number;
-  }>(null);
-
-  const isMobile =
-    typeof window !== "undefined" &&
-    window.innerWidth < 768;
-
-  const AVAILABLE_TAGS = [
-    "בית כנסת",
-    "תפילה",
-    "קהילה",
-    "מורשת",
-    "עסק",
-    "חנות",
-    "אירוע",
-    "זיכרון",
-    "אומנות",
-    "גלריה",
-    "שיעור",
-    "תורה",
-    "אוכל",
-  ];
-
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const isLoggedIn = status === "authenticated";
 
   /*
   ================================================================================
-  🌍 Create map once
+  🌍 INIT MAP
   ================================================================================
   */
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // prevent duplicate init
     if ((mapRef.current as any)._leaflet_id) {
       (mapRef.current as any)._leaflet_id = null;
     }
@@ -74,7 +53,6 @@ export default function Map({
       zoom: 2,
       minZoom: 1,
       maxZoom: 18,
-
       worldCopyJump: false,
       maxBounds: [
         [-85, -180],
@@ -87,12 +65,7 @@ export default function Map({
       "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
         attribution: "&copy; OpenStreetMap & CARTO",
-
-        noWrap: true,          // ⭐ זה מה שמפסיק שכפול אופקי
-        bounds: [
-          [-85, -180],
-          [85, 180],
-        ],
+        noWrap: true,
       }
     ).addTo(newMap);
 
@@ -105,50 +78,75 @@ export default function Map({
 
   /*
   ================================================================================
-  📡 Load points
+  📡 LOAD POINTS
   ================================================================================
   */
   useEffect(() => {
-    async function loadPoints() {
-      try {
-        const res = await fetch("/api/points");
-        const data = await res.json();
-
-        setPoints(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Failed to load points:", err);
-      }
+    async function load() {
+      const res = await fetch("/api/points");
+      const data = await res.json();
+      setPoints(Array.isArray(data) ? data : []);
     }
 
-    loadPoints();
+    load();
   }, []);
 
   /*
   ================================================================================
-  📍 Click on map → open modal
+  🔄 SEARCH
+  ================================================================================
+  */
+  useEffect(() => {
+    async function search() {
+      const params = new URLSearchParams();
+
+      if (searchQuery.trim()) params.append("q", searchQuery);
+      if (activeCategory) params.append("category", activeCategory);
+
+      const res = await fetch(`/api/points?${params.toString()}`);
+      const data = await res.json();
+
+      setPoints(data);
+    }
+
+    search();
+  }, [searchQuery, activeCategory]);
+
+  /*
+  ================================================================================
+  🔄 LIVE REFRESH
+  ================================================================================
+  */
+  useEffect(() => {
+    const refresh = async () => {
+      const res = await fetch("/api/points");
+      const data = await res.json();
+      setPoints(data);
+    };
+
+    window.addEventListener("points-updated", refresh);
+
+    return () => {
+      window.removeEventListener("points-updated", refresh);
+    };
+  }, []);
+
+  /*
+  ================================================================================
+  📍 MAP CLICK
   ================================================================================
   */
   useEffect(() => {
     if (!map) return;
 
-    // const container = map.getContainer();
-    // container.style.cursor = isCompassMode ? "crosshair" : "";
-
-    const container = map.getContainer();
-
-    container.style.cursor = isCompassMode ? "none" : "";
-
     const handleClick = (e: any) => {
       if (!isCompassMode) return;
+      if (!activeCategory) return;
 
-      if (!activeCategory) {
-        alert("בחרי קטגוריה קודם");
-        return;
-      }
-
-      const { lat, lng } = e.latlng;
-
-      setCreateModal({ lat, lng });
+      setModal({
+        lat: e.latlng.lat,
+        lng: e.latlng.lng,
+      });
     };
 
     map.on("click", handleClick);
@@ -158,61 +156,9 @@ export default function Map({
     };
   }, [map, isCompassMode, activeCategory]);
 
-
-  useEffect(() => {
-    if (!isCompassMode) return;
-
-    const handleMove = (e: MouseEvent) => {
-      setCursorPos({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener("mousemove", handleMove);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-    };
-  }, [isCompassMode]);
-
-  useEffect(() => {
-    async function search() {
-      const params = new URLSearchParams();
-
-      if (searchQuery.trim()) {
-        params.append("q", searchQuery);
-      }
-
-      if (activeCategory) {
-        params.append("category", activeCategory);
-      }
-
-      const url = `/api/points?${params.toString()}`;
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      setPoints(data);
-    }
-
-    search();
-  }, [searchQuery, activeCategory]);
-
-
-  useEffect(() => {
-  const refresh = async () => {
-    const res = await fetch("/api/points");
-    const data = await res.json();
-    setPoints(data);
-  };
-
-  window.addEventListener("points-updated", refresh);
-
-  return () => {
-    window.removeEventListener("points-updated", refresh);
-  };
-}, []);
   /*
   ================================================================================
-  📍 Markers
+  📍 MARKERS
   ================================================================================
   */
   useMapMarkers({
@@ -220,15 +166,6 @@ export default function Map({
     points,
     activeCategory,
   });
-
-
-  function toggleTag(tag: string) {
-    setSelectedTags((prev) =>
-      prev.includes(tag)
-        ? prev.filter((t) => t !== tag)
-        : [...prev, tag]
-    );
-  }
 
   /*
   ================================================================================
@@ -238,257 +175,55 @@ export default function Map({
   return (
     <div className="relative w-full h-full">
 
-      {isCompassMode && !isMobile && (
-        <img
-          src="/icons/ui/compass/default.png"
-          style={{
-            position: "fixed",
-            left: cursorPos.x + 12,
-            top: cursorPos.y + 12,
-            width: 32,
-            height: 32,
-            pointerEvents: "none",
-            zIndex: 99999,
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      )}
-
-      {isCompassMode && (
-        <div
-          className="
-      absolute
-      top-6
-      left-1/2
-      -translate-x-1/2
-      z-[9998]
-      bg-black/70
-      backdrop-blur-md
-      text-white
-      px-5
-      py-3
-      rounded-2xl
-      text-center
-      shadow-lg
-      pointer-events-none
-    "
-        >
-          <div className="font-semibold">
-            🧭 מצב יצירת נקודה
-          </div>
-
-          <div className="text-sm opacity-80">
-            לחצי על מקום במפה
-            <br />
-            כדי ליצור נקודה חדשה
-          </div>
-        </div>
-      )}
-
-      {isCompassMode && (
-        <div
-          className="
-      absolute
-      left-1/2
-      top-1/2
-      -translate-x-1/2
-      -translate-y-1/2
-      z-[9997]
-      pointer-events-none
-    "
-        >
-          <div className="relative w-10 h-10">
-            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-yellow-400 -translate-x-1/2 opacity-70" />
-            <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-yellow-400 -translate-y-1/2 opacity-70" />
-          </div>
-        </div>
-      )}
-
-
       {/* MAP */}
       <div
         ref={mapRef}
-        style={{
-          width: "100%",
-          height: "70vh",
-          borderRadius: "24px",
-          overflow: "hidden",
-          background: "#000",
-          position: "relative",
-          zIndex: 1,
-        }}
+        className="w-full h-[70vh] rounded-2xl overflow-hidden bg-black"
       />
 
       {/* MODAL */}
-      {createModal && (
-        <div
-          className="fixed inset-0 flex items-center justify-center bg-black/50 z-[9999]"
-          onClick={() => setCreateModal(null)}
-        >
-          <div
-            className="bg-white text-black p-6 rounded-xl w-[380px] space-y-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold">יצירת נקודה</h2>
+      {modal && (
+        <PointForm
+          mode="create"
+          initialData={{
+            lat: modal.lat,
+            lng: modal.lng,
+          }}
+          onClose={() => setModal(null)}
+          onSubmit={async ({ form, tags }) => {
+            if (status !== "authenticated") return;
 
-                <p className="text-sm text-gray-500">
-                  Lat: {createModal.lat.toFixed(5)}
-                  <br />
-                  Lng: {createModal.lng.toFixed(5)}
-                </p>
-              </div>
+            const formData = new FormData();
 
-              {activeCategory && (
-                <div className="flex flex-col items-center">
-                  <img
-                    src={`/icons/categories/${activeCategory}/active.png`}
-                    alt={activeCategory}
-                    className="w-14 h-14 object-contain"
-                  />
+            formData.append("name", form.name);
+            formData.append("description", form.description);
+            formData.append("address", form.address);
+            formData.append("website", form.website);
+            formData.append("category", activeCategory ?? "");
+            formData.append("latitude", String(modal.lat));
+            formData.append("longitude", String(modal.lng));
+            formData.append("tags", JSON.stringify(tags));
 
-                  <span className="text-xs mt-1 text-gray-600">
-                    {activeCategory === "leaf" && "קהילה"}
-                    {activeCategory === "star" && "רוח"}
-                    {activeCategory === "triangle" && "מורשת"}
-                    {activeCategory === "circle" && "עסקים"}
-                  </span>
-                </div>
-              )}
-            </div>
+            if (form.image) {
+              formData.append("image", form.image);
+            }
 
-            <input
-              id="pointName"
-              placeholder="שם הנקודה"
-              className="w-full border p-2 rounded"
-            />
+            const res = await fetch("/api/points", {
+              method: "POST",
+              body: formData,
+            });
 
-            <textarea
-              id="pointDesc"
-              placeholder="תיאור קצר"
-              className="w-full border p-2 rounded"
-            />
+            const data = await res.json();
 
-            {/* TAGS */}
-            <div className="flex flex-wrap gap-2">
-              {AVAILABLE_TAGS.map((tag) => {
-                const active = selectedTags.includes(tag);
+            if (!res.ok) {
+              alert(data.error);
+              return;
+            }
 
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1 rounded-full border text-sm transition
-          ${active
-                        ? "bg-black text-white"
-                        : "bg-white text-black"
-                      }`}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-
-            <input
-              type="file"
-              id="pointImage"
-              accept="image/*"
-            />
-
-            <input
-              id="pointAddress"
-              placeholder="כתובת"
-              className="w-full border p-2 rounded"
-            />
-
-            <input
-              id="pointWebsite"
-              placeholder="קישור"
-              className="w-full border p-2 rounded"
-            />
-
-            <div className="flex justify-between">
-              <button
-                onClick={() => setCreateModal(null)}
-                className="text-red-500"
-              >
-                ביטול
-              </button>
-
-              <button
-                onClick={async () => {
-                  if (!isLoggedIn) {
-                    alert("אי אפשר להוסיף נקודות מבלי להתחבר");
-                    return;
-                  }
-                  const name = (
-                    document.getElementById("pointName") as HTMLInputElement
-                  ).value;
-
-                  const description = (
-                    document.getElementById("pointDesc") as HTMLTextAreaElement
-                  ).value;
-
-                  const fileInput =
-                    document.getElementById("pointImage") as HTMLInputElement;
-
-                  const file = fileInput.files?.[0];
-
-                  const address = (
-                    document.getElementById("pointAddress") as HTMLInputElement
-                  ).value;
-
-                  const website = (
-                    document.getElementById("pointWebsite") as HTMLInputElement
-                  ).value;
-
-                  const formData = new FormData();
-
-                  formData.append("name", name);
-                  formData.append("description", description);
-                  formData.append("address", address);
-                  formData.append("website", website);
-                  formData.append("category", activeCategory ?? "");
-                  formData.append("latitude", String(createModal.lat));
-                  formData.append("longitude", String(createModal.lng));
-                  formData.append("tags", JSON.stringify(selectedTags));
-
-                  if (file) {
-                    formData.append("image", file);
-                  }
-
-
-                  const res = await fetch("/api/points", {
-                    method: "POST",
-                    body: formData,
-                  });
-
-
-                  const data = await res.json();
-
-                  if (!res.ok) {
-                    alert(data.error);
-                    return;
-                  }
-
-                  setPoints((prev) => [...prev, data]);
-
-                  setCreateModal(null);
-
-                }}
-                className="flex items-center justify-center w-10 h-10 rounded-full bg-black hover:scale-105 transition"
-              >
-                <img
-                  src="/icons/ui/compass/default.png"
-                  className="w-6 h-6"
-                />
-              </button>
-            </div>
-          </div>
-        </div>
+            setPoints((prev) => [...prev, data]);
+            setModal(null);
+          }}
+        />
       )}
     </div>
   );
