@@ -10,17 +10,10 @@ import { auth } from "@/src/lib/auth/auth";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
-  const qRaw = searchParams.get("q")?.trim().toLowerCase() || "";
+  const qRaw = searchParams.get("q")?.trim() || "";
   const category = searchParams.get("category") || undefined;
 
   const andConditions: any[] = [];
-
-  const searchTerms = qRaw
-    ? Array.from(new Set([
-      qRaw,
-      ...(TAG_DICTIONARY[qRaw] || []),
-    ]))
-    : [];
 
   if (category) {
     andConditions.push({ category });
@@ -35,24 +28,28 @@ export async function GET(req: Request) {
             mode: "insensitive",
           },
         },
-
-        ...searchTerms.map((term) => ({
-          name: {
-            contains: term,
-            mode: "insensitive",
-          },
-        })),
-
         {
           description: {
             contains: qRaw,
             mode: "insensitive",
           },
         },
-
         {
-          tags: {
-            hasSome: searchTerms,
+          address: {
+            contains: qRaw,
+            mode: "insensitive",
+          },
+        },
+        {
+          website: {
+            contains: qRaw,
+            mode: "insensitive",
+          },
+        },
+        {
+          keywords: {
+            contains: qRaw,
+            mode: "insensitive",
           },
         },
       ],
@@ -67,8 +64,11 @@ export async function GET(req: Request) {
       createdAt: "desc",
     },
   });
+
   return Response.json(results);
 }
+
+
 
 export async function POST(req: Request) {
   try {
@@ -83,6 +83,8 @@ export async function POST(req: Request) {
     const website = formData.get("website") as string;
 
     const file = formData.get("image") as File | null;
+
+    const keywords = formData.get("keywords") as string | null;
 
     // ✅ מגיע מהקליינט
     const tagsRaw = formData.get("tags") as string | null;
@@ -151,7 +153,7 @@ export async function POST(req: Request) {
         imageUrl,
         address: address || null,
         website: website || null,
-        tags: tags ?? [],
+        keywords: keywords || null,
         userId: session.user.id,
       },
     });

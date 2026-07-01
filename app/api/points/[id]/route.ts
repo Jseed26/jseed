@@ -66,8 +66,7 @@ export async function PUT(req: Request, context: any) {
     const address = (formData.get("address") as string) || "";
     const website = (formData.get("website") as string) || "";
 
-    const tagsRaw = formData.get("tags") as string | null;
-    const tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+    const keywords = formData.get("keywords") as string | null;
 
     // const imageFile = formData.get("image") as File | null;
 
@@ -125,7 +124,7 @@ export async function PUT(req: Request, context: any) {
             category,
             address,
             website,
-            tags,
+            keywords,
 
             latitude,
             longitude,

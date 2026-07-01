@@ -62,9 +62,7 @@ model Point {
   address     String?
   website     String?
   imageUrl    String?
-
-  tags String[] @default([])
-
+  keywords    String?
   userId String?
   user   User? @relation(fields: [userId], references: [id])
 }
