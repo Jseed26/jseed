@@ -66,6 +66,7 @@ export default function AuthPage() {
         return /\S+@\S+\.\S+/.test(email);
     }
 
+
     return (
         <div className="h-screen flex items-center justify-center bg-black text-white">
             <div className="flex flex-col gap-3 w-72">
@@ -113,6 +114,31 @@ export default function AuthPage() {
                 >
                     {mode === "login" ? "אין לך חשבון? הירשם" : "יש לך חשבון? התחבר"}
                 </button>
+
+                <div className="flex flex-col gap-2 mt-4">
+                    <button
+                        onClick={() => signIn("github", { callbackUrl: "/" })}
+                        className="flex items-center justify-center gap-2 border border-gray-700 bg-black text-white p-2 rounded hover:bg-gray-900 transition"
+                    >
+                        <img
+                            src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
+                            className="w-5 h-5 invert"
+                        />
+                        התחבר עם GitHub
+                    </button>
+
+                    <button
+                        onClick={() => signIn("google", { callbackUrl: "/" })}
+                        className="flex items-center justify-center gap-2 border border-gray-300 bg-white text-black p-2 rounded hover:bg-gray-100 transition"
+                    >
+                        <img
+                            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                            className="w-5 h-5"
+                        />
+                        התחבר עם Google
+                    </button>
+
+                </div>
 
             </div>
         </div>

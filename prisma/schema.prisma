@@ -12,6 +12,8 @@ model User {
   email    String @unique
   password String?
   name     String?
+  image    String?
+  emailVerified DateTime?
 
   accounts Account[]
   sessions Session[]
@@ -28,6 +30,10 @@ model Account {
   refresh_token String?
   access_token  String?
   expires_at    Int?
+
+  token_type   String?
+  scope        String?
+  id_token     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

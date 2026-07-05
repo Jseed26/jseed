@@ -3,6 +3,8 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
+import GitHub from "next-auth/providers/github";
+import Google from "next-auth/providers/google";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     adapter: PrismaAdapter(prisma),
@@ -22,23 +24,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const email = credentials?.email;
                 const password = credentials?.password;
 
-                // בדיקות תקינות
                 if (!email || typeof email !== "string") return null;
                 if (!password || typeof password !== "string") return null;
 
-                // שליפת משתמש מה-DB
                 const user = await prisma.user.findUnique({
                     where: { email },
                 });
 
                 if (!user || !user.password) return null;
 
-                // בדיקת סיסמה
                 const isValid = await bcrypt.compare(password, user.password);
 
                 if (!isValid) return null;
 
-                // החזרת user ל-next-auth
                 return {
                     id: user.id.toString(),
                     email: user.email,
@@ -46,6 +44,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 };
             },
         }),
+
+        GitHub({
+            clientId: process.env.GITHUB_ID!,
+            clientSecret: process.env.GITHUB_SECRET!,
+        }),
+
+        Google({
+            clientId: process.env.GOOGLE_CLIENT_ID!,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+        }),
+
     ],
 
     callbacks: {
