@@ -19,7 +19,9 @@ type Point = {
 };
 
 export default function MyPointsPage() {
+    const [tab, setTab] = useState<"my" | "history">("my");
     const [points, setPoints] = useState<Point[]>([]);
+    const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
 
     const router = useRouter();
@@ -41,42 +43,68 @@ export default function MyPointsPage() {
     }
 
     useEffect(() => {
-        async function load() {
-            const res = await fetch("/api/my-points");
-
-            if (res.status === 401) {
+        async function loadData() {
+            // טעינת הנקודות שלי
+            const resMy = await fetch("/api/my-points");
+            if (resMy.status === 401) {
                 router.push("/auth");
                 return;
             }
+            const myData = await resMy.json();
+            setPoints(myData);
 
-            const data = await res.json();
-            setPoints(data);
+            // טעינת היסטוריה
+            const resHistory = await fetch("/api/history");
+            if (resHistory.ok) {
+                const historyData = await resHistory.json();
+                setHistoryPoints(historyData);
+            }
         }
 
-        load();
-    }, []);
+        loadData();
+    }, [router]);
+
+    const displayPoints = tab === "my" ? points : historyPoints;
 
     return (
         <div className="p-6 text-white bg-black min-h-screen">
-            <h1 className="text-2xl mb-6">הנקודות שלי</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl">האזור האישי</h1>
+                <button
+                    onClick={() => router.push("/")}
+                    className="flex items-center gap-2 text-white bg-gray-800 px-3 py-2 rounded hover:bg-gray-700"
+                >
+                    ← חזרה למפה
+                </button>
+            </div>
 
-            <button
-                onClick={() => router.push("/")}
-                className="flex items-center gap-2 text-white bg-gray-800 px-3 py-2 rounded hover:bg-gray-700"
-            >
-                ← חזרה למפה
-            </button>
+            {/* טאבים לניווט */}
+            <div className="flex gap-4 border-b border-gray-800 pb-2 mb-6 text-lg">
+                <button 
+                    onClick={() => setTab("my")}
+                    className={tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
+                >
+                    הנקודות שלי
+                </button>
+                <button 
+                    onClick={() => setTab("history")}
+                    className={tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
+                >
+                    היסטוריית צפיות
+                </button>
+            </div>
 
-            {points.length === 0 ? (
-                <p className="text-gray-400 mt-4">אין לך עדיין נקודות</p>
+            {displayPoints.length === 0 ? (
+                <p className="text-gray-400 mt-4">
+                    {tab === "my" ? "אין לך עדיין נקודות שיצרת" : "טרם צפית בנקודות"}
+                </p>
             ) : (
                 <div className="space-y-4 mt-4">
-                    {points.map((p) => (
+                    {displayPoints.map((p) => (
                         <div
                             key={p.id}
                             className="border border-gray-700 bg-gray-900 p-4 rounded"
                         >
-                            {/* תצוגה רגילה */}
                             <h2 className="font-bold text-lg">{p.name}</h2>
 
                             {p.imageUrl && (
@@ -94,34 +122,32 @@ export default function MyPointsPage() {
                                 <p>📍 קטגוריה: {p.category}</p>
                                 <p>🏠 כתובת: {p.address || "אין"}</p>
                                 <p>🌐 אתר: {p.website || "אין"}</p>
-                                <p>
-                                    📌 קואורדינטות: {p.latitude}, {p.longitude}
-                                </p>
                             </div>
 
-                           
-                            {/* כפתורים */}
-                            <div className="flex gap-2 mt-3">
-                                <button
-                                    onClick={() => setEditingPoint(p)}
-                                    className="bg-blue-500 text-black px-3 py-1 rounded"
-                                >
-                                    ערוך
-                                </button>
+                            {/* נציג כפתורי עריכה/מחיקה רק אם אנחנו בטאב הנקודות שלי */}
+                            {tab === "my" && (
+                                <div className="flex gap-2 mt-3">
+                                    <button
+                                        onClick={() => setEditingPoint(p)}
+                                        className="bg-blue-500 text-black px-3 py-1 rounded"
+                                    >
+                                        ערוך
+                                    </button>
 
-                                <button
-                                    onClick={() => deletePoint(p.id)}
-                                    className="bg-red-500 text-black px-3 py-1 rounded"
-                                >
-                                    מחק
-                                </button>
-                            </div>
+                                    <button
+                                        onClick={() => deletePoint(p.id)}
+                                        className="bg-red-500 text-black px-3 py-1 rounded"
+                                    >
+                                        מחק
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* 🔥 PointForm מאוחד לעריכה */}
+            {/* טופס העריכה נשאר זהה */}
             {editingPoint && (
                 <PointForm
                     mode="edit"
@@ -134,14 +160,12 @@ export default function MyPointsPage() {
                     onClose={() => setEditingPoint(null)}
                     onSubmit={async ({ form }) => {
                         const formData = new FormData();
-
                         formData.append("name", form.name);
                         formData.append("description", form.description);
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", editingPoint.category);
 
-                        // 🔥 חשוב מאוד:
                         if (form.image) {
                             formData.append("image", form.image);
                         }
@@ -153,11 +177,9 @@ export default function MyPointsPage() {
 
                         if (res.ok) {
                             const updated = await res.json();
-
                             setPoints((prev) =>
                                 prev.map((p) => (p.id === updated.id ? updated : p))
                             );
-
                             window.dispatchEvent(new Event("points-updated"));
                             setEditingPoint(null);
                         }
@@ -167,7 +189,7 @@ export default function MyPointsPage() {
 
             <button
                 onClick={handleLogout}
-                className="mt-6 bg-red-500 text-black px-4 py-2 rounded"
+                className="mt-8 bg-red-500 text-black px-4 py-2 rounded"
             >
                 התנתק
             </button>

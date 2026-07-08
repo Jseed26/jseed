@@ -33,11 +33,12 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
+  
+  // 1. הוספנו סטייט ששומר את מספרי הנקודות שהמשתמש צפה בהן
+  const [viewedIds, setViewedIds] = useState<number[]>([]);
 
   const { status } = useSession();
   const isLoggedIn = status === "authenticated";
-
-  const cursorMarkerRef = useRef<L.Marker | null>(null);
 
   /*
   ================================================================================
@@ -52,8 +53,8 @@ export default function Map({
     }
 
     const newMap = L.map(mapRef.current, {
-      center: [20, 0],
-      zoom: 2,
+      center: [31.7683, 35.2137], // אתחול לאזור רלוונטי (למשל ירושלים)
+      zoom: 8,
       minZoom: 1,
       maxZoom: 18,
       worldCopyJump: false,
@@ -81,7 +82,7 @@ export default function Map({
 
   /*
   ================================================================================
-  📡 LOAD POINTS
+  📡 LOAD POINTS & HISTORY
   ================================================================================
   */
   useEffect(() => {
@@ -94,55 +95,25 @@ export default function Map({
     load();
   }, []);
 
-  /*
-  ================================================================================
-  🖱️ PREVIEW CURSOR (DESKTOP ONLY)
-  ================================================================================
-  */
+  // 2. משיכת ההיסטוריה של המשתמש בטעינת המפה
   useEffect(() => {
-    if (!map) return;
+    if (!isLoggedIn) return;
 
-    const isMobile =
-      typeof window !== "undefined" && window.innerWidth < 768;
-
-    if (!isCompassMode || isMobile) {
-      if (cursorMarkerRef.current) {
-        map.removeLayer(cursorMarkerRef.current);
-        cursorMarkerRef.current = null;
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/history");
+        if (res.ok) {
+          const data = await res.json();
+          // שולפים רק את מספרי ה-ID מתוך הנקודות שחזרו מהשרת
+          setViewedIds(data.map((p: Point) => p.id));
+        }
+      } catch (err) {
+        console.error("Failed to load history", err);
       }
-      return;
     }
 
-    const previewIcon = L.icon({
-      iconUrl: "/icons/ui/compass/active.png",
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-    });
-
-    const handleMove = (e: any) => {
-      const latlng = e.latlng;
-
-      if (!cursorMarkerRef.current) {
-        cursorMarkerRef.current = L.marker(latlng, {
-          icon: previewIcon,
-          opacity: 0.9,
-        }).addTo(map);
-      } else {
-        cursorMarkerRef.current.setLatLng(latlng);
-      }
-    };
-
-    map.on("mousemove", handleMove);
-
-    return () => {
-      map.off("mousemove", handleMove);
-
-      if (cursorMarkerRef.current) {
-        map.removeLayer(cursorMarkerRef.current);
-        cursorMarkerRef.current = null;
-      }
-    };
-  }, [map, isCompassMode]);
+    loadHistory();
+  }, [isLoggedIn]);
 
   /*
   ================================================================================
@@ -186,13 +157,13 @@ export default function Map({
 
   /*
   ================================================================================
-  📍 MAP CLICK
+  📍 MAP CLICK (SELECT CENTER LOCATION)
   ================================================================================
   */
   useEffect(() => {
     if (!map) return;
 
-    const handleClick = (e: any) => {
+    const handleClick = () => {
       if (!isCompassMode) return;
 
       if (!activeCategory) {
@@ -205,9 +176,11 @@ export default function Map({
         return;
       }
 
+      const center = map.getCenter();
+      
       setModal({
-        lat: e.latlng.lat,
-        lng: e.latlng.lng,
+        lat: center.lat,
+        lng: center.lng,
       });
     };
 
@@ -216,7 +189,7 @@ export default function Map({
     return () => {
       map.off("click", handleClick);
     };
-  }, [map, isCompassMode, activeCategory]);
+  }, [map, isCompassMode, activeCategory, isLoggedIn]);
 
   /*
   ================================================================================
@@ -227,6 +200,7 @@ export default function Map({
     map,
     points,
     activeCategory,
+    viewedIds, // 3. העברת הרשימה להוק שבנינו כדי שיצבע אותן בהתאם!
   });
 
   /*
@@ -235,13 +209,29 @@ export default function Map({
   ================================================================================
   */
   return (
-    <div className="relative w-full h-full">
-
+    <div className="relative w-full h-[70vh]">
+      
       {/* MAP */}
       <div
         ref={mapRef}
-        className="w-full h-[70vh] rounded-2xl overflow-hidden bg-black"
+        className="w-full h-full rounded-2xl overflow-hidden bg-black relative"
       />
+
+      {/* CROSSHAIR (PLUS) OVERLAY - GOLD COLOR */}
+      {isCompassMode && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="w-10 h-10 text-[#FFD700] drop-shadow-[0_0_2px_rgba(255,255,255,1)]" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor" 
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </div>
+      )}
 
       {/* MODAL */}
       {modal && (
@@ -282,11 +272,9 @@ export default function Map({
               return;
             }
 
-
             setPoints((prev) => [...prev, data]);
             setModal(null);
 
-            // 🔥 לכבות מצב הוספה
             setCompassMode(false);
           }}
         />

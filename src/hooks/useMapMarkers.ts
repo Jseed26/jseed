@@ -9,16 +9,15 @@ type Props = {
   map: L.Map | null;
   points: Point[];
   activeCategory: Point["category"] | null;
+  viewedIds: number[];
 };
 
-export function useMapMarkers({ map, points, activeCategory }: Props) {
+export function useMapMarkers({ map, points, activeCategory, viewedIds = [] }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     if (!map) return;
-
     layerRef.current = L.layerGroup().addTo(map);
-
     return () => {
       layerRef.current?.remove();
     };
@@ -111,10 +110,14 @@ export function useMapMarkers({ map, points, activeCategory }: Props) {
       : points;
 
     filtered.forEach((point) => {
+      // בודקים אם הנקודה קיימת בהיסטוריה
+      const isViewed = viewedIds.includes(point.id);
+
       const marker = L.marker(
         [point.latitude, point.longitude],
         {
-          icon: createCategoryIcon(point.category),
+          // מעבירים את isViewed לאייקון
+          icon: createCategoryIcon(point.category, isViewed),
         }
       );
 
@@ -125,9 +128,21 @@ export function useMapMarkers({ map, points, activeCategory }: Props) {
 
       marker.on("click", () => {
         marker.openPopup();
+        
+        // 👈 מחליף את האייקון לכתום בו-זמנית על המסך ברגע הלחיצה!
+        marker.setIcon(createCategoryIcon(point.category, true));
+
+        // שולח את הדיווח לשרת (אם יש לנקודה ID)
+        if (point.id) {
+          fetch("/api/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pointId: point.id }),
+          }).catch((err) => console.error("Failed to save history:", err));
+        }
       });
 
       layerRef.current?.addLayer(marker);
     });
-  }, [map, points, activeCategory]);
+  }, [map, points, activeCategory, viewedIds]);
 }

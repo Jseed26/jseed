@@ -1,13 +1,13 @@
-//C:\Users\hadar\Desktop\jseed\jseed-web\src\lib\map\icons.ts
 import L from "leaflet";
 
-export const createCategoryIcon = (
-  category: string
-) =>
-  L.icon({
-    iconUrl: `/icons/categories/${category}/active.png`,
+// הוספנו את isViewed
+export const createCategoryIcon = (category: string, isViewed: boolean = false) => {
+  // אם נצפה - טוען את הכתום, אם לא - טוען את הרגיל
+  const fileName = isViewed ? "viewed.png" : "active.png";
 
+  return L.icon({
+    iconUrl: `/icons/categories/${category}/${fileName}`,
     iconSize: [36, 36],
-
     iconAnchor: [18, 18],
   });
+};

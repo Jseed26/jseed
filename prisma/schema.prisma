@@ -17,7 +17,8 @@ model User {
 
   accounts Account[]
   sessions Session[]
-  points   Point[]
+  points       Point[]
+  viewedPoints ViewedPoint[]
 }
 
 model Account {
@@ -71,4 +72,18 @@ model Point {
   keywords    String?
   userId String?
   user   User? @relation(fields: [userId], references: [id])
+  viewedBy     ViewedPoint[]
+}
+
+model ViewedPoint {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  pointId   Int
+  viewedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+
+  // מוודא שלכל משתמש תהיה רשומה אחת לכל נקודה, ואנחנו פשוט נעדכן את זמן הצפייה
+  @@unique([userId, pointId]) 
 }
