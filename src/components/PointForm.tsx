@@ -8,7 +8,7 @@ type FormState = {
     address: string;
     website: string;
     image: File | null;
-    keywords: string;
+    extraInfo: string;
 };
 
 type Props = {
@@ -35,7 +35,7 @@ export default function PointForm({
         address: initialData?.address || "",
         website: initialData?.website || "",
         image: null,
-        keywords: initialData?.keywords || "",
+        extraInfo: initialData?.extraInfo || "",
     });
 
     function handleSubmit() {
@@ -92,14 +92,12 @@ export default function PointForm({
                     }
                 />
 
-                {/* מילות חיפוש */}
+                {/* מלל חופשי */}
                 <textarea
-                    placeholder="ניתן להוסיף מילות חיפוש"
+                    placeholder="תוספות / מידע נוסף"
                     className="w-full border p-2 rounded bg-gray-50"
-                    value={form.keywords}
-                    onChange={(e) =>
-                        setForm({ ...form, keywords: e.target.value })
-                    }
+                    value={form.extraInfo} // נשנה מ-keywords ל-extraInfo
+                    onChange={(e) => setForm({ ...form, extraInfo: e.target.value })}
                 />
 
                 {/* כתובת */}

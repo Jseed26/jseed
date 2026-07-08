@@ -69,7 +69,7 @@ model Point {
   address     String?
   website     String?
   imageUrl    String?
-  keywords    String?
+  extraInfo   String?
   userId String?
   user   User? @relation(fields: [userId], references: [id])
   viewedBy     ViewedPoint[]

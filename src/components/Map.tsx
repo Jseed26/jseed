@@ -12,7 +12,7 @@ import PointForm from "@/src/components/PointForm";
 type MapProps = {
   activeCategory: Point["category"] | null;
   isCompassMode: boolean;
-  setCompassMode: (value: boolean) => void; 
+  setCompassMode: (value: boolean) => void;
   searchQuery: string;
   isLoggedIn: boolean;
 };
@@ -33,7 +33,7 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
-  
+
   // 1. הוספנו סטייט ששומר את מספרי הנקודות שהמשתמש צפה בהן
   const [viewedIds, setViewedIds] = useState<number[]>([]);
 
@@ -163,7 +163,7 @@ export default function Map({
   useEffect(() => {
     if (!map) return;
 
-    const handleClick = () => {
+    const handleClick = (e: L.LeafletMouseEvent) => {
       if (!isCompassMode) return;
 
       if (!activeCategory) {
@@ -176,11 +176,9 @@ export default function Map({
         return;
       }
 
-      const center = map.getCenter();
-      
       setModal({
-        lat: center.lat,
-        lng: center.lng,
+        lat: e.latlng.lat,
+        lng: e.latlng.lng,
       });
     };
 
@@ -210,7 +208,7 @@ export default function Map({
   */
   return (
     <div className="relative w-full h-[70vh]">
-      
+
       {/* MAP */}
       <div
         ref={mapRef}
@@ -220,12 +218,12 @@ export default function Map({
       {/* CROSSHAIR (PLUS) OVERLAY - GOLD COLOR */}
       {isCompassMode && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="w-10 h-10 text-[#FFD700] drop-shadow-[0_0_2px_rgba(255,255,255,1)]" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-10 h-10 text-[#FFD700] drop-shadow-[0_0_2px_rgba(255,255,255,1)]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
             strokeWidth={2.5}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -259,6 +257,14 @@ export default function Map({
             if (form.image) {
               formData.append("image", form.image);
             }
+
+            if (form.extraInfo) {
+              formData.append("extraInfo", form.extraInfo);
+            }
+
+
+            console.log("Modal coordinates:", modal.lat, modal.lng);
+
 
             const res = await fetch("/api/points", {
               method: "POST",
