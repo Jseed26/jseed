@@ -24,80 +24,26 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [] }: P
   }, [map]);
 
   function createPopup(point: Point) {
+    const imageHtml = point.imageUrl
+      ? `<img src="${point.imageUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" />`
+      : "";
+
+    const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
+
     return `
-      <div style="
-        width:240px;
-        font-family: Arial, sans-serif;
-        border-radius:14px;
-        overflow:hidden;
-        box-shadow:0 10px 25px rgba(0,0,0,0.25);
-        background:#fff;
-      ">
-
-        ${
-          point.imageUrl && point.imageUrl.trim() !== ""
-            ? `
-          <div style="width:100%; height:130px; overflow:hidden;">
-            <img
-              src="${point.imageUrl}"
-              style="
-                width:100%;
-                height:100%;
-                object-fit:cover;
-              "
-            />
-          </div>
-        `
-            : ""
-        }
-
-        <div style="padding:12px">
-
-          <h3 style="
-            margin:0;
-            font-size:16px;
-            font-weight:700;
-            color:#111;
-          ">
-            ${point.name}
-          </h3>
-
-          <p style="
-            margin:6px 0 10px;
-            font-size:13px;
-            color:#555;
-            line-height:1.4;
-          ">
-            ${point.description || "אין תיאור"}
-          </p>
-
-          <div style="font-size:12px; color:#666; margin-bottom:6px">
-            📍 ${point.address || "אין כתובת"}
-          </div>
-
-          ${
-            point.website
-              ? `
-            <a href="${point.website}" target="_blank"
-              style="
-                display:inline-block;
-                margin-top:8px;
-                padding:6px 10px;
-                background:#111;
-                color:#fff;
-                border-radius:8px;
-                text-decoration:none;
-                font-size:12px;
-              ">
-              לפתיחת קישור
-            </a>
-          `
-              : ""
-          }
-
-        </div>
+    <div style="width: 220px; font-family: sans-serif;" dir="rtl">
+      ${imageHtml}
+      <div style="max-height: 100px; overflow-y: auto; padding-right: 5px; font-size: 14px;">
+        <div style="margin-bottom: 6px;"><strong>שם:</strong> ${display(point.name)}</div>
+        <div style="margin-bottom: 6px;"><strong>תיאור:</strong> ${display(point.description)}</div>
+        <div style="margin-bottom: 6px;"><strong>מיקום:</strong> ${display(point.address)}</div>
+        <div style="margin-bottom: 6px;"><strong>קישור:</strong> ${point.website
+        ? `<a href="${point.website}" target="_blank" style="color: blue;">למעבר לאתר</a>`
+        : "-"
+      }</div>
       </div>
-    `;
+    </div>
+  `;
   }
 
   useEffect(() => {
@@ -128,7 +74,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [] }: P
 
       marker.on("click", () => {
         marker.openPopup();
-        
+
         // 👈 מחליף את האייקון לכתום בו-זמנית על המסך ברגע הלחיצה!
         marker.setIcon(createCategoryIcon(point.category, true));
 

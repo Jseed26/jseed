@@ -7,13 +7,13 @@ export type PointCategory =
 export type Point = {
   id: number;
   name: string;
-  category: PointCategory;
+  category: string;
   latitude: number;
   longitude: number;
-  createdAt?: string;
-
-  description?: string | null;
-  imageUrl?: string | null;
-  address?: string | null;
-  website?: string | null;
-};
+  description: string | null;
+  address: string | null;
+  website: string | null;
+  imageUrl: string | null;
+  extraInfo: string | null; 
+  
+  }

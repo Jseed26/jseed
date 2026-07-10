@@ -15,7 +15,7 @@ type Point = {
     imageUrl?: string;
     latitude: number;
     longitude: number;
-    keywords: string[];
+    extraInfo: string;
 };
 
 export default function MyPointsPage() {
@@ -80,13 +80,13 @@ export default function MyPointsPage() {
 
             {/* טאבים לניווט */}
             <div className="flex gap-4 border-b border-gray-800 pb-2 mb-6 text-lg">
-                <button 
+                <button
                     onClick={() => setTab("my")}
                     className={tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
                 >
                     הנקודות שלי
                 </button>
-                <button 
+                <button
                     onClick={() => setTab("history")}
                     className={tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
                 >
@@ -156,6 +156,9 @@ export default function MyPointsPage() {
                         description: editingPoint.description,
                         address: editingPoint.address,
                         website: editingPoint.website,
+                        extraInfo: editingPoint.extraInfo,
+                        lat: editingPoint.latitude,
+                        lng: editingPoint.longitude,
                     }}
                     onClose={() => setEditingPoint(null)}
                     onSubmit={async ({ form }) => {
@@ -168,6 +171,10 @@ export default function MyPointsPage() {
 
                         if (form.image) {
                             formData.append("image", form.image);
+                        }
+
+                        if (form.extraInfo) {
+                            formData.append("extraInfo", form.extraInfo);
                         }
 
                         const res = await fetch(`/api/points/${editingPoint.id}`, {
