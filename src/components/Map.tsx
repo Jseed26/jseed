@@ -69,7 +69,7 @@ export default function Map({
 
     // שימוש באריחים כהים (Dark Matter) שמתאימים לעיצוב השחור-זהב שלך
     L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
       {
         attribution: "&copy; OpenStreetMap & CARTO",
         noWrap: true,
