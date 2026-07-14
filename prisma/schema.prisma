@@ -19,6 +19,7 @@ model User {
   sessions Session[]
   points       Point[]
   viewedPoints ViewedPoint[]
+  savedPoints  SavedPoint[]
 }
 
 model Account {
@@ -73,6 +74,7 @@ model Point {
   userId String?
   user   User? @relation(fields: [userId], references: [id])
   viewedBy     ViewedPoint[]
+  savedBy     SavedPoint[]
 }
 
 model ViewedPoint {
@@ -85,5 +87,18 @@ model ViewedPoint {
   point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
 
   // מוודא שלכל משתמש תהיה רשומה אחת לכל נקודה, ואנחנו פשוט נעדכן את זמן הצפייה
+  @@unique([userId, pointId]) 
+}
+
+model SavedPoint {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  pointId   Int
+  savedAt   DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+
+  // מונע שמירה כפולה של אותה נקודה על ידי אותו משתמש
   @@unique([userId, pointId]) 
 }

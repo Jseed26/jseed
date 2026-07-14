@@ -15,13 +15,14 @@ type Point = {
     imageUrl?: string;
     latitude: number;
     longitude: number;
-    extraInfo: string;
+    extraInfo?: string;
 };
 
 export default function MyPointsPage() {
-    const [tab, setTab] = useState<"my" | "history">("my");
+    const [tab, setTab] = useState<"my" | "history" | "saved">("my"); // 👈 הוספנו את הטאב saved
     const [points, setPoints] = useState<Point[]>([]);
     const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
+    const [savedPoints, setSavedPoints] = useState<Point[]>([]); // 👈 סטייט חדש לנקודות שמורות
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
 
     const router = useRouter();
@@ -59,15 +60,28 @@ export default function MyPointsPage() {
                 const historyData = await resHistory.json();
                 setHistoryPoints(historyData);
             }
+
+            // 👈 טעינת שמורים (מועדפים)
+            const resSaved = await fetch("/api/saved");
+            if (resSaved.ok) {
+                const savedData = await resSaved.json();
+                setSavedPoints(savedData);
+            }
         }
 
         loadData();
     }, [router]);
 
-    const displayPoints = tab === "my" ? points : historyPoints;
+    // שליפת הנקודות הנכונות להצגה לפי הטאב הפעיל
+    const displayPoints = 
+        tab === "my" 
+            ? points 
+            : tab === "history" 
+                ? historyPoints 
+                : savedPoints;
 
     return (
-        <div className="p-6 text-white bg-black min-h-screen">
+        <div className="p-6 text-white bg-black min-h-screen" dir="rtl">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl">האזור האישי</h1>
                 <button
@@ -92,11 +106,22 @@ export default function MyPointsPage() {
                 >
                     היסטוריית צפיות
                 </button>
+                {/* 👈 הטאב החדש למועדפים */}
+                <button
+                    onClick={() => setTab("saved")}
+                    className={tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
+                >
+                    שמורים ❤️
+                </button>
             </div>
 
             {displayPoints.length === 0 ? (
                 <p className="text-gray-400 mt-4">
-                    {tab === "my" ? "אין לך עדיין נקודות שיצרת" : "טרם צפית בנקודות"}
+                    {tab === "my" 
+                        ? "אין לך עדיין נקודות שיצרת" 
+                        : tab === "history" 
+                            ? "טרם צפית בנקודות" 
+                            : "אין לך עדיין נקודות שמורות"}
                 </p>
             ) : (
                 <div className="space-y-4 mt-4">
@@ -124,7 +149,7 @@ export default function MyPointsPage() {
                                 <p>🌐 אתר: {p.website || "אין"}</p>
                             </div>
 
-                            {/* נציג כפתורי עריכה/מחיקה רק אם אנחנו בטאב הנקודות שלי */}
+                            {/* כפתורי עריכה/מחיקה יוצגו רק בטאב הנקודות שיצרתי */}
                             {tab === "my" && (
                                 <div className="flex gap-2 mt-3">
                                     <button
@@ -147,7 +172,7 @@ export default function MyPointsPage() {
                 </div>
             )}
 
-            {/* טופס העריכה נשאר זהה */}
+            {/* טופס העריכה */}
             {editingPoint && (
                 <PointForm
                     mode="edit"
@@ -168,13 +193,13 @@ export default function MyPointsPage() {
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", editingPoint.category);
+                        
+                        if (form.extraInfo) {
+                            formData.append("extraInfo", form.extraInfo);
+                        }
 
                         if (form.image) {
                             formData.append("image", form.image);
-                        }
-
-                        if (form.extraInfo) {
-                            formData.append("extraInfo", form.extraInfo);
                         }
 
                         const res = await fetch(`/api/points/${editingPoint.id}`, {
@@ -196,7 +221,7 @@ export default function MyPointsPage() {
 
             <button
                 onClick={handleLogout}
-                className="mt-8 bg-red-500 text-black px-4 py-2 rounded"
+                className="mt-8 bg-red-500 text-black px-4 py-2 rounded animate-pulse"
             >
                 התנתק
             </button>

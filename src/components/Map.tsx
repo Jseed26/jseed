@@ -34,8 +34,8 @@ export default function Map({
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
 
-  // 1. הוספנו סטייט ששומר את מספרי הנקודות שהמשתמש צפה בהן
   const [viewedIds, setViewedIds] = useState<number[]>([]);
+  const [savedIds, setSavedIds] = useState<number[]>([]); // 👈 1. סטייט חדש לשמירת מזהי הנקודות השמורות
 
   const { status } = useSession();
   const isLoggedIn = status === "authenticated";
@@ -53,7 +53,7 @@ export default function Map({
     }
 
     const newMap = L.map(mapRef.current, {
-      center: [31.7683, 35.2137], // אתחול לאזור רלוונטי (למשל ירושלים)
+      center: [31.7683, 35.2137],
       zoom: 8,
       minZoom: 1,
       maxZoom: 18,
@@ -82,7 +82,7 @@ export default function Map({
 
   /*
   ================================================================================
-  📡 LOAD POINTS & HISTORY
+  📡 LOAD POINTS, HISTORY & SAVED
   ================================================================================
   */
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function Map({
     load();
   }, []);
 
-  // 2. משיכת ההיסטוריה של המשתמש בטעינת המפה
+  // משיכת ההיסטוריה של המשתמש בטעינת המפה
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -104,7 +104,6 @@ export default function Map({
         const res = await fetch("/api/history");
         if (res.ok) {
           const data = await res.json();
-          // שולפים רק את מספרי ה-ID מתוך הנקודות שחזרו מהשרת
           setViewedIds(data.map((p: Point) => p.id));
         }
       } catch (err) {
@@ -113,6 +112,25 @@ export default function Map({
     }
 
     loadHistory();
+  }, [isLoggedIn]);
+
+  // 👈 2. משיכת רשימת הנקודות השמורות של המשתמש בטעינת המפה
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    async function loadSaved() {
+      try {
+        const res = await fetch("/api/saved");
+        if (res.ok) {
+          const data = await res.json();
+          setSavedIds(data.map((p: Point) => p.id));
+        }
+      } catch (err) {
+        console.error("Failed to load saved points", err);
+      }
+    }
+
+    loadSaved();
   }, [isLoggedIn]);
 
   /*
@@ -138,14 +156,24 @@ export default function Map({
 
   /*
   ================================================================================
-  🔄 LIVE REFRESH
+  🔄 LIVE REFRESH (מתעדכן כשנוצרת נקודה או כשמשתנה סטטוס שמירה)
   ================================================================================
   */
   useEffect(() => {
     const refresh = async () => {
+      // רענון נקודות כלליות במפה
       const res = await fetch("/api/points");
       const data = await res.json();
       setPoints(data);
+
+      // 👈 3. רענון רשימת השמורים בזמן אמת
+      if (isLoggedIn) {
+        const resSaved = await fetch("/api/saved");
+        if (resSaved.ok) {
+          const savedData = await resSaved.json();
+          setSavedIds(savedData.map((p: Point) => p.id));
+        }
+      }
     };
 
     window.addEventListener("points-updated", refresh);
@@ -153,7 +181,7 @@ export default function Map({
     return () => {
       window.removeEventListener("points-updated", refresh);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   /*
   ================================================================================
@@ -198,7 +226,8 @@ export default function Map({
     map,
     points,
     activeCategory,
-    viewedIds, // 3. העברת הרשימה להוק שבנינו כדי שיצבע אותן בהתאם!
+    viewedIds,
+    savedIds, // 👈 4. העברת רשימת השמורים ל-Hook של המרקרים
   });
 
   /*
@@ -215,7 +244,7 @@ export default function Map({
         className="w-full h-full rounded-2xl overflow-hidden bg-black relative"
       />
 
-      {/* CROSSHAIR (PLUS) OVERLAY - GOLD COLOR */}
+      {/* CROSSHAIR (PLUS) OVERLAY */}
       {isCompassMode && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
           <svg
@@ -262,9 +291,7 @@ export default function Map({
               formData.append("extraInfo", form.extraInfo);
             }
 
-
             console.log("Modal coordinates:", modal.lat, modal.lng);
-
 
             const res = await fetch("/api/points", {
               method: "POST",
@@ -280,7 +307,6 @@ export default function Map({
 
             setPoints((prev) => [...prev, data]);
             setModal(null);
-
             setCompassMode(false);
           }}
         />
