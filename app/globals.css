@@ -53,3 +53,8 @@ body {
 .leaflet-container {
   background: radial-gradient(circle, #111 0%, #000 70%);
 }
+
+/* ים שחור, יבשות אפורות, טקסט בהיר */
+.custom-dark-tiles {
+  filter: brightness(1.2) contrast(1.5) grayscale(1);
+}

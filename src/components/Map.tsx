@@ -52,24 +52,28 @@ export default function Map({
       (mapRef.current as any)._leaflet_id = null;
     }
 
+    // הגדרת גבולות קשיחים - מונע גרירה של המפה לאזורים ריקים בצפון/דרום ובקטבים
+    const southWest = L.latLng(-85, -180);
+    const northEast = L.latLng(85, 180);
+    const bounds = L.latLngBounds(southWest, northEast);
+
     const newMap = L.map(mapRef.current, {
-      center: [31.7683, 35.2137],
-      zoom: 8,
-      minZoom: 1,
+      center: [31.7683, 35.2137], // מרכז ראשוני
+      zoom: 3, // זום התחלתי שמציג את רוב העולם
+      minZoom: 2.5, // 👈 מונע זום-אאוט רחוק מדי שיראה את קצוות המפה
       maxZoom: 18,
+      maxBounds: bounds, // 👈 נועל את גרירת המפה בתוך גבולות העולם
+      maxBoundsViscosity: 1.0, // 👈 הופך את הגבול ל"קיר קשיח" - המפה לא תקפוץ החוצה
       worldCopyJump: false,
-      maxBounds: [
-        [-85, -180],
-        [85, 180],
-      ],
-      maxBoundsViscosity: 1.0,
     });
 
+    // שימוש באריחים כהים (Dark Matter) שמתאימים לעיצוב השחור-זהב שלך
     L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
       {
         attribution: "&copy; OpenStreetMap & CARTO",
         noWrap: true,
+        bounds: bounds,
       }
     ).addTo(newMap);
 
@@ -79,7 +83,6 @@ export default function Map({
       newMap.remove();
     };
   }, []);
-
   /*
   ================================================================================
   📡 LOAD POINTS, HISTORY & SAVED

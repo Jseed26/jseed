@@ -15,5 +15,5 @@ export type Point = {
   website: string | null;
   imageUrl: string | null;
   extraInfo: string | null; 
-  
+  linkClicks: number;
   }

@@ -31,8 +31,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     container.style.fontFamily = "sans-serif";
     container.dir = "rtl";
 
-    const imageHtml = point.imageUrl 
-      ? `<img src="${point.imageUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" />` 
+    const imageHtml = point.imageUrl
+      ? `<img src="${point.imageUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" />`
       : "";
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
@@ -45,11 +45,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         <div style="margin-bottom: 6px;"><strong>שם:</strong> ${display(point.name)}</div>
         <div style="margin-bottom: 6px;"><strong>תיאור:</strong> ${display(point.description)}</div>
         <div style="margin-bottom: 6px;"><strong>מיקום:</strong> ${display(point.address)}</div>
-        <div style="margin-bottom: 6px;"><strong>קישור:</strong> ${
-          point.website 
-            ? `<a href="${point.website}" target="_blank" style="color: blue;">למעבר לאתר</a>` 
-            : "-"
-        }</div>
+        <div style="margin-bottom: 6px;"><strong>קישור:</strong> ${point.website
+        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: blue;">למעבר לאתר</a>`
+        : "-"
+      }</div>
       </div>
       
       <div style="margin-top: 8px; text-align: left; border-top: 1px solid #eee; padding-top: 6px;">
@@ -72,10 +71,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
           if (res.ok) {
             const data = await res.json();
-            
+
             // שינוי האייקון באופן מיידי
             btn.innerText = data.saved ? "❤️" : "🤍";
-            
+
             // עדכון שאר האפליקציה שהייתה שמירה
             window.dispatchEvent(new Event("points-updated"));
           } else {
@@ -84,6 +83,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         } catch (err) {
           console.error("Failed to toggle save point:", err);
         }
+      };
+    }
+
+    // 👈 התוספת החדשה: ספירת קליקים על האתר
+    const linkBtn = container.querySelector(".point-website-link") as HTMLAnchorElement;
+    if (linkBtn) {
+      linkBtn.onclick = () => {
+        // שולחים דיווח לשרת ברקע (הדפדפן יפתח את הטאב החדש במקביל)
+        fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(console.error);
       };
     }
 

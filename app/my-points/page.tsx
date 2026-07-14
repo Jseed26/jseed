@@ -16,6 +16,11 @@ type Point = {
     latitude: number;
     longitude: number;
     extraInfo?: string;
+    linkClicks: number; // 👈 המונה החדש
+    _count?: {          // 👈 הספירות שמגיעות מפריזמה
+        viewedBy: number;
+        savedBy: number;
+    };
 };
 
 export default function MyPointsPage() {
@@ -73,11 +78,11 @@ export default function MyPointsPage() {
     }, [router]);
 
     // שליפת הנקודות הנכונות להצגה לפי הטאב הפעיל
-    const displayPoints = 
-        tab === "my" 
-            ? points 
-            : tab === "history" 
-                ? historyPoints 
+    const displayPoints =
+        tab === "my"
+            ? points
+            : tab === "history"
+                ? historyPoints
                 : savedPoints;
 
     return (
@@ -117,10 +122,10 @@ export default function MyPointsPage() {
 
             {displayPoints.length === 0 ? (
                 <p className="text-gray-400 mt-4">
-                    {tab === "my" 
-                        ? "אין לך עדיין נקודות שיצרת" 
-                        : tab === "history" 
-                            ? "טרם צפית בנקודות" 
+                    {tab === "my"
+                        ? "אין לך עדיין נקודות שיצרת"
+                        : tab === "history"
+                            ? "טרם צפית בנקודות"
                             : "אין לך עדיין נקודות שמורות"}
                 </p>
             ) : (
@@ -148,6 +153,33 @@ export default function MyPointsPage() {
                                 <p>🏠 כתובת: {p.address || "אין"}</p>
                                 <p>🌐 אתר: {p.website || "אין"}</p>
                             </div>
+
+                            {/* 👈 שורת הסטטיסטיקות - נציג אותה רק בטאב "הנקודות שלי" */}
+                            {tab === "my" && (
+                                <div className="flex justify-around items-center mt-4 pt-3 border-t border-gray-800 text-sm text-gray-400 bg-black/30 p-2 rounded-lg">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-lg">👁️</span>
+                                        <span>{p._count?.viewedBy || 0} צפיות</span>
+                                    </div>
+                                    <div className="w-px h-8 bg-gray-700"></div>
+
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-lg">❤️</span>
+                                        <span>{p._count?.savedBy || 0} שמירות</span>
+                                    </div>
+
+                                    {/* נציג לחיצות על אתר רק אם יש אתר מוגדר בנקודה הזו */}
+                                    {p.website && (
+                                        <>
+                                            <div className="w-px h-8 bg-gray-700"></div>
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-lg">🔗</span>
+                                                <span>{p.linkClicks || 0} קליקים</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
 
                             {/* כפתורי עריכה/מחיקה יוצגו רק בטאב הנקודות שיצרתי */}
                             {tab === "my" && (
@@ -193,7 +225,7 @@ export default function MyPointsPage() {
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", editingPoint.category);
-                        
+
                         if (form.extraInfo) {
                             formData.append("extraInfo", form.extraInfo);
                         }

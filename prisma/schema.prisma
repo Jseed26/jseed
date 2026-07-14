@@ -15,11 +15,15 @@ model User {
   image    String?
   emailVerified DateTime?
 
+  isAdmin       Boolean   @default(false) // 👈 מזהה אם המשתמש הוא מנהל
+  timeSpentMins Int       @default(0)     // 👈 סופר כמה דקות המשתמש בילה באתר
+
   accounts Account[]
   sessions Session[]
   points       Point[]
   viewedPoints ViewedPoint[]
   savedPoints  SavedPoint[]
+  
 }
 
 model Account {
@@ -72,6 +76,7 @@ model Point {
   imageUrl    String?
   extraInfo   String?
   userId String?
+  linkClicks  Int      @default(0)
   user   User? @relation(fields: [userId], references: [id])
   viewedBy     ViewedPoint[]
   savedBy     SavedPoint[]
