@@ -7,7 +7,13 @@ export const createCategoryIcon = (category: string, isViewed: boolean = false) 
 
   return L.icon({
     iconUrl: `/icons/categories/${category}/${fileName}`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    iconSize: [30, 30], 
+    
+    // 👇 עוגן הסמן: איזה חלק בתמונה מצביע בדיוק על הנ"צ? 
+    // בדרך כלל זה האמצע של הציר האופקי, והתחתית של הציר האנכי
+    iconAnchor: [20, 40], 
+    
+    // מאיפה הפופאפ יפתח ביחס לעוגן (כדי שלא יכסה את האייקון)
+    popupAnchor: [0, -40],
   });
 };

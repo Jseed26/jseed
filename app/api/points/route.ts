@@ -22,6 +22,12 @@ export async function GET(req: Request) {
   const qRaw = searchParams.get("q")?.trim();
   const category = searchParams.get("category");
 
+  // מפצלים את שורת החיפוש למילים נפרדות (למשל "kosher food" -> ["kosher", "food"])
+  const rawTerms = qRaw ? qRaw.split(/\s+/).filter(t => t.length > 0) : [];
+
+  // מעבירים כל מילה דרך המילון. נקבל מערך של מערכים (למשל: [ ["כשר", "kosher"], ["אוכל", "food"] ])
+  const searchGroups = rawTerms.map(t => normalizeSearchTerm(t));
+
   // פיצול המילים של המשתמש וניקוי תחיליות (ב', ל', ו', ה')
   const searchTerms = qRaw
     ? qRaw.split(/\s+/).filter(t => t.length > 0).map(t => normalizeSearchTerm(t))
@@ -32,12 +38,16 @@ export async function GET(req: Request) {
       ...(category ? { category } : {}),
 
       // מחפשים נקודות שכל מילות החיפוש מופיעות באחד השדות שלהן
-      AND: searchTerms.map(term => ({
-        OR: [
-          { name: { contains: term, mode: "insensitive" } },
-          { description: { contains: term, mode: "insensitive" } },
-          { address: { contains: term, mode: "insensitive" } },
-          { extraInfo: { contains: term, mode: "insensitive" } },]
+      AND: searchGroups.map(groupOptions => ({
+        // בתוך הקבוצה (למשל "אוכל" או "food"), מספיק שאחד מהם יופיע באחד השדות
+        OR: groupOptions.map(option => ({
+          OR: [
+            { name: { contains: option, mode: "insensitive" } },
+            { description: { contains: option, mode: "insensitive" } },
+            { address: { contains: option, mode: "insensitive" } },
+            { extraInfo: { contains: option, mode: "insensitive" } },
+          ]
+        }))
       }))
     },
     orderBy: { createdAt: "desc" },
