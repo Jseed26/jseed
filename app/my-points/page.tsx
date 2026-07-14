@@ -92,7 +92,7 @@ export default function MyPointsPage() {
         );
     }
 
-    const userName = session?.user?.name ? session.user.name : "שלי";
+    const userName = session?.user?.name ? session.user.name : "";
 
     const displayPoints =
         tab === "my"
