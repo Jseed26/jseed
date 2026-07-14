@@ -32,6 +32,13 @@ export default function MyPointsPage() {
     const [savedPoints, setSavedPoints] = useState<Point[]>([]);
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
 
+    const categoryNames: Record<string, string> = {
+        leaf: "community",
+        star: "spirit",
+        triangle: "legacy",
+        circle: "business"
+    };
+
     const router = useRouter();
 
     useEffect(() => {
@@ -92,7 +99,7 @@ export default function MyPointsPage() {
         );
     }
 
-    const userName = session?.user?.name ? session.user.name : "";
+    const userName = session?.user?.name ? session.user.name : "האזור";
 
     const displayPoints =
         tab === "my"
@@ -104,12 +111,12 @@ export default function MyPointsPage() {
     return (
         <div className="p-6 text-white bg-black min-h-screen" dir="rtl">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl">האזור האישי של {userName}</h1>
+                <h1 className="text-2xl">{userName}</h1>
                 <button
                     onClick={() => router.push("/")}
                     className="flex items-center gap-2 text-white bg-gray-800 px-3 py-2 rounded hover:bg-gray-700"
                 >
-                    ← חזרה למפה
+                    למפה
                 </button>
             </div>
 
@@ -129,9 +136,17 @@ export default function MyPointsPage() {
                 </button>
                 <button
                     onClick={() => setTab("saved")}
-                    className={tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
+                    className={`flex items-center gap-1.5 pb-1 ${tab === "saved"
+                        ? "text-yellow-500 font-bold border-b-2 border-yellow-500"
+                        : "text-gray-400 hover:text-gray-200"
+                        }`}
                 >
-                    שמורים ❤️
+                    שמורים
+                    <img
+                        src="/icons/ui/plant/active.png"
+                        alt="שמורים"
+                        className="w-4 h-4 sm:w-5 sm:h-5 object-contain"
+                    />
                 </button>
             </div>
 
@@ -164,9 +179,26 @@ export default function MyPointsPage() {
                             </p>
 
                             <div className="text-xs text-gray-400 mt-2 space-y-1">
-                                <p>📍 קטגוריה: {p.category}</p>
+                                {/* 👈 שימוש במילון כדי להציג שם בעברית */}
+                                <p>📍 קטגוריה: {categoryNames[p.category] || p.category}</p>
+
                                 <p>🏠 כתובת: {p.address || "אין"}</p>
-                                <p>🌐 אתר: {p.website || "אין"}</p>
+
+                                {/* 👈 הפיכת הקישור הארוך למילה לחיצה ואסתטית */}
+                                <p>
+                                    🌐 אתר: {p.website ? (
+                                        <a
+                                            href={p.website}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 underline"
+                                        >
+                                            למעבר לאתר
+                                        </a>
+                                    ) : (
+                                        "אין"
+                                    )}
+                                </p>
                             </div>
 
                             {tab === "my" && (
