@@ -36,9 +36,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       : "";
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
-    const heartIcon = isSaved ? "❤️" : "🤍";
+    
+    const plantIconSrc = isSaved 
+      ? "/icons/ui/plant/active.png" 
+      : "/icons/ui/plant/default.png";
 
-    // מכניסים את התוכן לתוך הקונטיינר שיצרנו
+    // 👈 שומרים משתנה מקומי עם כמות השמירות הנוכחית שמגיעה מה-DB
+    let currentSavedCount = point._count?.savedBy || 0;
+
+    // מכניסים את התוכן לתוך הקונטיינר
     container.innerHTML = `
       ${imageHtml}
       <div style="max-height: 100px; overflow-y: auto; padding-right: 5px; font-size: 14px;">
@@ -51,51 +57,76 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       }</div>
       </div>
       
-      <div style="margin-top: 8px; text-align: left; border-top: 1px solid #eee; padding-top: 6px;">
-        <button class="save-point-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; outline: none;">
-          ${heartIcon}
+      <div style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px; display: flex; items-center: center; justify-content: space-between; align-items: center;">
+        
+        <span class="saved-count-text" style="font-size: 12px; color: #888; font-weight: bold;">
+          ${currentSavedCount} שמירות
+        </span>
+
+        <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; justify-content: center;">
+          <img src="${plantIconSrc}" alt="Save" style="width: 28px; height: 28px; object-fit: contain; transition: transform 0.2s;" />
         </button>
       </div>
     `;
 
-    // עכשיו, כשהאלמנט קיים בזיכרון, מחברים את הלחיצה לכפתור הלב באופן ישיר!
     const btn = container.querySelector(".save-point-btn") as HTMLButtonElement;
+    const countText = container.querySelector(".saved-count-text") as HTMLSpanElement; // תופסים את אלמנט המונה
+
     if (btn) {
       btn.onclick = async () => {
+        const img = btn.querySelector("img");
+        if (img) img.style.transform = "scale(0.8)";
+
         try {
           const res = await fetch("/api/saved", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pointId: point.id }) // המזהה נלקח ישירות מהנקודה
+            body: JSON.stringify({ pointId: point.id })
           });
 
           if (res.ok) {
             const data = await res.json();
 
-            // שינוי האייקון באופן מיידי
-            btn.innerText = data.saved ? "❤️" : "🤍";
+            // שינוי האייקון
+            if (img) {
+                img.src = data.saved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
+                img.style.transform = "scale(1)";
+            }
+
+            // 👈 עדכון המונה בלייב על המסך בהתאם לתשובת השרת
+            if (data.saved) {
+                currentSavedCount += 1; // אם נוסף לשמורים, מעלים ב-1
+            } else {
+                currentSavedCount -= 1; // אם הוסר מהשמורים, מורידים ב-1
+            }
+            
+            // מעדכנים פיזית את המלל בתוך הבלון
+            if (countText) {
+                countText.innerText = `${currentSavedCount} שמירות`;
+            }
 
             // עדכון שאר האפליקציה שהייתה שמירה
             window.dispatchEvent(new Event("points-updated"));
           } else {
+            if (img) img.style.transform = "scale(1)";
             alert("צריך להתחבר כדי לשמור נקודות");
           }
         } catch (err) {
           console.error("Failed to toggle save point:", err);
+          if (img) img.style.transform = "scale(1)";
         }
       };
     }
 
-    // 👈 התוספת החדשה: ספירת קליקים על האתר
+    // ספירת קליקים על האתר
     const linkBtn = container.querySelector(".point-website-link") as HTMLAnchorElement;
     if (linkBtn) {
       linkBtn.onclick = () => {
-        // שולחים דיווח לשרת ברקע (הדפדפן יפתח את הטאב החדש במקביל)
         fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(console.error);
       };
     }
 
-    return container; // מחזירים את האלמנט השלם למפה
+    return container;
   }
 
   useEffect(() => {
@@ -118,7 +149,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         }
       );
 
-      // במקום להעביר string, אנחנו מעבירים את ה-Node האמיתי
       marker.bindPopup(createPopupNode(point, isSaved), {
         closeButton: true,
         className: "custom-popup",

@@ -50,6 +50,14 @@ export async function GET(req: Request) {
         }))
       }))
     },
+
+    include: {
+      _count: {
+        select: {
+          savedBy: true // סופר כמה אנשים שמרו את הנקודה
+        }
+      }
+    },
     orderBy: { createdAt: "desc" },
   });
 
