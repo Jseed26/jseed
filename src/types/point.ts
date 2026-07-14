@@ -14,6 +14,12 @@ export type Point = {
   address: string | null;
   website: string | null;
   imageUrl: string | null;
-  extraInfo: string | null; 
+  extraInfo: string | null;
   linkClicks: number;
-  }
+
+  // 👈 הנה התוספת שתרגיע את TypeScript!
+  _count?: {
+    viewedBy: number;
+    savedBy: number;
+  };
+}

@@ -9,7 +9,8 @@ export default function AuthPage() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    
+    const [name, setName] = useState("");
+
     // סטייטים חדשים עבור התקנון
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
@@ -19,6 +20,12 @@ export default function AuthPage() {
 
     async function handleRegister() {
         setError(null);
+
+        // 👈 ולידציה לשם
+        if (name.trim().length < 2) {
+            setError("יש להזין שם (לפחות 2 אותיות)");
+            return;
+        }
 
         if (!isValidEmail(email)) {
             setError("האימייל שהוזן לא תקין");
@@ -40,7 +47,7 @@ export default function AuthPage() {
 
         const res = await fetch("/api/auth/register", {
             method: "POST",
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ name, email, password }),
         });
 
         setLoading(false);
@@ -81,10 +88,10 @@ export default function AuthPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-4" dir="rtl">
-            
+
             {/* הכרטיס המרכזי */}
             <div className="flex flex-col gap-6 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden">
-                
+
                 {/* רקע זוהר עדין מאחורי הכרטיס */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-yellow-500 opacity-50 blur-[10px]"></div>
 
@@ -103,7 +110,21 @@ export default function AuthPage() {
                     </div>
                 )}
 
+
                 <div className="flex flex-col gap-4">
+
+                    {/* 👈 השדה החדש שמופיע רק בהרשמה */}
+                    {mode === "register" && (
+                        <input
+                            placeholder="שם מלא / כינוי"
+                            type="text"
+                            value={name}
+                            className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                            onChange={(e) => setName(e.target.value)}
+                        />
+                    )}
+
+
                     <input
                         placeholder="אימייל"
                         type="email"
@@ -132,7 +153,7 @@ export default function AuthPage() {
                             />
                             <label htmlFor="terms" className="text-sm text-gray-400 cursor-pointer">
                                 קראתי ואני מסכים/ה ל
-                                <button 
+                                <button
                                     type="button"
                                     onClick={(e) => {
                                         e.preventDefault();
@@ -208,7 +229,7 @@ export default function AuthPage() {
                         <div className="text-gray-300 text-sm leading-relaxed mb-6 min-h-[100px]">
                             התקנון של JSEED. בהמשך נוסיף תנאים אמיתיים.
                         </div>
-                        <button 
+                        <button
                             onClick={() => setShowTermsModal(false)}
                             className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium p-2 rounded-lg transition-colors"
                         >

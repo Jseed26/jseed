@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
 import PointForm from "@/src/components/PointForm";
+import { signOut, useSession } from "next-auth/react";
 
 type Point = {
     id: number;
@@ -16,22 +16,57 @@ type Point = {
     latitude: number;
     longitude: number;
     extraInfo?: string;
-    linkClicks: number; // 👈 המונה החדש
-    _count?: {          // 👈 הספירות שמגיעות מפריזמה
+    linkClicks: number;
+    _count?: {
         viewedBy: number;
         savedBy: number;
     };
 };
 
 export default function MyPointsPage() {
-    const [tab, setTab] = useState<"my" | "history" | "saved">("my"); // 👈 הוספנו את הטאב saved
+    // 1. כל ה-Hooks חייבים להיות למעלה
+    const { data: session, status } = useSession();
+    const [tab, setTab] = useState<"my" | "history" | "saved">("my");
     const [points, setPoints] = useState<Point[]>([]);
     const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
-    const [savedPoints, setSavedPoints] = useState<Point[]>([]); // 👈 סטייט חדש לנקודות שמורות
+    const [savedPoints, setSavedPoints] = useState<Point[]>([]);
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
 
     const router = useRouter();
 
+    useEffect(() => {
+        if (session) {
+            console.log("Current Session Data:", session);
+        }
+    }, [session]);
+
+    useEffect(() => {
+        async function loadData() {
+            const resMy = await fetch("/api/my-points");
+            if (resMy.status === 401) {
+                router.push("/auth");
+                return;
+            }
+            const myData = await resMy.json();
+            setPoints(myData);
+
+            const resHistory = await fetch("/api/history");
+            if (resHistory.ok) {
+                const historyData = await resHistory.json();
+                setHistoryPoints(historyData);
+            }
+
+            const resSaved = await fetch("/api/saved");
+            if (resSaved.ok) {
+                const savedData = await resSaved.json();
+                setSavedPoints(savedData);
+            }
+        }
+
+        loadData();
+    }, [router]);
+
+    // 2. פונקציות רגילות
     async function handleLogout() {
         await signOut({ redirect: false });
         router.push("/");
@@ -48,36 +83,17 @@ export default function MyPointsPage() {
         }
     }
 
-    useEffect(() => {
-        async function loadData() {
-            // טעינת הנקודות שלי
-            const resMy = await fetch("/api/my-points");
-            if (resMy.status === 401) {
-                router.push("/auth");
-                return;
-            }
-            const myData = await resMy.json();
-            setPoints(myData);
+    // 3. 👈 עכשיו, אחרי שכל ה-Hooks הוגדרו בבטחה, אפשר לעשות בדיקות ו-Returns מוקדמים!
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen bg-black text-yellow-500 flex items-center justify-center">
+                טוען נתונים...
+            </div>
+        );
+    }
 
-            // טעינת היסטוריה
-            const resHistory = await fetch("/api/history");
-            if (resHistory.ok) {
-                const historyData = await resHistory.json();
-                setHistoryPoints(historyData);
-            }
+    const userName = session?.user?.name ? session.user.name : "שלי";
 
-            // 👈 טעינת שמורים (מועדפים)
-            const resSaved = await fetch("/api/saved");
-            if (resSaved.ok) {
-                const savedData = await resSaved.json();
-                setSavedPoints(savedData);
-            }
-        }
-
-        loadData();
-    }, [router]);
-
-    // שליפת הנקודות הנכונות להצגה לפי הטאב הפעיל
     const displayPoints =
         tab === "my"
             ? points
@@ -88,7 +104,7 @@ export default function MyPointsPage() {
     return (
         <div className="p-6 text-white bg-black min-h-screen" dir="rtl">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl">האזור האישי</h1>
+                <h1 className="text-2xl">האזור האישי של {userName}</h1>
                 <button
                     onClick={() => router.push("/")}
                     className="flex items-center gap-2 text-white bg-gray-800 px-3 py-2 rounded hover:bg-gray-700"
@@ -111,7 +127,6 @@ export default function MyPointsPage() {
                 >
                     היסטוריית צפיות
                 </button>
-                {/* 👈 הטאב החדש למועדפים */}
                 <button
                     onClick={() => setTab("saved")}
                     className={tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400 hover:text-gray-200"}
@@ -154,7 +169,6 @@ export default function MyPointsPage() {
                                 <p>🌐 אתר: {p.website || "אין"}</p>
                             </div>
 
-                            {/* 👈 שורת הסטטיסטיקות - נציג אותה רק בטאב "הנקודות שלי" */}
                             {tab === "my" && (
                                 <div className="flex justify-around items-center mt-4 pt-3 border-t border-gray-800 text-sm text-gray-400 bg-black/30 p-2 rounded-lg">
                                     <div className="flex flex-col items-center">
@@ -168,7 +182,6 @@ export default function MyPointsPage() {
                                         <span>{p._count?.savedBy || 0} שמירות</span>
                                     </div>
 
-                                    {/* נציג לחיצות על אתר רק אם יש אתר מוגדר בנקודה הזו */}
                                     {p.website && (
                                         <>
                                             <div className="w-px h-8 bg-gray-700"></div>
@@ -181,7 +194,6 @@ export default function MyPointsPage() {
                                 </div>
                             )}
 
-                            {/* כפתורי עריכה/מחיקה יוצגו רק בטאב הנקודות שיצרתי */}
                             {tab === "my" && (
                                 <div className="flex gap-2 mt-3">
                                     <button
@@ -204,7 +216,6 @@ export default function MyPointsPage() {
                 </div>
             )}
 
-            {/* טופס העריכה */}
             {editingPoint && (
                 <PointForm
                     mode="edit"

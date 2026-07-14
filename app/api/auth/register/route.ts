@@ -2,10 +2,10 @@ import { prisma } from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json();
+  const { name, email, password } = await req.json();
 
-  if (!email || !password) {
-    return Response.json({ error: "missing fields" }, { status: 400 });
+  if (!email || !password || !name) {
+    return Response.json({ error: "missing data" }, { status: 400 });
   }
 
   const existing = await prisma.user.findUnique({
@@ -22,8 +22,9 @@ export async function POST(req: Request) {
     data: {
       email,
       password: hashed,
+      name,
     },
   });
 
-  return Response.json({ ok: true, userId: user.id });
+  return Response.json({ user });
 }
