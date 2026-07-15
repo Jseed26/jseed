@@ -40,6 +40,9 @@ export default function Map({
   const { status } = useSession();
   const isLoggedIn = status === "authenticated";
 
+  // נוסיף state למעקב אם אנחנו כרגע במצב "עוקב"
+  const [isFollowing, setIsFollowing] = useState(false);
+
   /*
   ================================================================================
   🌍 INIT MAP
@@ -60,7 +63,7 @@ export default function Map({
     const newMap = L.map(mapRef.current, {
       center: [31.7683, 35.2137], // מרכז ראשוני
       zoom: 3, // זום התחלתי שמציג את רוב העולם
-      minZoom: 1.5, 
+      minZoom: 1.5,
       maxZoom: 18,
       maxBounds: bounds, // 👈 נועל את גרירת המפה בתוך גבולות העולם
       maxBoundsViscosity: 1.0, // 👈 הופך את הגבול ל"קיר קשיח" - המפה לא תקפוץ החוצה
@@ -220,6 +223,30 @@ export default function Map({
     };
   }, [map, isCompassMode, activeCategory, isLoggedIn]);
 
+  // מאזין לשגיאות מיקום (אם המשתמש לא אישר GPS)
+  useEffect(() => {
+    if (!map) return;
+
+    const handleLocationError = (e: any) => {
+      alert("לא הצלחנו למצוא את המיקום שלך. ודאי ששירותי המיקום (GPS) דולקים ואישרת לדפדפן לגשת אליהם.");
+    };
+
+    map.on("locationerror", handleLocationError);
+
+    return () => {
+      map.off("locationerror", handleLocationError);
+    };
+  }, [map]);
+
+
+  // כשהמשתמש מזיז את המפה ידנית, נבטל את מצב ה"מעקב" כדי שהכפתור יחזור להציג את ה-GPS
+  useEffect(() => {
+    if (!map) return;
+    const onMove = () => setIsFollowing(false);
+    map.on("movestart", onMove);
+    return () => { map.off("movestart", onMove); };
+  }, [map]);
+
   /*
   ================================================================================
   📍 MARKERS
@@ -314,6 +341,41 @@ export default function Map({
           }}
         />
       )}
+
+      {/* כפתור מיקום - GPS משולב */}
+      <button
+        onClick={() => {
+          if (!map) return;
+
+          if (isFollowing) {
+            // מצב א': אם כבר עוקב - בצע זום אאוט לכל העולם
+            map.setView([31.7683, 35.2137], 3); // מרכז המפה וזום רחוק
+            setIsFollowing(false);
+          } else {
+            // מצב ב': אם לא עוקב - טוס למיקום הנוכחי
+            map.locate({
+              setView: true,
+              maxZoom: 16,
+              enableHighAccuracy: true
+            });
+            setIsFollowing(true);
+          }
+        }}
+        className="absolute bottom-6 right-6 z-[400] bg-gray-900 border border-gray-700 p-3 rounded-full shadow-lg hover:bg-gray-800 transition-colors"
+        title={isFollowing ? "זום אאוט למפה" : "המיקום שלי"}
+      >
+        {isFollowing ? (
+          // אייקון זום אאוט (העולם)
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ) : (
+          // אייקון כוונת (GPS)
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.364-7.364l-1.414 1.414M6.05 17.95l-1.414 1.414m13.314 0l-1.414-1.414M6.05 6.05L4.636 4.636M12 15a3 3 0 100-6 3 3 0 000 6z" />
+          </svg>
+        )}
+      </button>
     </div>
   );
 }

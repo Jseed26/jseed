@@ -77,7 +77,7 @@ model Point {
   extraInfo   String?
   userId String?
   linkClicks  Int      @default(0)
-  user   User? @relation(fields: [userId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   viewedBy     ViewedPoint[]
   savedBy     SavedPoint[]
 }
