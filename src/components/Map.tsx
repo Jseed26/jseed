@@ -60,7 +60,7 @@ export default function Map({
     const newMap = L.map(mapRef.current, {
       center: [31.7683, 35.2137], // מרכז ראשוני
       zoom: 3, // זום התחלתי שמציג את רוב העולם
-      minZoom: 2.5, // 👈 מונע זום-אאוט רחוק מדי שיראה את קצוות המפה
+      minZoom: 1.5, 
       maxZoom: 18,
       maxBounds: bounds, // 👈 נועל את גרירת המפה בתוך גבולות העולם
       maxBoundsViscosity: 1.0, // 👈 הופך את הגבול ל"קיר קשיח" - המפה לא תקפוץ החוצה

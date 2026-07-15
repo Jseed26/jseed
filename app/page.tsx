@@ -29,11 +29,11 @@ export default function Home() {
   const isLoggedIn = status === "authenticated";
   const isLoading = status === "loading";
 
-  const categories: { key: PointCategory; label: string }[] = [
-    { key: "leaf", label: "קהילה" },
-    { key: "star", label: "רוח" },
-    { key: "triangle", label: "מורשת" },
-    { key: "circle", label: "עסקים" },
+const categories: { key: PointCategory; label: string }[] = [
+    { key: "leaf", label: "Community" },
+    { key: "star", label: "Spirit" },
+    { key: "triangle", label: "Legacy" }, // או Heritage, לבחירתך
+    { key: "circle", label: "Business" },
   ];
 
   return (

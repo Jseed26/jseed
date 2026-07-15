@@ -64,7 +64,7 @@ export default function PointForm({
                         </div>
                     ) : (
                         <div className="text-xs text-red-500">
-                            ללא קטגוריה
+                            No category
                         </div>
                     )}
                 </div>
