@@ -51,46 +51,46 @@ export default function Map({
   */
   useEffect(() => {
     if (!mapRef.current) return;
-
     const container = mapRef.current;
-
-    // ניקוי אגרסיבי שמונע קריסות ברינדור כפול של Next.js
     if ((container as any)._leaflet_id) {
       (container as any)._leaflet_id = null;
       container.innerHTML = ""; 
     }
 
     const isMobile = window.innerWidth < 768;
-    
-    // 👈 הקסם פה: במובייל נרד ל-1 (שזה כדור ארץ מושלם לרוחב הטלפון)
-    const perfectMinZoom = isMobile ? 1 : 1.5;
-    const initialZoom = isMobile ? 1 : 2; 
+    const minZoom = isMobile ? 1 : 1.5;
 
     const newMap = L.map(container, {
-      center: [31.7683, 35.2137],
-      zoom: initialZoom,
-      minZoom: perfectMinZoom,
+      center: [20, 0],
+      zoom: isMobile ? 1 : 2,
+      minZoom: minZoom,
       maxZoom: 18,
-      zoomSnap: 0, 
-      wheelPxPerZoomLevel: 100,
+      zoomSnap: 0,
       worldCopyJump: false,
     });
 
-    // 👈 חוזרים ל-SDK המדהים של MapTiler
-    const mtLayer = new MaptilerLayer({
-      // כאן אנחנו שמים את המפתח ישירות, בלי process.env
-      apiKey: "1eZTTOxJLWMsKdfO1otY", 
-      style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
-      // @ts-ignore
-      renderWorldCopies: false,
-    }).addTo(newMap);
+    const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
+    newMap.setMaxBounds(worldBounds);
+
+    // 👈 הפרדה חכמה:
+    if (isMobile) {
+      // בטלפון: נשתמש בקישור תמונה רגיל (קל מאוד, לא דורש WebGL)
+      L.tileLayer(
+        `https://api.maptiler.com/maps/basic-v2-dark/256/{z}/{x}/{y}.png?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
+        { attribution: '&copy; <a href="https://www.maptiler.com/">MapTiler</a>' }
+      ).addTo(newMap);
+    } else {
+      // במחשב: נשתמש ב-SDK הכבד והיפה
+      new MaptilerLayer({
+        apiKey: process.env.NEXT_PUBLIC_MAPTILER_KEY as string,
+        style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
+        // @ts-ignore
+        renderWorldCopies: false,
+      }).addTo(newMap);
+    }
 
     setMap(newMap);
-
-    return () => {
-      mtLayer.remove(); 
-      newMap.remove();
-    };
+    return () => { newMap.remove(); };
   }, []);
   
   /*
