@@ -78,7 +78,8 @@ export default function Map({
 
     // 👈 חוזרים ל-SDK המדהים של MapTiler
     const mtLayer = new MaptilerLayer({
-      apiKey: process.env.NEXT_PUBLIC_MAPTILER_KEY as string,
+      // כאן אנחנו שמים את המפתח ישירות, בלי process.env
+      apiKey: "1eZTTOxJLWMsKdfO1otY", 
       style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
       // @ts-ignore
       renderWorldCopies: false,
