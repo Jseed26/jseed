@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
 
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
@@ -43,7 +44,7 @@ export default function Map({
   // נוסיף state למעקב אם אנחנו כרגע במצב "עוקב"
   const [isFollowing, setIsFollowing] = useState(false);
 
-  /*
+/*
   ================================================================================
   🌍 INIT MAP
   ================================================================================
@@ -51,41 +52,46 @@ export default function Map({
   useEffect(() => {
     if (!mapRef.current) return;
 
-    if ((mapRef.current as any)._leaflet_id) {
-      (mapRef.current as any)._leaflet_id = null;
+    const container = mapRef.current;
+
+    // ניקוי אגרסיבי שמונע קריסות ברינדור כפול של Next.js
+    if ((container as any)._leaflet_id) {
+      (container as any)._leaflet_id = null;
+      container.innerHTML = ""; 
     }
 
-    // הגדרת גבולות קשיחים - מונע גרירה של המפה לאזורים ריקים בצפון/דרום ובקטבים
-    const southWest = L.latLng(-85, -180);
-    const northEast = L.latLng(85, 180);
-    const bounds = L.latLngBounds(southWest, northEast);
+    const isMobile = window.innerWidth < 768;
+    
+    // 👈 הקסם פה: במובייל נרד ל-1 (שזה כדור ארץ מושלם לרוחב הטלפון)
+    const perfectMinZoom = isMobile ? 1 : 1.5;
+    const initialZoom = isMobile ? 1 : 2; 
 
-    const newMap = L.map(mapRef.current, {
-      center: [31.7683, 35.2137], // מרכז ראשוני
-      zoom: 3, // זום התחלתי שמציג את רוב העולם
-      minZoom: 1.5,
+    const newMap = L.map(container, {
+      center: [31.7683, 35.2137],
+      zoom: initialZoom,
+      minZoom: perfectMinZoom,
       maxZoom: 18,
-      maxBounds: bounds, // 👈 נועל את גרירת המפה בתוך גבולות העולם
-      maxBoundsViscosity: 1.0, // 👈 הופך את הגבול ל"קיר קשיח" - המפה לא תקפוץ החוצה
+      zoomSnap: 0, 
+      wheelPxPerZoomLevel: 100,
       worldCopyJump: false,
     });
 
-    // שימוש באריחים כהים (Dark Matter) שמתאימים לעיצוב השחור-זהב שלך
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      {
-        attribution: "&copy; OpenStreetMap & CARTO",
-        noWrap: true,
-        bounds: bounds,
-      }
-    ).addTo(newMap);
+    // 👈 חוזרים ל-SDK המדהים של MapTiler
+    const mtLayer = new MaptilerLayer({
+      apiKey: process.env.NEXT_PUBLIC_MAPTILER_KEY as string,
+      style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
+      // @ts-ignore
+      renderWorldCopies: false,
+    }).addTo(newMap);
 
     setMap(newMap);
 
     return () => {
+      mtLayer.remove(); 
       newMap.remove();
     };
   }, []);
+  
   /*
   ================================================================================
   📡 LOAD POINTS, HISTORY & SAVED
