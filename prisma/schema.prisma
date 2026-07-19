@@ -23,7 +23,7 @@ model User {
   points       Point[]
   viewedPoints ViewedPoint[]
   savedPoints  SavedPoint[]
-  
+  notifications Notification[]
 }
 
 model Account {
@@ -106,4 +106,14 @@ model SavedPoint {
 
   // מונע שמירה כפולה של אותה נקודה על ידי אותו משתמש
   @@unique([userId, pointId]) 
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    String   // 👈 שימי לב: אם ה-id של ה-User שלך מוגדר כ-Int, תשני כאן ל-Int במקום String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

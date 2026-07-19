@@ -8,6 +8,9 @@ import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+// 👈 הייבוא של קומפוננטת הפעמון החדשה
+import NotificationBell from "@/src/components/NotificationBell";
+
 const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
 });
@@ -29,15 +32,14 @@ export default function Home() {
   const isLoggedIn = status === "authenticated";
   const isLoading = status === "loading";
 
-const categories: { key: PointCategory; label: string }[] = [
+  const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: "Community" },
     { key: "star", label: "Spirit" },
-    { key: "triangle", label: "Legacy" }, // או Heritage, לבחירתך
+    { key: "triangle", label: "Legacy" }, 
     { key: "circle", label: "Business" },
   ];
 
   return (
-    // 👈 השינוי המרכזי כאן: החלפנו h-screen ב- h-[100dvh]
     <main className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden">
 
       {/* ================= HEADER ================= */}
@@ -45,6 +47,8 @@ const categories: { key: PointCategory; label: string }[] = [
 
         {/* top icons */}
         <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50">
+          
+          {/* כפתור מצפן (שמאל) */}
           <button
             onClick={() => {
               setCompassMode(v => !v);
@@ -58,22 +62,28 @@ const categories: { key: PointCategory; label: string }[] = [
             />
           </button>
 
-          <button
-            onClick={() => {
-              if (status === "loading") return;
+          {/* 👈 עטפנו את אזור ימין (פעמון + פרופיל) יחד כדי שיעמדו בשורה */}
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            
+            <button
+              onClick={() => {
+                if (status === "loading") return;
 
-              if (isLoggedIn) {
-                router.push("/my-points");
-              } else {
-                router.push("/auth");
-              }
-            }}
-          >
-            <img
-              src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
-              className="w-10 h-10"
-            />
-          </button>
+                if (isLoggedIn) {
+                  router.push("/my-points");
+                } else {
+                  router.push("/auth");
+                }
+              }}
+            >
+              <img
+                src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
+                className="w-10 h-10"
+              />
+            </button>
+          </div>
+          
         </div>
 
         {/* LOGO */}
@@ -123,7 +133,6 @@ const categories: { key: PointCategory; label: string }[] = [
       )}
       
       {/* ================= MAP ================= */}
-      {/* flex-1 מאלץ את המפה לתפוס רק את המקום שנשאר בין ההדר לקטגוריות */}
       <div className="flex-1 min-h-0 w-full px-2 overflow-hidden relative z-10">
         <Map
           activeCategory={activeCategory}
@@ -135,7 +144,6 @@ const categories: { key: PointCategory; label: string }[] = [
       </div>
 
       {/* ================= CATEGORIES ================= */}
-      {/* 👈 הוספנו pb-4 (Padding Bottom) כדי לתת מרווח נשימה מתחתית המסך של הטלפון */}
       <div className="shrink-0 flex justify-center gap-4 sm:gap-6 pt-2 pb-4 sm:pb-2 relative z-40 bg-black">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;

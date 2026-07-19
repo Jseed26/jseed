@@ -55,8 +55,34 @@ export async function POST(req: Request) {
           pointId: pId
         }
       });
+
+      // ==================================================================
+      // 🔔 יצירת התראה ליוצר הנקודה (מלכודת האגו!)
+      // ==================================================================
+      
+      // 1. שולפים את הנקודה כדי לגלות מי יצר אותה
+      const point = await prisma.point.findUnique({
+        where: { id: pId },
+        // שימי לב: אני מניח שלשדה של יוצר הנקודה קוראים userId.
+        // אם קראת לו authorId ב-schema של Point, שַׁנִּי את זה פה!
+        select: { userId: true } 
+      });
+
+      // 2. מוודאים שהנקודה קיימת, ושהמשתמש לא שומר נקודה של עצמו (כדי למנוע ספאם עצמי)
+      if (point && point.userId !== session.user.id) {
+        // 3. מייצרים את ההתראה
+        await prisma.notification.create({
+          data: {
+            userId: point.userId, 
+            message: "מישהו הרגע שמר את הנקודה שלך! 🌱",
+          }
+        });
+      }
+      // ==================================================================
+
       return Response.json({ saved: true });
     }
+    
   } catch (error) {
     console.error(error);
     return Response.json({ error: "Failed to update favorites" }, { status: 500 });
