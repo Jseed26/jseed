@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
 
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
@@ -49,9 +48,11 @@ export default function Map({
   🌍 INIT MAP
   ================================================================================
   */
-  useEffect(() => {
+useEffect(() => {
     if (!mapRef.current) return;
     const container = mapRef.current;
+    
+    // ניקוי למניעת שגיאות רינדור כפול
     if ((container as any)._leaflet_id) {
       (container as any)._leaflet_id = null;
       container.innerHTML = ""; 
@@ -60,37 +61,39 @@ export default function Map({
     const isMobile = window.innerWidth < 768;
     const minZoom = isMobile ? 1 : 1.5;
 
+    // הגדרת קירות בטון מוחלטים (-90 עד 90 קטבים, -180 עד 180 קווי אורך)
+    const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
+
+
+
     const newMap = L.map(container, {
-      center: [20, 0],
-      zoom: isMobile ? 1 : 2,
-      minZoom: minZoom,
+      center: [20, 0], // נשאר אותו דבר
+      zoom: minZoom,
+      minZoom: minZoom, 
       maxZoom: 18,
+      maxBounds: worldBounds, 
+      maxBoundsViscosity: 1.0, 
       zoomSnap: 0,
       worldCopyJump: false,
     });
 
-    const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
-    newMap.setMaxBounds(worldBounds);
-
-    // 👈 הפרדה חכמה:
-    if (isMobile) {
-      // בטלפון: נשתמש בקישור תמונה רגיל (קל מאוד, לא דורש WebGL)
-      L.tileLayer(
-        `https://api.maptiler.com/maps/basic-v2-dark/256/{z}/{x}/{y}.png?key=${process.env.NEXT_PUBLIC_MAPTILER_KEY}`,
-        { attribution: '&copy; <a href="https://www.maptiler.com/">MapTiler</a>' }
-      ).addTo(newMap);
-    } else {
-      // במחשב: נשתמש ב-SDK הכבד והיפה
-      new MaptilerLayer({
-        apiKey: process.env.NEXT_PUBLIC_MAPTILER_KEY as string,
-        style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
-        // @ts-ignore
-        renderWorldCopies: false,
-      }).addTo(newMap);
-    }
+    L.tileLayer(
+      'https://tile.jawg.io/b562fdb5-81e4-41c2-b29f-e4134c4f0c08/{z}/{x}/{y}.png?access-token=Yb4rVzthYIC1iujeViPrAOhw1FTOj78Tqqt2jVlTe46c0nixPnht0NEVgOl8ZoI9', 
+      {
+        attribution: '&copy; <a href="https://www.jawg.io/">Jawg</a>',
+        noWrap: true, 
+        bounds: worldBounds,
+        // 👈 התיקון הקריטי: זה מכריח את המפה להישאר בתוך הגבולות
+        // בלי לנסות "לחתוך" את הקצוות החוצה
+        keepBuffer: 2 
+      }
+    ).addTo(newMap);
 
     setMap(newMap);
-    return () => { newMap.remove(); };
+
+    return () => {
+      newMap.remove();
+    };
   }, []);
   
   /*
