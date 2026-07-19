@@ -14,7 +14,6 @@ export async function GET(req: Request) {
     orderBy: { savedAt: "desc" }
   });
 
-  // מחזירים רק את אובייקט ה-point עצמו כדי שיתאים לפורמט של שאר הדפים
   return Response.json(saved.map(s => s.point));
 }
 
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
 
     const pId = Number(pointId);
 
-    // בדיקה אם המשתמש כבר שמר את הנקודה הזו בעבר
     const existing = await prisma.savedPoint.findUnique({
       where: {
         userId_pointId: {
@@ -56,29 +54,24 @@ export async function POST(req: Request) {
         }
       });
 
-      // ==================================================================
-      // 🔔 יצירת התראה ליוצר הנקודה (מלכודת האגו!)
-      // ==================================================================
-      
-      // 1. שולפים את הנקודה כדי לגלות מי יצר אותה
-      const point = await prisma.point.findUnique({
-        where: { id: pId },
-        // שימי לב: אני מניח שלשדה של יוצר הנקודה קוראים userId.
-        // אם קראת לו authorId ב-schema של Point, שַׁנִּי את זה פה!
-        select: { userId: true } 
-      });
-
-      // 2. מוודאים שהנקודה קיימת, ושהמשתמש לא שומר נקודה של עצמו (כדי למנוע ספאם עצמי)
-      if (point && point.userId && point.userId !== session.user.id) {
-        // 3. מייצרים את ההתראה
-        await prisma.notification.create({
-          data: {
-            userId: point.userId, 
-            message: "מישהו הרגע שמר את הנקודה שלך! 🌱",
-          }
+      // 🔔 יצירת התראה
+      try {
+        const point = await prisma.point.findUnique({
+          where: { id: pId },
+          select: { userId: true }
         });
+
+        if (point?.userId && point.userId !== session.user.id) {
+          await prisma.notification.create({
+            data: {
+              userId: point.userId, 
+              message: "מישהו הרגע שמר את הנקודה שלך! 🌱",
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Notification creation failed:", err);
       }
-      // ==================================================================
 
       return Response.json({ saved: true });
     }
