@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -35,24 +35,26 @@ export default function Map({
   const [modal, setModal] = useState<ModalState>(null);
 
   const [viewedIds, setViewedIds] = useState<number[]>([]);
-  const [savedIds, setSavedIds] = useState<number[]>([]); // 👈 1. סטייט חדש לשמירת מזהי הנקודות השמורות
+  const [savedIds, setSavedIds] = useState<number[]>([]);
 
   const { status } = useSession();
   const isLoggedIn = status === "authenticated";
 
-  // נוסיף state למעקב אם אנחנו כרגע במצב "עוקב"
   const [isFollowing, setIsFollowing] = useState(false);
 
-/*
+  const [filterRadius, setFilterRadius] = useState<number | null>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [showRadiusMenu, setShowRadiusMenu] = useState(false);
+
+  /*
   ================================================================================
   🌍 INIT MAP
   ================================================================================
   */
-useEffect(() => {
+  useEffect(() => {
     if (!mapRef.current) return;
     const container = mapRef.current;
     
-    // ניקוי למניעת שגיאות רינדור כפול
     if ((container as any)._leaflet_id) {
       (container as any)._leaflet_id = null;
       container.innerHTML = ""; 
@@ -61,13 +63,10 @@ useEffect(() => {
     const isMobile = window.innerWidth < 768;
     const minZoom = isMobile ? 1 : 1.5;
 
-    // הגדרת קירות בטון מוחלטים (-90 עד 90 קטבים, -180 עד 180 קווי אורך)
     const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
-
-
     const newMap = L.map(container, {
-      center: [20, 0], // נשאר אותו דבר
+      center: [20, 0], 
       zoom: minZoom,
       minZoom: minZoom, 
       maxZoom: 18,
@@ -83,8 +82,6 @@ useEffect(() => {
         attribution: '&copy; <a href="https://www.jawg.io/">Jawg</a>',
         noWrap: true, 
         bounds: worldBounds,
-        // 👈 התיקון הקריטי: זה מכריח את המפה להישאר בתוך הגבולות
-        // בלי לנסות "לחתוך" את הקצוות החוצה
         keepBuffer: 2 
       }
     ).addTo(newMap);
@@ -111,7 +108,6 @@ useEffect(() => {
     load();
   }, []);
 
-  // משיכת ההיסטוריה של המשתמש בטעינת המפה
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -130,7 +126,6 @@ useEffect(() => {
     loadHistory();
   }, [isLoggedIn]);
 
-  // 👈 2. משיכת רשימת הנקודות השמורות של המשתמש בטעינת המפה
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -151,7 +146,7 @@ useEffect(() => {
 
   /*
   ================================================================================
-  🔄 SEARCH
+  🔄 SEARCH & LIVE REFRESH
   ================================================================================
   */
   useEffect(() => {
@@ -170,19 +165,12 @@ useEffect(() => {
     search();
   }, [searchQuery, activeCategory]);
 
-  /*
-  ================================================================================
-  🔄 LIVE REFRESH (מתעדכן כשנוצרת נקודה או כשמשתנה סטטוס שמירה)
-  ================================================================================
-  */
   useEffect(() => {
     const refresh = async () => {
-      // רענון נקודות כלליות במפה
       const res = await fetch("/api/points");
       const data = await res.json();
       setPoints(data);
 
-      // 👈 3. רענון רשימת השמורים בזמן אמת
       if (isLoggedIn) {
         const resSaved = await fetch("/api/saved");
         if (resSaved.ok) {
@@ -201,7 +189,7 @@ useEffect(() => {
 
   /*
   ================================================================================
-  📍 MAP CLICK (SELECT CENTER LOCATION)
+  📍 MAP EVENTS (CLICK, LOCATION, MOVE)
   ================================================================================
   */
   useEffect(() => {
@@ -226,36 +214,64 @@ useEffect(() => {
       });
     };
 
-    map.on("click", handleClick);
-
-    return () => {
-      map.off("click", handleClick);
-    };
-  }, [map, isCompassMode, activeCategory, isLoggedIn]);
-
-  // מאזין לשגיאות מיקום (אם המשתמש לא אישר GPS)
-  useEffect(() => {
-    if (!map) return;
-
-    const handleLocationError = (e: any) => {
+    const handleLocationError = () => {
       alert("לא הצלחנו למצוא את המיקום שלך. ודאי ששירותי המיקום (GPS) דולקים ואישרת לדפדפן לגשת אליהם.");
     };
 
+    const handleLocationFound = (e: any) => {
+      setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng }); 
+    };
+
+    const onMove = () => setIsFollowing(false);
+
+    map.on("click", handleClick);
     map.on("locationerror", handleLocationError);
+    map.on("locationfound", handleLocationFound);
+    map.on("movestart", onMove);
 
     return () => {
+      map.off("click", handleClick);
       map.off("locationerror", handleLocationError);
+      map.off("locationfound", handleLocationFound);
+      map.off("movestart", onMove);
     };
-  }, [map]);
+  }, [map, isCompassMode, activeCategory, isLoggedIn]);
 
+  /*
+  ================================================================================
+  🔍 RADIUS FILTER (דברים סביבי)
+  ================================================================================
+  */
+  // מונע בנייה מחדש של המערך סתם כך בעזרת useMemo
+  const filteredPoints = useMemo(() => {
+    if (!filterRadius || !userLocation || !map) return points;
+    
+    return points.filter((p) => {
+      const distanceInMeters = map.distance(
+        [Number(p.latitude), Number(p.longitude)], 
+        [userLocation.lat, userLocation.lng]
+      );
+      
+      return distanceInMeters <= filterRadius * 1000; 
+    });
+  }, [points, filterRadius, userLocation, map]);
 
-  // כשהמשתמש מזיז את המפה ידנית, נבטל את מצב ה"מעקב" כדי שהכפתור יחזור להציג את ה-GPS
   useEffect(() => {
-    if (!map) return;
-    const onMove = () => setIsFollowing(false);
-    map.on("movestart", onMove);
-    return () => { map.off("movestart", onMove); };
-  }, [map]);
+    if (!map || !userLocation || !filterRadius) return;
+
+    const circle = L.circle([userLocation.lat, userLocation.lng], {
+      radius: filterRadius * 1000,
+      color: '#FFD700', 
+      fillColor: '#FFD700',
+      fillOpacity: 0.05,
+      weight: 1.5,
+      dashArray: "5, 5" 
+    }).addTo(map);
+
+    map.fitBounds(circle.getBounds());
+
+    return () => { circle.remove(); };
+  }, [map, userLocation, filterRadius]);
 
   /*
   ================================================================================
@@ -264,10 +280,10 @@ useEffect(() => {
   */
   useMapMarkers({
     map,
-    points,
+    points: filteredPoints, // חייב להיות המשתנה המסונן
     activeCategory,
     viewedIds,
-    savedIds, // 👈 4. העברת רשימת השמורים ל-Hook של המרקרים
+    savedIds,
   });
 
   /*
@@ -331,8 +347,6 @@ useEffect(() => {
               formData.append("extraInfo", form.extraInfo);
             }
 
-            console.log("Modal coordinates:", modal.lat, modal.lng);
-
             const res = await fetch("/api/points", {
               method: "POST",
               body: formData,
@@ -358,11 +372,9 @@ useEffect(() => {
           if (!map) return;
 
           if (isFollowing) {
-            // מצב א': אם כבר עוקב - בצע זום אאוט לכל העולם
-            map.setView([31.7683, 35.2137], 3); // מרכז המפה וזום רחוק
+            map.setView([31.7683, 35.2137], 3); 
             setIsFollowing(false);
           } else {
-            // מצב ב': אם לא עוקב - טוס למיקום הנוכחי
             map.locate({
               setView: true,
               maxZoom: 16,
@@ -375,17 +387,61 @@ useEffect(() => {
         title={isFollowing ? "זום אאוט למפה" : "המיקום שלי"}
       >
         {isFollowing ? (
-          // אייקון זום אאוט (העולם)
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : (
-          // אייקון כוונת (GPS)
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.364-7.364l-1.414 1.414M6.05 17.95l-1.414 1.414m13.314 0l-1.414-1.414M6.05 6.05L4.636 4.636M12 15a3 3 0 100-6 3 3 0 000 6z" />
           </svg>
         )}
       </button>
+
+      {/* תפריט רדיוס חכם */}
+      <div className="absolute bottom-6 right-20 z-[400] flex flex-col-reverse items-end gap-2">
+        
+        {/* כפתור הפעלה */}
+        <button
+          onClick={() => {
+            if (!userLocation && map) {
+              map.locate({ enableHighAccuracy: true });
+            }
+            setShowRadiusMenu(!showRadiusMenu);
+          }}
+          className={`p-3 rounded-full shadow-lg transition-colors border ${
+            filterRadius 
+              ? "bg-yellow-500 border-yellow-400 text-black" 
+              : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
+          }`}
+          title="סינון לפי מרחק"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
+        {/* רשימת המרחקים הקופצת */}
+        {showRadiusMenu && (
+          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
+            <button
+              onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}
+              className={`text-right p-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
+            >
+              ללא סינון
+            </button>
+            
+            {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
+              <button
+                key={dist}
+                onClick={() => { setFilterRadius(dist); setShowRadiusMenu(false); }}
+                className={`text-right p-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
+              >
+                עד {dist} ק"מ
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
