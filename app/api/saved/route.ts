@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       });
 
       // 2. מוודאים שהנקודה קיימת, ושהמשתמש לא שומר נקודה של עצמו (כדי למנוע ספאם עצמי)
-      if (point && point.userId !== session.user.id) {
+      if (point && point.userId && point.userId !== session.user.id) {
         // 3. מייצרים את ההתראה
         await prisma.notification.create({
           data: {
