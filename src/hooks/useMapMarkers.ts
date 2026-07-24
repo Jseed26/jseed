@@ -15,7 +15,7 @@ type Props = {
 
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [] }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
-  
+
   // 👈 רפרנס חדש שישמור את כל המרקרים שעל המפה כדי שנוכל לפתוח אותם אוטומטית מקישור
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
 
@@ -34,7 +34,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     container.dir = "rtl";
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
-    
+
     // לוחית עליונה: אייקון מימין, שם הנקודה משמאל
     const headerHtml = `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
@@ -50,9 +50,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const imageHtml = point.imageUrl
       ? `<img src="${point.imageUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" />`
       : "";
-    
-    const plantIconSrc = isSaved 
-      ? "/icons/ui/plant/active.png" 
+
+    const plantIconSrc = isSaved
+      ? "/icons/ui/plant/active.png"
       : "/icons/ui/plant/default.png";
 
     let currentSavedCount = point._count?.savedBy || 0;
@@ -104,7 +104,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const baseUrl = window.location.origin;
     const shareUrl = `${baseUrl}/?point=${point.id}`;
     const waText = encodeURIComponent(`תראו איזה Seed מצאתי ב-JSeed! 🌱\n${shareUrl}`);
-    
+
     const waBtn = container.querySelector(".wa-share-btn") as HTMLAnchorElement;
     if (waBtn) waBtn.href = `https://wa.me/?text=${waText}`;
 
@@ -119,7 +119,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const reportBtn = container.querySelector(".report-btn") as HTMLButtonElement;
     if (reportBtn) {
       reportBtn.onclick = async () => {
-        const reason = prompt("מה הבעיה בנקודה זו? (למשל: סגור, מידע שגוי, ספאם)");
+        const reason = prompt("מה הבעיה בגרעין זה? (למשל: סגור, מידע שגוי, ספאם)");
         if (reason) {
           // מכין את התשתית לשליחת הדיווח לשרת
           try {
@@ -153,12 +153,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           if (res.ok) {
             const data = await res.json();
             if (img) {
-                img.src = data.saved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
-                img.style.transform = "scale(1)";
+              img.src = data.saved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
+              img.style.transform = "scale(1)";
             }
             if (data.saved) currentSavedCount += 1;
             else currentSavedCount -= 1;
-            
+
             if (countText) countText.innerText = `${currentSavedCount} שמירות`;
             window.dispatchEvent(new Event("points-updated"));
           } else {
@@ -200,17 +200,38 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       const marker = L.marker(
         [point.latitude, point.longitude],
         // 👈 הוספנו פה את map.getZoom() בסוף
-        { icon: createCategoryIcon(point.category, isViewed, map.getZoom()) } 
+        { icon: createCategoryIcon(point.category, isViewed, map.getZoom()) }
       );
 
+      // 1. הגדרת הבועה עם ריווח חכם מהלמעלה של המסך
       marker.bindPopup(createPopupNode(point, isSaved), {
         closeButton: true,
         className: "custom-popup",
+        autoPan: true, // מחזירים לשליטה של Leaflet
+        autoPanPaddingTopLeft: [0, 150], // אומר למפה: "יש לי תפריט למעלה, תשמרי מרחק של 150 פיקסלים מהתקרה!"
+        autoPanPaddingBottomRight: [0, 20]
       });
 
-      marker.on("click", () => {
-        marker.openPopup();
-        marker.setIcon(createCategoryIcon(point.category, true));
+      // 2. אירוע הלחיצה
+      marker.on("click", (e) => {
+        const currentZoom = map.getZoom();
+
+        // אם המשתמש רחוק מדי (רואה את כל העולם), נתקרב קודם כדי לא להיתקע בגבולות המפה
+        if (currentZoom < 4) {
+          map.setView(e.target.getLatLng(), 5, { animate: true });
+          
+          // מחכים רגע שהזום יסתיים ואז פותחים את הבועה
+          setTimeout(() => {
+            marker.openPopup();
+            marker.setIcon(createCategoryIcon(point.category, true, map.getZoom()));
+          }, 400);
+        } else {
+          // אם כבר קרובים, פשוט פותחים (Leaflet ימרכז לבד בזכות ה-autoPanPadding)
+          marker.openPopup();
+          marker.setIcon(createCategoryIcon(point.category, true, currentZoom));
+        }
+
+        // שמירת היסטוריית צפיות
         if (point.id) {
           fetch("/api/history", {
             method: "POST",
@@ -221,7 +242,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       });
 
       layerRef.current?.addLayer(marker);
-      
+
       // 👈 שומרים את המרקר בתוך האובייקט שלנו כדי שנוכל לגשת אליו בהמשך
       markersRef.current[point.id] = marker;
     });
@@ -232,20 +253,20 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     // =========================================================
     const urlParams = new URLSearchParams(window.location.search);
     const pointIdFromUrl = urlParams.get("point");
-    
+
     if (pointIdFromUrl) {
-        const targetMarker = markersRef.current[Number(pointIdFromUrl)];
-        const targetPoint = points.find(p => p.id === Number(pointIdFromUrl));
-        
-        if (targetMarker && targetPoint) {
-            // ממורכז את המפה לנקודה ב-Zoom קרוב
-            map.setView([targetPoint.latitude, targetPoint.longitude], 16);
-            
-            // פותח את הבלון עם השהיה קלה כדי לתת למפה לסיים את התזוזה
-            setTimeout(() => {
-                targetMarker.openPopup();
-            }, 500);
-        }
+      const targetMarker = markersRef.current[Number(pointIdFromUrl)];
+      const targetPoint = points.find(p => p.id === Number(pointIdFromUrl));
+
+      if (targetMarker && targetPoint) {
+        // ממורכז את המפה לנקודה ב-Zoom קרוב
+        map.setView([targetPoint.latitude, targetPoint.longitude], 16);
+
+        // פותח את הבלון עם השהיה קלה כדי לתת למפה לסיים את התזוזה
+        setTimeout(() => {
+          targetMarker.openPopup();
+        }, 500);
+      }
     }
 
     // =========================================================
@@ -253,7 +274,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     // =========================================================
     const handleZoomEnd = () => {
       const currentZoom = map.getZoom();
-      
+
       // רצים על כל הנקודות המסוננות ומעדכנים להן את האייקון בלייב
       filtered.forEach((point) => {
         const marker = markersRef.current[point.id];

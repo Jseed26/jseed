@@ -328,31 +328,38 @@ export default function Map({
             let finalLat = modal.lat;
             let finalLng = modal.lng;
 
-            // 🌍 המרת כתובת לקואורדינטות (Geocoding)
-            if (form.address && form.address.trim() !== "") {
+            // מנקה רווחים מיותרים ומוודא שהכתובת באמת קיימת
+            const cleanAddress = form.address ? form.address.trim() : "";
+
+            if (cleanAddress !== "") {
+              // --- מצב 1: המשתמש הקליד משהו בכתובת ---
               try {
-                // פונים ל-API החינמי של OpenStreetMap
-                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(form.address)}&limit=1`);
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
                 const geoData = await geoRes.json();
                 
                 if (geoData && geoData.length > 0) {
-                  // אם נמצאה כתובת, דורסים את המיקום של המצפן
+                  // הכתובת נמצאה
                   finalLat = parseFloat(geoData[0].lat);
                   finalLng = parseFloat(geoData[0].lon); 
                 } else {
-                  // הכתובת לא נמצאה - שואלים את המשתמש מה לעשות
+                  // הכתובת לא נמצאה
                   const useCompass = window.confirm("המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?");
                   
                   if (!useCompass) {
-                    // המשתמש לחץ "ביטול"
-                    alert("אנא הזן כתובת בשנית");
-                    return; // 👈 עוצר לחלוטין את פעולת השמירה ומשאיר את הטופס פתוח!
+                    alert("אנא הזן רחוב, מספר ועיר בלבד");
+                    return; // עוצר את השמירה
                   }
-                  // אם המשתמש לחץ "אישור" (useCompass === true), הקוד פשוט ימשיך הלאה
-                  // וישתמש ב-finalLat ו-finalLng המקוריים של המצפן.
                 }
               } catch (err) {
                 console.error("Geocoding failed:", err);
+              }
+            } else {
+              // --- מצב 2: שדה הכתובת ריק לגמרי! ---
+              const useCompass = window.confirm("לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?");
+              
+              if (!useCompass) {
+                alert("אנא הזן רחוב, מספר ועיר בלבד");
+                return; // עוצר את השמירה
               }
             }
 
@@ -360,11 +367,10 @@ export default function Map({
 
             formData.append("name", form.name);
             formData.append("description", form.description);
-            formData.append("address", form.address);
+            formData.append("address", cleanAddress); // שומרים את הכתובת הנקייה
             formData.append("website", form.website);
             formData.append("category", activeCategory ?? "");
             
-            // 👈 כאן אנחנו משתמשים במיקום הסופי (מהכתובת או מהמצפן)
             formData.append("latitude", String(finalLat));
             formData.append("longitude", String(finalLng));
 
@@ -392,14 +398,12 @@ export default function Map({
             setModal(null);
             setCompassMode(false);
 
-            // ✨ בונוס UX: מזיזים את המפה בדיוק למיקום של הנקודה החדשה שנוצרה!
             if (map) {
               map.setView([finalLat, finalLng], 16);
             }
           }}
         />
       )}
-
 
       {/* כפתור מיקום - GPS משולב */}
       <button
