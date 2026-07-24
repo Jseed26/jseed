@@ -324,6 +324,30 @@ export default function Map({
           onSubmit={async ({ form }) => {
             if (status !== "authenticated") return;
 
+            // ברירת מחדל: המיקום של המצפן
+            let finalLat = modal.lat;
+            let finalLng = modal.lng;
+
+            // 🌍 המרת כתובת לקואורדינטות (Geocoding)
+            if (form.address && form.address.trim() !== "") {
+              try {
+                // פונים ל-API החינמי של OpenStreetMap
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(form.address)}&limit=1`);
+                const geoData = await geoRes.json();
+                
+                if (geoData && geoData.length > 0) {
+                  // אם נמצאה כתובת, דורסים את המיקום של המצפן
+                  finalLat = parseFloat(geoData[0].lat);
+                  finalLng = parseFloat(geoData[0].lon); // שימי לב: אצלם זה נקרא lon ולא lng
+                } else {
+                  // אם הכתובת לא נמצאה במאגר שלהם
+                  alert("לא מצאנו את הכתובת המדויקת שהזנת, אז השתמשנו במיקום של המצפן במפה.");
+                }
+              } catch (err) {
+                console.error("Geocoding failed:", err);
+              }
+            }
+
             const formData = new FormData();
 
             formData.append("name", form.name);
@@ -331,8 +355,10 @@ export default function Map({
             formData.append("address", form.address);
             formData.append("website", form.website);
             formData.append("category", activeCategory ?? "");
-            formData.append("latitude", String(modal.lat));
-            formData.append("longitude", String(modal.lng));
+            
+            // 👈 כאן אנחנו משתמשים במיקום הסופי (מהכתובת או מהמצפן)
+            formData.append("latitude", String(finalLat));
+            formData.append("longitude", String(finalLng));
 
             if (form.image) {
               formData.append("image", form.image);
@@ -357,10 +383,16 @@ export default function Map({
             setPoints((prev) => [...prev, data]);
             setModal(null);
             setCompassMode(false);
+
+            // ✨ בונוס UX: מזיזים את המפה בדיוק למיקום של הנקודה החדשה שנוצרה!
+            if (map) {
+              map.setView([finalLat, finalLng], 16);
+            }
           }}
         />
       )}
 
+      
       {/* כפתור מיקום - GPS משולב */}
       <button
         onClick={() => {
