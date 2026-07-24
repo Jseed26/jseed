@@ -77,7 +77,7 @@ export default function Map({
     });
 
     L.tileLayer(
-      'https://tile.jawg.io/b562fdb5-81e4-41c2-b29f-e4134c4f0c08/{z}/{x}/{y}.png?access-token=Yb4rVzthYIC1iujeViPrAOhw1FTOj78Tqqt2jVlTe46c0nixPnht0NEVgOl8ZoI9', 
+      'https://tile.jawg.io/371d6e14-ccbe-4752-851a-0f972397d066/{z}/{x}/{y}.png?access-token=9Wgf5GCT2UODKE6L3OFQkzJMrlK58O4oUrxynRP2dlsmh2SP76m9OyVQJGQqQHgd', 
       {
         attribution: '&copy; <a href="https://www.jawg.io/">Jawg</a>',
         noWrap: true, 
