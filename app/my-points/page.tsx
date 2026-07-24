@@ -144,7 +144,6 @@ export default function MyPointsPage() {
                                 <div className="flex justify-around mt-4 pt-3 border-t border-gray-800 text-xs text-gray-400">
                                     <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} צפיות</span>
                                     
-                                    {/* 👈 החלפת הלב בצמח התבצעה כאן */}
                                     <span className="flex items-center gap-1">
                                         <img src="/icons/ui/plant/active.png" alt="שמירות" className="w-4 h-4 object-contain" />
                                         {p._count?.savedBy || 0} שמירות
@@ -154,14 +153,27 @@ export default function MyPointsPage() {
                                 </div>
                             )}
                             
-                            {tab === "my" && (
-                                <div className="flex gap-2 mt-3">
-                                    <button onClick={() => setEditingPoint(p)} className="bg-blue-500 text-black px-3 py-1 rounded">ערוך</button>
-                                    
-                                    {/* 👈 כפתור המחיקה עכשיו רק מעדכן את הסטייט כדי לפתוח את החלונית */}
-                                    <button onClick={() => setPointToDelete(p.id)} className="bg-red-500 text-black px-3 py-1 rounded">מחק</button>
+                            {/* שורת הפעולות בתחתית הכרטיסיה */}
+                            <div className="flex justify-between items-center mt-4">
+                                
+                                {/* צד ימין: כפתורי עריכה ומחיקה (רק אם זה הנקודות שלי) */}
+                                <div className="flex gap-2">
+                                    {tab === "my" && (
+                                        <>
+                                            <button onClick={() => setEditingPoint(p)} className="bg-blue-500 hover:bg-blue-600 text-black px-3 py-1.5 rounded text-sm transition">ערוך</button>
+                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-500 hover:bg-red-600 text-black px-3 py-1.5 rounded text-sm transition">מחק</button>
+                                        </>
+                                    )}
                                 </div>
-                            )}
+
+                                {/* צד שמאל: כפתור קטן וחמוד למפה (מופיע תמיד) */}
+                                <button 
+                                    onClick={() => router.push(`/?point=${p.id}`)}
+                                    className="bg-gray-800 hover:bg-gray-700 text-yellow-500 border border-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition"
+                                >
+                                    📍 למפה
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
