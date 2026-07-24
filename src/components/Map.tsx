@@ -43,7 +43,7 @@ export default function Map({
   const [isFollowing, setIsFollowing] = useState(false);
 
   const [filterRadius, setFilterRadius] = useState<number | null>(null);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
 
   /*
@@ -54,10 +54,10 @@ export default function Map({
   useEffect(() => {
     if (!mapRef.current) return;
     const container = mapRef.current;
-    
+
     if ((container as any)._leaflet_id) {
       (container as any)._leaflet_id = null;
-      container.innerHTML = ""; 
+      container.innerHTML = "";
     }
 
     const isMobile = window.innerWidth < 768;
@@ -66,23 +66,23 @@ export default function Map({
     const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
     const newMap = L.map(container, {
-      center: [20, 0], 
+      center: [20, 0],
       zoom: minZoom,
-      minZoom: minZoom, 
+      minZoom: minZoom,
       maxZoom: 18,
-      maxBounds: worldBounds, 
-      maxBoundsViscosity: 1.0, 
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
       zoomSnap: 0,
       worldCopyJump: false,
     });
 
     L.tileLayer(
-      'https://tile.jawg.io/371d6e14-ccbe-4752-851a-0f972397d066/{z}/{x}/{y}.png?access-token=9Wgf5GCT2UODKE6L3OFQkzJMrlK58O4oUrxynRP2dlsmh2SP76m9OyVQJGQqQHgd', 
+      'https://tile.jawg.io/371d6e14-ccbe-4752-851a-0f972397d066/{z}/{x}/{y}.png?access-token=9Wgf5GCT2UODKE6L3OFQkzJMrlK58O4oUrxynRP2dlsmh2SP76m9OyVQJGQqQHgd',
       {
         attribution: '&copy; <a href="https://www.jawg.io/">Jawg</a>',
-        noWrap: true, 
+        noWrap: true,
         bounds: worldBounds,
-        keepBuffer: 2 
+        keepBuffer: 2
       }
     ).addTo(newMap);
 
@@ -92,7 +92,7 @@ export default function Map({
       newMap.remove();
     };
   }, []);
-  
+
   /*
   ================================================================================
   📡 LOAD POINTS, HISTORY & SAVED
@@ -199,12 +199,12 @@ export default function Map({
       if (!isCompassMode) return;
 
       if (!activeCategory) {
-        alert("צריך לבחור קטגוריה לפני הוספת נקודה");
+        alert("צריך לבחור קטגוריה לפני הוספת גרעין");
         return;
       }
 
       if (!isLoggedIn) {
-        alert("צריך להתחבר כדי להוסיף נקודה");
+        alert("צריך להתחבר כדי להוסיף גרעין");
         return;
       }
 
@@ -219,7 +219,7 @@ export default function Map({
     };
 
     const handleLocationFound = (e: any) => {
-      setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng }); 
+      setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
     };
 
     const onMove = () => setIsFollowing(false);
@@ -245,14 +245,14 @@ export default function Map({
   // מונע בנייה מחדש של המערך סתם כך בעזרת useMemo
   const filteredPoints = useMemo(() => {
     if (!filterRadius || !userLocation || !map) return points;
-    
+
     return points.filter((p) => {
       const distanceInMeters = map.distance(
-        [Number(p.latitude), Number(p.longitude)], 
+        [Number(p.latitude), Number(p.longitude)],
         [userLocation.lat, userLocation.lng]
       );
-      
-      return distanceInMeters <= filterRadius * 1000; 
+
+      return distanceInMeters <= filterRadius * 1000;
     });
   }, [points, filterRadius, userLocation, map]);
 
@@ -261,11 +261,11 @@ export default function Map({
 
     const circle = L.circle([userLocation.lat, userLocation.lng], {
       radius: filterRadius * 1000,
-      color: '#FFD700', 
+      color: '#FFD700',
       fillColor: '#FFD700',
       fillOpacity: 0.05,
       weight: 1.5,
-      dashArray: "5, 5" 
+      dashArray: "5, 5"
     }).addTo(map);
 
     map.fitBounds(circle.getBounds());
@@ -336,15 +336,15 @@ export default function Map({
               try {
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
                 const geoData = await geoRes.json();
-                
+
                 if (geoData && geoData.length > 0) {
                   // הכתובת נמצאה
                   finalLat = parseFloat(geoData[0].lat);
-                  finalLng = parseFloat(geoData[0].lon); 
+                  finalLng = parseFloat(geoData[0].lon);
                 } else {
                   // הכתובת לא נמצאה
                   const useCompass = window.confirm("המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?");
-                  
+
                   if (!useCompass) {
                     alert("אנא הזן רחוב, מספר ועיר בלבד");
                     return; // עוצר את השמירה
@@ -356,7 +356,7 @@ export default function Map({
             } else {
               // --- מצב 2: שדה הכתובת ריק לגמרי! ---
               const useCompass = window.confirm("לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?");
-              
+
               if (!useCompass) {
                 alert("אנא הזן רחוב, מספר ועיר בלבד");
                 return; // עוצר את השמירה
@@ -370,7 +370,7 @@ export default function Map({
             formData.append("address", cleanAddress); // שומרים את הכתובת הנקייה
             formData.append("website", form.website);
             formData.append("category", activeCategory ?? "");
-            
+
             formData.append("latitude", String(finalLat));
             formData.append("longitude", String(finalLng));
 
@@ -411,7 +411,7 @@ export default function Map({
           if (!map) return;
 
           if (isFollowing) {
-            map.setView([31.7683, 35.2137], 3); 
+            map.setView([31.7683, 35.2137], 3);
             setIsFollowing(false);
           } else {
             map.locate({
@@ -438,7 +438,7 @@ export default function Map({
 
       {/* תפריט רדיוס חכם */}
       <div className="absolute bottom-6 right-20 z-[400] flex flex-col-reverse items-end gap-2">
-        
+
         {/* כפתור הפעלה */}
         <button
           onClick={() => {
@@ -447,11 +447,10 @@ export default function Map({
             }
             setShowRadiusMenu(!showRadiusMenu);
           }}
-          className={`p-3 rounded-full shadow-lg transition-colors border ${
-            filterRadius 
-              ? "bg-yellow-500 border-yellow-400 text-black" 
+          className={`p-3 rounded-full shadow-lg transition-colors border ${filterRadius
+              ? "bg-yellow-500 border-yellow-400 text-black"
               : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
-          }`}
+            }`}
           title="סינון לפי מרחק"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -468,7 +467,7 @@ export default function Map({
             >
               ללא סינון
             </button>
-            
+
             {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
               <button
                 key={dist}

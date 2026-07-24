@@ -266,6 +266,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         setTimeout(() => {
           targetMarker.openPopup();
         }, 500);
+
+        // 👈 מנקה את ה-?point= מהכתובת כדי שלא יתקע את המפה בהמשך
+            window.history.replaceState({}, '', window.location.pathname);
       }
     }
 
