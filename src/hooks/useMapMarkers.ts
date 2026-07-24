@@ -199,7 +199,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
       const marker = L.marker(
         [point.latitude, point.longitude],
-        { icon: createCategoryIcon(point.category, isViewed) }
+        // 👈 הוספנו פה את map.getZoom() בסוף
+        { icon: createCategoryIcon(point.category, isViewed, map.getZoom()) } 
       );
 
       marker.bindPopup(createPopupNode(point, isSaved), {
@@ -246,6 +247,31 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             }, 500);
         }
     }
+
+    // =========================================================
+    // 👈 האזנה לשינויי זום ורענון גודל האייקונים
+    // =========================================================
+    const handleZoomEnd = () => {
+      const currentZoom = map.getZoom();
+      
+      // רצים על כל הנקודות המסוננות ומעדכנים להן את האייקון בלייב
+      filtered.forEach((point) => {
+        const marker = markersRef.current[point.id];
+        if (marker) {
+          const isViewed = viewedIds.includes(point.id);
+          // מעדכנים את האייקון לגודל החדש!
+          marker.setIcon(createCategoryIcon(point.category, isViewed, currentZoom));
+        }
+      });
+    };
+
+    // אומרים למפה להפעיל את הפונקציה בכל פעם שהזום מסתיים
+    map.on("zoomend", handleZoomEnd);
+
+    // ניקוי המאזין כשהקומפוננטה יוצאת
+    return () => {
+      map.off("zoomend", handleZoomEnd);
+    };
 
   }, [map, points, activeCategory, viewedIds, savedIds]);
 }

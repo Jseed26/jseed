@@ -338,10 +338,18 @@ export default function Map({
                 if (geoData && geoData.length > 0) {
                   // אם נמצאה כתובת, דורסים את המיקום של המצפן
                   finalLat = parseFloat(geoData[0].lat);
-                  finalLng = parseFloat(geoData[0].lon); // שימי לב: אצלם זה נקרא lon ולא lng
+                  finalLng = parseFloat(geoData[0].lon); 
                 } else {
-                  // אם הכתובת לא נמצאה במאגר שלהם
-                  alert("לא מצאנו את הכתובת המדויקת שהזנת, אז השתמשנו במיקום של המצפן במפה.");
+                  // הכתובת לא נמצאה - שואלים את המשתמש מה לעשות
+                  const useCompass = window.confirm("המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?");
+                  
+                  if (!useCompass) {
+                    // המשתמש לחץ "ביטול"
+                    alert("אנא הזן כתובת בשנית");
+                    return; // 👈 עוצר לחלוטין את פעולת השמירה ומשאיר את הטופס פתוח!
+                  }
+                  // אם המשתמש לחץ "אישור" (useCompass === true), הקוד פשוט ימשיך הלאה
+                  // וישתמש ב-finalLat ו-finalLng המקוריים של המצפן.
                 }
               } catch (err) {
                 console.error("Geocoding failed:", err);
@@ -392,7 +400,7 @@ export default function Map({
         />
       )}
 
-      
+
       {/* כפתור מיקום - GPS משולב */}
       <button
         onClick={() => {
