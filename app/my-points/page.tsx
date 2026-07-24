@@ -206,6 +206,7 @@ export default function MyPointsPage() {
             {editingPoint && (
                 <PointForm
                     mode="edit"
+                    category={editingPoint.category as PointCategory}
                     initialData={{
                         name: editingPoint.name,
                         description: editingPoint.description,
