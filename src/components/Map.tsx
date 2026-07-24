@@ -300,19 +300,14 @@ export default function Map({
         className="w-full h-full rounded-2xl overflow-hidden bg-black relative"
       />
 
-      {/* CROSSHAIR (PLUS) OVERLAY */}
+      {/* CROSSHAIR (IMAGE) OVERLAY */}
       {isCompassMode && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-10 h-10 text-[#FFD700] drop-shadow-[0_0_2px_rgba(255,255,255,1)]"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
+          <img
+            src="/icons/ui/location/location.png"
+            alt="Target Location"
+            className="w-12 h-12 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]"
+          />
         </div>
       )}
 
