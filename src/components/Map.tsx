@@ -95,7 +95,7 @@ export default function Map({
 
     const maptilerLayer = new MaptilerLayer({
       apiKey: "1eZTTOxJLWMsKdfO1otY",
-      style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
+      style: "019fc452-0e94-77f4-9ae0-de754764b564",
     });
 
     maptilerLayer.addTo(newMap);
