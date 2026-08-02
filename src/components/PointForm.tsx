@@ -45,7 +45,7 @@ export default function PointForm({
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
             {/* שינינו את הרקע של החלונית לאפור בהיר מאוד bg-gray-100 */}
-            <div className="bg-gray-400 text-black p-6 rounded-2xl w-[380px] space-y-3 shadow-2xl border border-gray-300">
+            <div className="bg-gray-100 text-black p-6 rounded-2xl w-[380px] space-y-3 shadow-2xl border border-gray-300">
 
                 <div className="flex justify-between items-center mb-3" dir="rtl">
                     {/* כותרת - ימין */}
@@ -68,10 +68,10 @@ export default function PointForm({
                     )}
                 </div>
 
-                {/* שם - שדה לבן */}
+{/* שם - שדה לבן */}
                 <input
-                    placeholder="שם הנקודה"
-                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500"
+                    placeholder="שם הגרעין (לדוג: יד ושם...)"
+                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 placeholder-gray-400"
                     value={form.name}
                     onChange={(e) =>
                         setForm({ ...form, name: e.target.value })
@@ -80,8 +80,8 @@ export default function PointForm({
 
                 {/* תיאור - שדה לבן */}
                 <textarea
-                    placeholder="תיאור"
-                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 resize-none h-20"
+                    placeholder="תיאור (לדוג: רשות הזיכרון לשואה ולגבורה"
+                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 resize-none h-20 placeholder-gray-400"
                     value={form.description}
                     onChange={(e) =>
                         setForm({ ...form, description: e.target.value })
@@ -90,16 +90,16 @@ export default function PointForm({
 
                 {/* מלל חופשי - שדה לבן */}
                 <textarea
-                    placeholder="תוספות / מידע נוסף"
-                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 resize-none h-16"
+                    placeholder="מידע נוסף (לדוג: מורשת, אתר הנצחה, שעות פתיחה...)"
+                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 resize-none h-16 placeholder-gray-400"
                     value={form.extraInfo}
                     onChange={(e) => setForm({ ...form, extraInfo: e.target.value })}
                 />
 
                 {/* כתובת - שדה לבן */}
                 <input
-                    placeholder="כתובת"
-                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500"
+                    placeholder="כתובת (לדוגמא: הר הזיכרון, ירושלים, ללא מדינה...)"
+                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 placeholder-gray-400"
                     value={form.address}
                     onChange={(e) =>
                         setForm({ ...form, address: e.target.value })
@@ -108,26 +108,41 @@ export default function PointForm({
 
                 {/* אתר - שדה לבן */}
                 <input
-                    placeholder="קישור"
-                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500"
+                    placeholder="קישור (לדוגמא: https://www.yadvashem.org/he)"
+                    className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 placeholder-gray-400"
                     value={form.website}
                     onChange={(e) =>
                         setForm({ ...form, website: e.target.value })
                     }
                 />
 
-                {/* תמונה - אזור לבן לבחירת קובץ */}
-                <input
-                    type="file"
-                    accept="image/*"
-                    className="w-full bg-white border border-gray-300 p-2 rounded-xl text-xs text-gray-600 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-gray-200 file:text-gray-700 hover:file:bg-gray-300"
-                    onChange={(e) =>
-                        setForm({
-                            ...form,
-                            image: e.target.files?.[0] || null,
-                        })
-                    }
-                />
+                {/* תמונה - אזור מותאם אישית לבחירת קובץ */}
+                <div className="w-full bg-white border border-gray-300 p-2 rounded-xl focus-within:border-gray-500 transition">
+                    <label className="flex items-center cursor-pointer w-full">
+                        {/* הכפתור המעוצב ("בחר קובץ") */}
+                        <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition ml-3 shrink-0">
+                            בחירת תמונה
+                        </span>
+                        
+                        {/* הטקסט המשתנה - מראה את שם הקובץ, או את טקסט ברירת המחדל */}
+                        <span className="text-sm truncate text-gray-400">
+                            {form.image ? form.image.name : "להוספת תמונה"}
+                        </span>
+
+                        {/* האינפוט המקורי - מוחבא לגמרי, אבל מופעל שלוחצים על ה-label */}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    image: e.target.files?.[0] || null,
+                                })
+                            }
+                        />
+                    </label>
+                </div>
 
                 {/* כפתורים */}
                 <div className="flex justify-between items-center pt-3">
