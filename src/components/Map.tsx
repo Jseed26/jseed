@@ -373,8 +373,10 @@ export default function Map({
             formData.append("latitude", String(finalLat));
             formData.append("longitude", String(finalLng));
 
-            if (form.image) {
-              formData.append("image", form.image);
+            if (form.images && form.images.length > 0) {
+              form.images.forEach((img) => {
+                formData.append("images", img); // שימי לב: המפתח חייב להיות "images" ברבים
+              });
             }
 
             if (form.extraInfo) {

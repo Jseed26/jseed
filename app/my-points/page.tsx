@@ -14,6 +14,7 @@ type Point = {
     address?: string;
     website?: string;
     imageUrl?: string;
+    imageUrls?: string[];
     latitude: number;
     longitude: number;
     extraInfo?: string;
@@ -24,6 +25,28 @@ type Point = {
     };
 };
 
+// =================================================================
+// 🌟 קומפוננטת גלריה חדשה: תמונות מרובעות זו ליד זו
+// =================================================================
+function ImageGallery({ images }: { images: string[] }) {
+    if (!images || images.length === 0) return null;
+
+    return (
+        <div className="mt-4 flex flex-wrap gap-3">
+            {images.map((src, i) => (
+                <div key={i} className="w-24 h-24 sm:w-28 sm:h-28 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-md shrink-0">
+                    <img 
+                        src={src} 
+                        className="w-full h-full object-cover transition-transform hover:scale-105" 
+                        alt={`תמונה ${i + 1}`}
+                    />
+                </div>
+            ))}
+        </div>
+    );
+}
+// =================================================================
+
 export default function MyPointsPage() {
     const { data: session, status } = useSession();
     const [tab, setTab] = useState<"my" | "history" | "saved">("my");
@@ -33,7 +56,6 @@ export default function MyPointsPage() {
     const [savedPoints, setSavedPoints] = useState<Point[]>([]);
     
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
-    // 👈 סטייט חדש ששומר את המזהה של הנקודה שאנחנו רוצים למחוק (כדי להציג את הודעת האישור)
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
 
     const categoryNames: Record<string, string> = {
@@ -65,7 +87,6 @@ export default function MyPointsPage() {
         router.push("/");
     }
 
-    // 👈 פונקציית המחיקה החדשה שמופעלת רק בלחיצה על "כן"
     async function executeDelete() {
         if (!pointToDelete) return;
 
@@ -74,7 +95,7 @@ export default function MyPointsPage() {
             setPoints((prev) => prev.filter((p) => p.id !== pointToDelete));
             window.dispatchEvent(new Event("points-updated"));
         }
-        setPointToDelete(null); // סגירת חלונית האישור
+        setPointToDelete(null); 
     }
 
     if (status === "loading") {
@@ -128,74 +149,75 @@ export default function MyPointsPage() {
                 </p>
             ) : (
                 <div className="space-y-4">
-                    {displayPoints.map((p) => (
-                        <div key={p.id} className="border border-gray-700 bg-gray-900 p-4 rounded">
-                            <h2 className="font-bold text-lg">{p.name}</h2>
-                            {p.imageUrl && <img src={p.imageUrl} className="w-full h-40 object-cover rounded mt-2" />}
-                            <p className="text-sm text-gray-300 mt-2">{p.description}</p>
-                            <div className="text-xs text-gray-400 mt-2 space-y-1">
+                    {displayPoints.map((p) => {
+                        const pointImages = p.imageUrls && p.imageUrls.length > 0 
+                            ? p.imageUrls 
+                            : (p.imageUrl ? [p.imageUrl] : []);
+                        
+                        return (
+                        <div key={p.id} className="border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg">
+                            <h2 className="font-bold text-xl">{p.name}</h2>
+                            
+                            {/* 🌟 השתמשנו פה בגלריה המרובעת במקום בקרוסלה! */}
+                            <ImageGallery images={pointImages} />
+                            
+                            <p className="text-sm text-gray-300 mt-3">{p.description}</p>
+                            
+                            <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
                                 <p>📍 קטגוריה: {categoryNames[p.category] || p.category}</p>
                                 <p>🏠 כתובת: {p.address || "אין"}</p>
-                                <p>🌐 אתר: {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-blue-400 underline">למעבר לאתר</a> : "אין"}</p>
+                                <p>🌐 אתר: {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:underline">למעבר לאתר</a> : "אין"}</p>
                             </div>
                             
-                            {/* שורת הסטטיסטיקות עם אייקון הצמח */}
                             {tab === "my" && (
-                                <div className="flex justify-around mt-4 pt-3 border-t border-gray-800 text-xs text-gray-400">
+                                <div className="flex justify-around mt-4 pt-4 border-t border-gray-800 text-xs text-gray-400">
                                     <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} צפיות</span>
-                                    
                                     <span className="flex items-center gap-1">
                                         <img src="/icons/ui/plant/active.png" alt="שמירות" className="w-4 h-4 object-contain" />
                                         {p._count?.savedBy || 0} שמירות
                                     </span>
-                                    
                                     {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} קליקים</span>}
                                 </div>
                             )}
                             
-                            {/* שורת הפעולות בתחתית הכרטיסיה */}
-                            <div className="flex justify-between items-center mt-4">
-                                
-                                {/* צד ימין: כפתורי עריכה ומחיקה (רק אם זה הנקודות שלי) */}
+                            <div className="flex justify-between items-center mt-5">
                                 <div className="flex gap-2">
                                     {tab === "my" && (
                                         <>
-                                            <button onClick={() => setEditingPoint(p)} className="bg-blue-500 hover:bg-blue-600 text-black px-3 py-1.5 rounded text-sm transition">ערוך</button>
-                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-500 hover:bg-red-600 text-black px-3 py-1.5 rounded text-sm transition">מחק</button>
+                                            <button onClick={() => setEditingPoint(p)} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-4 py-2 rounded-lg text-sm transition">ערוך</button>
+                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 px-4 py-2 rounded-lg text-sm transition">מחק</button>
                                         </>
                                     )}
                                 </div>
-
-                                {/* צד שמאל: כפתור קטן וחמוד למפה (מופיע תמיד) */}
                                 <button 
                                     onClick={() => router.push(`/?point=${p.id}`)}
-                                    className="bg-gray-800 hover:bg-gray-700 text-yellow-500 border border-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition"
+                                    className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg"
                                 >
-                                    📍 למפה
+                                    📍 צפה במפה
                                 </button>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             )}
 
-            {/* 👈 חלונית אישור מחיקה (Modal) */}
+            {/* חלונית אישור מחיקה */}
             {pointToDelete && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-                    <div className="bg-gray-900 border border-gray-700 p-6 rounded-xl w-[320px] text-center space-y-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-white">האם אתה בטוח שברצונך למחוק?</h3>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
+                    <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">
+                        <h3 className="text-lg font-bold text-white">האם אתה בטוח שברצונך למחוק גרעין זה?</h3>
                         <div className="flex justify-center gap-4">
                             <button 
                                 onClick={executeDelete} 
-                                className="bg-red-500 hover:bg-red-600 text-black px-6 py-2 rounded-lg font-bold transition"
+                                className="bg-red-500 hover:bg-red-600 text-black px-8 py-2.5 rounded-xl font-bold transition"
                             >
-                                כן
+                                כן, מחק
                             </button>
                             <button 
                                 onClick={() => setPointToDelete(null)} 
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-bold transition"
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-2.5 rounded-xl font-bold transition"
                             >
-                                לא
+                                ביטול
                             </button>
                         </div>
                     </div>
@@ -215,6 +237,9 @@ export default function MyPointsPage() {
                         extraInfo: editingPoint.extraInfo,
                         lat: editingPoint.latitude,
                         lng: editingPoint.longitude,
+                        existingImages: editingPoint.imageUrls && editingPoint.imageUrls.length > 0 
+                            ? editingPoint.imageUrls 
+                            : (editingPoint.imageUrl ? [editingPoint.imageUrl] : [])
                     }}
                     onClose={() => setEditingPoint(null)}
                     onSubmit={async ({ form }) => {
@@ -225,7 +250,18 @@ export default function MyPointsPage() {
                         formData.append("website", form.website);
                         formData.append("category", editingPoint.category);
                         if (form.extraInfo) formData.append("extraInfo", form.extraInfo);
-                        if (form.image) formData.append("image", form.image);
+                        
+                        if (form.images && form.images.length > 0) {
+                            form.images.forEach(img => {
+                                formData.append("images", img);
+                            });
+                        }
+
+                        if (form.existingImages && form.existingImages.length > 0) {
+                            form.existingImages.forEach(url => {
+                                formData.append("existingImages", url);
+                            });
+                        }
 
                         const res = await fetch(`/api/points/${editingPoint.id}`, {
                             method: "PUT",
@@ -242,7 +278,7 @@ export default function MyPointsPage() {
                 />
             )}
 
-            <button onClick={handleLogout} className="mt-8 bg-red-500 text-black px-4 py-2 rounded">התנתק</button>
+            <button onClick={handleLogout} className="mt-8 bg-red-900/30 border border-red-800 text-red-400 px-6 py-2 rounded-lg hover:bg-red-900/50 transition">התנתק</button>
         </div>
     );
 }

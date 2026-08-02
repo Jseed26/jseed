@@ -67,6 +67,9 @@ export async function GET(req: Request) {
 /**
  * POST - יצירת נקודה חדשה עם מילות מפתח נקיות
  */
+/**
+ * POST - יצירת נקודה חדשה עם תמיכה במספר תמונות
+ */
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
@@ -80,29 +83,33 @@ export async function POST(req: Request) {
     const longitude = Number(formData.get("longitude"));
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
-    const file = formData.get("image") as File | null;
     const extraInfo = formData.get("extraInfo") as string | null;
 
+    // 👈 שולפים את כל הקבצים שנשלחו (עד 3)
+    const files = formData.getAll("images") as File[];
+    let imageUrls: string[] = [];
 
-
-    let imageUrl: string | null = null;
-
-    if (file) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const uploadResult: any = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream({ folder: "points" }, (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        }).end(buffer);
+    // מעלים את כל התמונות ל-Cloudinary במקביל
+    if (files && files.length > 0) {
+      const uploadPromises = files.map(async (file) => {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const uploadResult: any = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream({ folder: "points" }, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          }).end(buffer);
+        });
+        return uploadResult.secure_url;
       });
-      imageUrl = uploadResult.secure_url;
+
+      // מחכים שכולן יעלו ומקבלים מערך של לינקים
+      imageUrls = await Promise.all(uploadPromises);
     }
 
     let finalLatitude = latitude;
     let finalLongitude = longitude;
 
-    // תיקון: בדיקה מחמירה יותר לכתובת
-    // אנחנו מניחים שהכתובת היא "משמעותית" רק אם היא ארוכה מ-3 תווים
+    // גיאוקודינג חכם אם יש כתובת
     const hasAddress = address && address.trim().length > 3;
 
     if (hasAddress) {
@@ -112,7 +119,6 @@ export async function POST(req: Request) {
         });
         const results = await response.json();
 
-        // מעדכנים רק אם באמת נמצאה כתובת חדשה
         if (results && results.length > 0 && results[0].lat && results[0].lon) {
           finalLatitude = Number(results[0].lat);
           finalLongitude = Number(results[0].lon);
@@ -122,15 +128,6 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log({
-      latitude,
-      longitude,
-      finalLatitude,
-      finalLongitude,
-      address,
-    });
-
-    // עכשיו finalLatitude ו-finalLongitude תמיד יהיו הערכים הנכונים
     const newPoint = await prisma.point.create({
       data: {
         name,
@@ -138,8 +135,11 @@ export async function POST(req: Request) {
         latitude: finalLatitude,
         longitude: finalLongitude,
         description,
-        imageUrl,
-        address: hasAddress ? address : null, // אם אין כתובת, נשמור NULL ב-DB
+        
+        imageUrls, // 👈 שומרים את כל המערך במסד הנתונים
+        imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // שומרים את התמונה הראשונה גם בשדה הישן לתאימות לאחור
+        
+        address: hasAddress ? address : null,
         website,
         extraInfo: extraInfo || null,
         userId: session.user.id,

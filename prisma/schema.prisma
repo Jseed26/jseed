@@ -74,6 +74,7 @@ model Point {
   address     String?
   website     String?
   imageUrl    String?
+  imageUrls   String[]  @default([])
   extraInfo   String?
   userId String?
   linkClicks  Int      @default(0)

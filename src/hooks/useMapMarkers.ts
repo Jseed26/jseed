@@ -50,9 +50,41 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    const imageHtml = point.imageUrl
-      ? `<img src="${point.imageUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" />`
-      : "";
+   // 👈 1. אוספים את התמונות: אם יש מערך תמונות נשתמש בו, ואם יש תמונה בודדת ישנה - נשים אותה במערך
+    const imagesList = point.imageUrls && point.imageUrls.length > 0 
+      ? point.imageUrls 
+      : (point.imageUrl ? [point.imageUrl] : []);
+
+    let imageHtml = "";
+    
+    // 👈 2. בניית ה-HTML של הקרוסלה (רק אם יש תמונות)
+    if (imagesList.length === 1) {
+      // אם יש רק תמונה אחת - מציגים אותה רגיל
+      imageHtml = `<img src="${imagesList[0]}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px;" />`;
+    } else if (imagesList.length > 1) {
+      // אם יש יותר מאחת - בונים קרוסלה!
+      imageHtml = `
+        <div style="position: relative; width: 100%; height: 120px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
+          
+          <!-- התמונות -->
+          ${imagesList.map((src, i) => `
+            <img class="carousel-slide-${point.id}" src="${src}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'};" />
+          `).join('')}
+
+          <!-- חיצים (ימין ושמאל) -->
+          <button class="carousel-prev-${point.id}" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">❮</button>
+          
+          <button class="carousel-next-${point.id}" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">❯</button>
+
+          <!-- נקודות דפדוף למטה -->
+          <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: row-reverse;">
+            ${imagesList.map((_, i) => `
+              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer; transition: 0.3s;"></div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
 
     const plantIconSrc = isSaved
       ? "/icons/ui/plant/active.png"
@@ -102,6 +134,38 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         </button>
       </div>
     `;
+
+    // 👈 3. הפעלת הלוגיקה של הקרוסלה (רק אם יש יותר מתמונה אחת)
+    if (imagesList.length > 1) {
+      let currentIndex = 0;
+      const slides = container.querySelectorAll(`.carousel-slide-${point.id}`) as NodeListOf<HTMLImageElement>;
+      const dots = container.querySelectorAll(`.carousel-dot-${point.id}`) as NodeListOf<HTMLDivElement>;
+      const btnPrev = container.querySelector(`.carousel-prev-${point.id}`) as HTMLButtonElement;
+      const btnNext = container.querySelector(`.carousel-next-${point.id}`) as HTMLButtonElement;
+
+      const showSlide = (index: number) => {
+        slides.forEach((s, i) => s.style.display = i === index ? 'block' : 'none');
+        dots.forEach((d, i) => d.style.background = i === index ? '#ffffff' : 'rgba(255,255,255,0.4)');
+      };
+
+      if (btnPrev) btnPrev.onclick = () => {
+        currentIndex = (currentIndex > 0) ? currentIndex - 1 : imagesList.length - 1;
+        showSlide(currentIndex);
+      };
+
+      if (btnNext) btnNext.onclick = () => {
+        currentIndex = (currentIndex < imagesList.length - 1) ? currentIndex + 1 : 0;
+        showSlide(currentIndex);
+      };
+
+      dots.forEach(dot => {
+        dot.onclick = (e) => {
+          const target = e.target as HTMLElement;
+          currentIndex = parseInt(target.getAttribute("data-index") || "0");
+          showSlide(currentIndex);
+        };
+      });
+    }
 
     // 1. הגדרת קישורי השיתוף באופן דינמי (מבוסס על כתובת האתר האמיתית)
     const baseUrl = window.location.origin;
