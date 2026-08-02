@@ -37,11 +37,11 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     // לוחית עליונה: אייקון מימין, שם הנקודה משמאל
     const headerHtml = `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
-        <div style="background: rgba(0, 0, 0, 0.05); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
+        <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
           <img src="/icons/categories/${point.category}/active.png" alt="${point.category}" style="width: 18px; height: 18px; object-fit: contain;" />
         </div>
-        <div style="font-weight: bold; font-size: 16px; color: #111; text-align: left; flex-grow: 1; margin-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <div style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: left; flex-grow: 1; margin-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           ${display(point.name)}
         </div>
       </div>
@@ -57,22 +57,22 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     let currentSavedCount = point._count?.savedBy || 0;
 
-    // הרכבת הבלון המלא כולל שורת הפעולות החדשה בתחתית!
+    // הרכבת הבלון המלא כולל צבעים מותאמים לכהה
     container.innerHTML = `
       ${headerHtml}
       ${imageHtml}
       
-      <div style="max-height: 100px; overflow-y: auto; padding-right: 5px; font-size: 14px; color: #333;">
-        <div style="margin-bottom: 6px;"><strong>תיאור:</strong> ${display(point.description)}</div>
-        <div style="margin-bottom: 6px;"><strong>מיקום:</strong> ${display(point.address)}</div>
-        <div style="margin-bottom: 6px;"><strong>קישור:</strong> ${point.website
-        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: blue;">למעבר לאתר</a>`
+      <div style="max-height: 100px; overflow-y: auto; padding-right: 5px; font-size: 14px; color: #d1d5db;">
+        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">תיאור:</strong> ${display(point.description)}</div>
+        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">מיקום:</strong> ${display(point.address)}</div>
+        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">קישור:</strong> ${point.website
+        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">למעבר לאתר</a>`
         : "-"
       }</div>
       </div>
       
-      <div style="margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
-        <span class="saved-count-text" style="font-size: 12px; color: #888; font-weight: bold;">
+      <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+        <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
           ${currentSavedCount} שמירות
         </span>
         <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; justify-content: center;">
@@ -80,7 +80,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         </button>
       </div>
 
-      <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #eee;">
+      <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #374151;">
         
         <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; font-size: 20px;" title="נווט לשם">
           🚗
@@ -203,33 +203,26 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         { icon: createCategoryIcon(point.category, isViewed, map.getZoom()) }
       );
 
-      // 1. הגדרת הבועה עם ריווח חכם מהלמעלה של המסך
+      // 1. הגדרת הבועה (עם מנגנון הזזה אוטומטי חכם)
       marker.bindPopup(createPopupNode(point, isSaved), {
         closeButton: true,
         className: "custom-popup",
-        autoPan: true, // מחזירים לשליטה של Leaflet
-        autoPanPaddingTopLeft: [0, 150], // אומר למפה: "יש לי תפריט למעלה, תשמרי מרחק של 150 פיקסלים מהתקרה!"
+        autoPan: true, 
+        autoPanPaddingTopLeft: [0, 150], // שומר מרחק משורת החיפוש העליונה
         autoPanPaddingBottomRight: [0, 20]
       });
 
-      // 2. אירוע הלחיצה
+      // 2. אירוע הלחיצה (פתיחה)
       marker.on("click", (e) => {
-        const currentZoom = map.getZoom();
+        // 🌟 הקסם: מכבים זמנית את גבולות המפה!
+        // ככה המפה יכולה לזוז מעט מחוץ לגבול כדי לחשוף את הבועה במלואה בלי לקפוץ
+        map.setMaxBounds(null as any);
 
-        // אם המשתמש רחוק מדי (רואה את כל העולם), נתקרב קודם כדי לא להיתקע בגבולות המפה
-        if (currentZoom < 4) {
-          map.setView(e.target.getLatLng(), 5, { animate: true });
-          
-          // מחכים רגע שהזום יסתיים ואז פותחים את הבועה
-          setTimeout(() => {
-            marker.openPopup();
-            marker.setIcon(createCategoryIcon(point.category, true, map.getZoom()));
-          }, 400);
-        } else {
-          // אם כבר קרובים, פשוט פותחים (Leaflet ימרכז לבד בזכות ה-autoPanPadding)
-          marker.openPopup();
-          marker.setIcon(createCategoryIcon(point.category, true, currentZoom));
-        }
+        const currentZoom = map.getZoom();
+        
+        // מעדכנים את האייקון ופותחים (המפה תחליק בעדינות)
+        marker.setIcon(createCategoryIcon(point.category, true, currentZoom));
+        marker.openPopup();
 
         // שמירת היסטוריית צפיות
         if (point.id) {
@@ -239,6 +232,14 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             body: JSON.stringify({ pointId: point.id }),
           }).catch((err) => console.error("Failed to save history:", err));
         }
+      });
+
+      // 3. אירוע סגירת הבועה
+      marker.on("popupclose", () => {
+        // כשהמשתמש סוגר את הבועה (או לוחץ על נקודה אחרת)
+        // אנחנו מדליקים חזרה את הגבולות, והמפה "תשאב" חזרה למרכז בצורה טבעית.
+        const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
+        map.setMaxBounds(worldBounds);
       });
 
       layerRef.current?.addLayer(marker);

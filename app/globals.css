@@ -72,3 +72,25 @@ body {
   filter: drop-shadow(0 0 12px rgba(255, 215, 0, 1)) drop-shadow(0 0 30px rgba(255, 215, 0, 0.7));
   z-index: 1000 !important;
 }
+
+/* --- עיצוב בועת הנקודות במפה (Dark Mode מלא) --- */
+.custom-popup .leaflet-popup-content-wrapper,
+.custom-popup .leaflet-popup-tip {
+    background-color: #1f2937 !important; /* אפור כהה מאוד */
+    color: #f9fafb !important; /* טקסט בהיר */
+}
+
+/* קו מתאר עדין והצללה */
+.custom-popup .leaflet-popup-content-wrapper {
+    border: 1px solid #374151; /* מסגרת אפורה כהה */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8) !important; 
+}
+
+/* עיצוב ה-X של הסגירה שיתאים לרקע כהה */
+.custom-popup .leaflet-popup-close-button {
+    color: #9ca3af !important; /* אפור */
+    padding-top: 4px !important;
+}
+.custom-popup .leaflet-popup-close-button:hover {
+    color: #f9fafb !important; /* לבן בריחוף */
+}

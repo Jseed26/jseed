@@ -292,8 +292,7 @@ export default function Map({
   ================================================================================
   */
   return (
-    <div className="relative w-full h-[70vh]">
-
+    <div className="relative w-full h-full">
       {/* MAP */}
       <div
         ref={mapRef}
@@ -448,8 +447,8 @@ export default function Map({
             setShowRadiusMenu(!showRadiusMenu);
           }}
           className={`p-3 rounded-full shadow-lg transition-colors border ${filterRadius
-              ? "bg-yellow-500 border-yellow-400 text-black"
-              : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
+            ? "bg-yellow-500 border-yellow-400 text-black"
+            : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
             }`}
           title="סינון לפי מרחק"
         >
