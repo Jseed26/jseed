@@ -76,10 +76,12 @@ export default function Map({
       worldCopyJump: false,
     });
 
-    L.tileLayer(
-      'https://tile.jawg.io/371d6e14-ccbe-4752-851a-0f972397d066/{z}/{x}/{y}.png?access-token=9Wgf5GCT2UODKE6L3OFQkzJMrlK58O4oUrxynRP2dlsmh2SP76m9OyVQJGQqQHgd',
+L.tileLayer(
+      'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=1eZTTOxJLWMsKdfO1otY',
       {
-        attribution: '&copy; <a href="https://www.jawg.io/">Jawg</a>',
+        attribution: '&copy; <a href="https://www.maptiler.com/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        tileSize: 512,
+        zoomOffset: -1,
         noWrap: true,
         bounds: worldBounds,
         keepBuffer: 2
