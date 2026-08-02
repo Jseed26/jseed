@@ -19,6 +19,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
   // 👈 רפרנס חדש שישמור את כל המרקרים שעל המפה כדי שנוכל לפתוח אותם אוטומטית מקישור
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
 
+  // 👈 הזיכרון המקומי החדש שזוכר מה לחצנו עכשיו
+  const clickedLocallyRef = useRef<Set<number>>(new Set());
+
   useEffect(() => {
     if (!map) return;
     layerRef.current = L.layerGroup().addTo(map);
@@ -194,7 +197,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       : points;
 
     filtered.forEach((point) => {
-      const isViewed = viewedIds.includes(point.id);
+      // מוודאים שגם בציור הראשוני הנקודה תהיה כתומה אם לחצנו עליה הרגע
+      const isViewed = viewedIds.includes(point.id) || clickedLocallyRef.current.has(point.id);
       const isSaved = savedIds.includes(point.id);
 
       const marker = L.marker(
@@ -207,24 +211,22 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       marker.bindPopup(createPopupNode(point, isSaved), {
         closeButton: true,
         className: "custom-popup",
-        autoPan: true, 
+        autoPan: true,
         autoPanPaddingTopLeft: [0, 150], // שומר מרחק משורת החיפוש העליונה
         autoPanPaddingBottomRight: [0, 20]
       });
 
       // 2. אירוע הלחיצה (פתיחה)
       marker.on("click", (e) => {
-        // 🌟 הקסם: מכבים זמנית את גבולות המפה!
-        // ככה המפה יכולה לזוז מעט מחוץ לגבול כדי לחשוף את הבועה במלואה בלי לקפוץ
         map.setMaxBounds(null as any);
-
         const currentZoom = map.getZoom();
-        
-        // מעדכנים את האייקון ופותחים (המפה תחליק בעדינות)
+
+        // 🌟 שומרים מיד בזיכרון המקומי שלחצנו על הנקודה הזו!
+        clickedLocallyRef.current.add(point.id);
+
         marker.setIcon(createCategoryIcon(point.category, true, currentZoom));
         marker.openPopup();
 
-        // שמירת היסטוריית צפיות
         if (point.id) {
           fetch("/api/history", {
             method: "POST",
@@ -236,8 +238,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
       // 3. אירוע סגירת הבועה
       marker.on("popupclose", () => {
-        // כשהמשתמש סוגר את הבועה (או לוחץ על נקודה אחרת)
-        // אנחנו מדליקים חזרה את הגבולות, והמפה "תשאב" חזרה למרכז בצורה טבעית.
         const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
         map.setMaxBounds(worldBounds);
       });
@@ -269,7 +269,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         }, 500);
 
         // 👈 מנקה את ה-?point= מהכתובת כדי שלא יתקע את המפה בהמשך
-            window.history.replaceState({}, '', window.location.pathname);
+        window.history.replaceState({}, '', window.location.pathname);
       }
     }
 
@@ -279,12 +279,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const handleZoomEnd = () => {
       const currentZoom = map.getZoom();
 
-      // רצים על כל הנקודות המסוננות ומעדכנים להן את האייקון בלייב
       filtered.forEach((point) => {
         const marker = markersRef.current[point.id];
         if (marker) {
-          const isViewed = viewedIds.includes(point.id);
-          // מעדכנים את האייקון לגודל החדש!
+          // 🌟 התיקון כאן: שימוש בזיכרון המקומי בזמן זום
+          const isViewed = viewedIds.includes(point.id) || clickedLocallyRef.current.has(point.id);
+
           marker.setIcon(createCategoryIcon(point.category, isViewed, currentZoom));
         }
       });

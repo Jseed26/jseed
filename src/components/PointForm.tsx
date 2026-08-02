@@ -98,7 +98,7 @@ export default function PointForm({
 
                 {/* כתובת - שדה לבן */}
                 <input
-                    placeholder="כתובת (לדוגמא: הר הזיכרון, ירושלים, ללא מדינה...)"
+                    placeholder="כתובת (רחוב, מספר ועיר, ללא מדינה...)"
                     className="w-full bg-white border border-gray-300 p-2.5 rounded-xl text-sm focus:outline-none focus:border-gray-500 placeholder-gray-400"
                     value={form.address}
                     onChange={(e) =>
@@ -122,11 +122,6 @@ export default function PointForm({
                         {/* הכפתור המעוצב ("בחר קובץ") */}
                         <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition ml-3 shrink-0">
                             בחירת תמונה
-                        </span>
-                        
-                        {/* הטקסט המשתנה - מראה את שם הקובץ, או את טקסט ברירת המחדל */}
-                        <span className="text-sm truncate text-gray-400">
-                            {form.image ? form.image.name : "להוספת תמונה"}
                         </span>
 
                         {/* האינפוט המקורי - מוחבא לגמרי, אבל מופעל שלוחצים על ה-label */}
