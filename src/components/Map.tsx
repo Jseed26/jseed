@@ -4,8 +4,6 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
-
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
 import { useSession } from "next-auth/react";
@@ -65,42 +63,30 @@ export default function Map({
     const isMobile = window.innerWidth < 768;
     const minZoom = isMobile ? 1 : 1.5;
 
+    const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
     const newMap = L.map(container, {
       center: [20, 0],
       zoom: minZoom,
       minZoom: minZoom,
       maxZoom: 18,
-
-      // גבולות עולם אחד בלבד
-      maxBounds: [
-        [-85, -180],
-        [85, 180]
-      ],
+      maxBounds: worldBounds,
       maxBoundsViscosity: 1.0,
-
-      // מניעת שכפול עולם
+      zoomSnap: 0,
       worldCopyJump: false,
-
-      zoomControl: true,
-
-      // חשוב למפות עולם
-      preferCanvas: true,
     });
 
-    const worldBounds = L.latLngBounds(
-      [-85, -180],
-      [85, 180]
-    );
-
-    const maptilerLayer = new MaptilerLayer({
-      apiKey: "1eZTTOxJLWMsKdfO1otY",
-      style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
-    });
-
-    maptilerLayer.addTo(newMap);
-
-    newMap.setMaxBounds(worldBounds);
+   L.tileLayer(
+      'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=1eZTTOxJLWMsKdfO1otY',
+      {
+        attribution: '&copy; <a href="https://www.maptiler.com/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        tileSize: 512,
+        zoomOffset: -1,
+        noWrap: true,
+        bounds: worldBounds,
+        keepBuffer: 2
+      }
+    ).addTo(newMap);
 
     setMap(newMap);
 
