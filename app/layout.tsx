@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "./providers";
 import TimeTracker from "@/src/components/TimeTracker";
 import { Analytics } from "@vercel/analytics/react";
+import InstallPrompt from "@/src/components/InstallPrompt"; // או לפי הנתיב המדויק שלך
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
         <Providers>
           <TimeTracker />
           {children}
+          <InstallPrompt />
           <Analytics />
         </Providers>
       </body>
