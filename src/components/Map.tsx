@@ -48,7 +48,7 @@ export default function Map({
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
 
-  /*
+ /*
   ================================================================================
   🌍 INIT MAP
   ================================================================================
@@ -62,45 +62,58 @@ export default function Map({
       container.innerHTML = "";
     }
 
-    const isMobile = window.innerWidth < 768;
-    const minZoom = isMobile ? 1 : 1.5;
-
+    // הגדרת הגבולות שאנחנו *רוצים* שהמשתמש יראה
+    const worldBounds = L.latLngBounds(
+      [-60, -180],
+      [75, 180]
+    );
 
     const newMap = L.map(container, {
-      center: [20, 0],
-      zoom: minZoom,
-      minZoom: minZoom,
+      minZoom: 0.5,
       maxZoom: 18,
-
-      // גבולות עולם אחד בלבד
-      maxBounds: [
-        [-85, -180],
-        [85, 180]
-      ],
+      maxBounds: worldBounds,
       maxBoundsViscosity: 1.0,
-
-      // מניעת שכפול עולם
       worldCopyJump: false,
-
       zoomControl: true,
-
-      // חשוב למפות עולם
       preferCanvas: true,
+      zoomSnap: 0,
+      // 🌟 הפקודות שפותרות את הקפיצות - מבטלות את אנימציית המעבר 
+      zoomAnimation: false,
+      markerZoomAnimation: false,
+      fadeAnimation: false // עוזר למנוע הבהובים של השכבות בזמן הזום
     });
-
-    const worldBounds = L.latLngBounds(
-      [-85, -180],
-      [85, 180]
-    );
 
     const maptilerLayer = new MaptilerLayer({
       apiKey: "1eZTTOxJLWMsKdfO1otY",
       style: "https://api.maptiler.com/maps/hybrid-v4/style.json?key=1eZTTOxJLWMsKdfO1otY",
+      // @ts-ignore
+      noWrap: true,
+      renderWorldCopies: false,
     });
 
     maptilerLayer.addTo(newMap);
 
-    newMap.setMaxBounds(worldBounds);
+    // 🌟 טריק הקסם: מלבנים שחורים שמסתירים את הקרח למעלה ולמטה
+    // מלבן עליון (מסתיר את גרינלנד והקוטב הצפוני)
+    L.rectangle([[75, -200], [90, 200]], {
+      color: '#000000',
+      fillColor: '#000000',
+      fillOpacity: 1,
+      weight: 2, // מונע פס דק בין המלבן למפה
+      interactive: false // חשוב! כדי שהמלבן לא יחסום לחיצות על המפה
+    }).addTo(newMap);
+
+    // מלבן תחתון (מסתיר את אנטארקטיקה)
+    L.rectangle([[-90, -200], [-60, 200]], {
+      color: '#000000',
+      fillColor: '#000000',
+      fillOpacity: 1,
+      weight: 2,
+      interactive: false
+    }).addTo(newMap);
+
+    // מתאים את המפה למסך
+    newMap.fitBounds(worldBounds);
 
     setMap(newMap);
 

@@ -156,7 +156,7 @@ export default function Home() {
             >
               <img
                 src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                className="w-12 h-12 sm:w-14 sm:h-14" 
+                className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
               />
 
               <span className="text-[10px] sm:text-xs mt-1 text-yellow-500">

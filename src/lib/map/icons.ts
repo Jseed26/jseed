@@ -8,7 +8,7 @@ export const createCategoryIcon = (category: string, isViewed: boolean = false, 
   // אם הזום רחוק (עד 12), הגודל יישאר קטן כמו שאת אוהבת (10 פיקסלים).
   // כל רמת זום מעל 12, תוסיף 4 פיקסלים לגודל. 
   // (זום 13 = 14px, זום 16 = 26px וכו'). את יכולה לשחק עם המספר 4 כדי להאיץ את הגדילה.
-  const minSize = 10;
+  const minSize = 20;
   const size = currentZoom <= 8 ? minSize : minSize + (currentZoom - 8) * 6;
 
   return L.icon({
@@ -22,5 +22,8 @@ export const createCategoryIcon = (category: string, isViewed: boolean = false, 
     
     // הבועה נפתחת בדיוק מעל האייקון
     popupAnchor: [0, -size],
+
+    // 👇 הפתרון לעיוות: אומר ל-Leaflet לא למעוך את התמונה!
+    className: "object-contain",
   });
 };
