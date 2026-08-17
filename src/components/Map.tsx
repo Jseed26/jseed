@@ -35,6 +35,7 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
 
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
@@ -48,27 +49,27 @@ export default function Map({
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
 
- /*
-  ================================================================================
-  🌍 INIT MAP
-  ================================================================================
-  */
+  /*
+ ================================================================================
+ 🌍 INIT MAP (הגרסה הבטוחה למובייל)
+ ================================================================================
+ */
   useEffect(() => {
     if (!mapRef.current) return;
+
+    // 🌟 הפתרון! מונע יצירת "מפות רפאים" ולא דורס את הזיכרון
+    if (mapInstanceRef.current) return;
+
     const container = mapRef.current;
 
-    if ((container as any)._leaflet_id) {
-      (container as any)._leaflet_id = null;
-      container.innerHTML = "";
-    }
-
-    // הגדרת הגבולות שאנחנו *רוצים* שהמשתמש יראה
     const worldBounds = L.latLngBounds(
       [-60, -180],
       [75, 180]
     );
 
     const newMap = L.map(container, {
+      center: [20, 0], // 👈 הוספנו נקודת אמצע בטוחה 
+      zoom: 2,         // 👈 הוספנו זום התחלתי שלא דורש חישוב
       minZoom: 0.5,
       maxZoom: 18,
       maxBounds: worldBounds,
@@ -77,11 +78,13 @@ export default function Map({
       zoomControl: true,
       preferCanvas: true,
       zoomSnap: 0,
-      // 🌟 הפקודות שפותרות את הקפיצות- מבטלות את אנימציית המעבר 
       zoomAnimation: false,
       markerZoomAnimation: false,
-      fadeAnimation: false // עוזר למנוע הבהובים של השכבות בזמן הזום
+      fadeAnimation: false
     });
+
+    // שומרים את הרפרנס כדי שנוכל להשמיד אותו כמו שצריך
+    mapInstanceRef.current = newMap;
 
     const maptilerLayer = new MaptilerLayer({
       apiKey: "1eZTTOxJLWMsKdfO1otY",
@@ -93,32 +96,22 @@ export default function Map({
 
     maptilerLayer.addTo(newMap);
 
-    // 🌟 טריק הקסם: מלבנים שחורים שמסתירים את הקרח למעלה ולמטה
-    // מלבן עליון (מסתיר את גרינלנד והקוטב הצפוני)
     L.rectangle([[75, -200], [90, 200]], {
-      color: '#000000',
-      fillColor: '#000000',
-      fillOpacity: 1,
-      weight: 2, // מונע פס דק בין המלבן למפה
-      interactive: false // חשוב! כדי שהמלבן לא יחסום לחיצות על המפה
+      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
     }).addTo(newMap);
 
-    // מלבן תחתון (מסתיר את אנטארקטיקה)
     L.rectangle([[-90, -200], [-60, 200]], {
-      color: '#000000',
-      fillColor: '#000000',
-      fillOpacity: 1,
-      weight: 2,
-      interactive: false
+      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
     }).addTo(newMap);
-
-    // מתאים את המפה למסך
-    newMap.fitBounds(worldBounds);
 
     setMap(newMap);
 
     return () => {
-      newMap.remove();
+      // 🌟 ניקוי יסודי שמשמיד גם את מנוע ה-3D ולא משאיר שאריות למובייל
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
     };
   }, []);
 
@@ -325,7 +318,7 @@ export default function Map({
       {/* MAP */}
       <div
         ref={mapRef}
-        className="w-full h-full rounded-2xl overflow-hidden bg-black relative"
+        className="w-full h-full min-h-[50vh] rounded-2xl overflow-hidden bg-black relative"
       />
 
       {/* CROSSHAIR (IMAGE) OVERLAY */}
