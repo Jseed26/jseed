@@ -86,7 +86,7 @@ body {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8) !important; 
 }
 
-/* עיצוב ה-X של הסגירה שיתאים לרקע כהה */
+/* עיצוב ה- X של הסגירה שיתאים לרקע כהה */
 .custom-popup .leaflet-popup-close-button {
     color: #9ca3af !important; /* אפור */
     padding-top: 4px !important;
