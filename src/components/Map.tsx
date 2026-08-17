@@ -52,64 +52,68 @@ export default function Map({
  🌍 INIT MAP (מנוע Leaflet טהור למקסימום יציבות וסנכרון)
  ================================================================================
  */
- useEffect(() => {
-   if (!mapRef.current) return;
-   if (mapInstanceRef.current) return; 
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (mapInstanceRef.current) return;
 
-   const container = mapRef.current;
+    const container = mapRef.current;
 
-   const worldBounds = L.latLngBounds(
-     [-60, -180],
-     [75, 180]
-   );
+    const worldBounds = L.latLngBounds(
+      [-60, -180],
+      [75, 180]
+    );
 
-   const newMap = L.map(container, {
-     center: [20, 0], 
-     zoom: 2,         
-     minZoom: 2.3,    
-     maxZoom: 18,
-     maxBounds: worldBounds,
-     maxBoundsViscosity: 1.0,
-     worldCopyJump: false,
-     zoomControl: true,
-     preferCanvas: true,
-     zoomSnap: 0,
-     zoomAnimation: false,       
-     markerZoomAnimation: false, 
-     fadeAnimation: false        
-   });
+    // 🌟 בודקים את רוחב המסך: קטן מ-768 אומר שאנחנו בטלפון נייד
+    const isMobile = window.innerWidth < 768;
+    const dynamicMinZoom = isMobile ? 0.5 : 2.3;
 
-   mapInstanceRef.current = newMap;
+    const newMap = L.map(container, {
+      center: [20, 0],
+      zoom: 2,
+      minZoom: dynamicMinZoom, // 🌟 משתמשים בזום הדינמי שיצרנו!
+      maxZoom: 18,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+      worldCopyJump: false,
+      zoomControl: true,
+      preferCanvas: true,
+      zoomSnap: 0,
+      zoomAnimation: false,
+      markerZoomAnimation: false,
+      fadeAnimation: false
+    });
 
-   // 🌟 הנה קסם הסנכרון: מנוע 2D טהור במקום WebGL
-   const maptilerLayer = L.tileLayer(
-     "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
-     {
-       noWrap: true,
-       bounds: worldBounds // חוסם פניות לשרת באזורי הקרח שאנחנו ממילא מסתירים!
-     }
-   );
+    mapInstanceRef.current = newMap;
 
-   maptilerLayer.addTo(newMap);
+    // 🌟 הנה קסם הסנכרון: מנוע 2D טהור במקום WebGL
+    const maptilerLayer = L.tileLayer(
+      "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
+      {
+        noWrap: true,
+        bounds: worldBounds // חוסם פניות לשרת באזורי הקרח שאנחנו ממילא מסתירים!
+      }
+    );
 
-   // 🌟 בגלל ששני האלמנטים מרונדרים כעת באותו אופן, המלבנים לא יזוזו מילימטר
-   L.rectangle([[75, -200], [90, 200]], {
-     color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
-   }).addTo(newMap);
+    maptilerLayer.addTo(newMap);
 
-   L.rectangle([[-90, -200], [-60, 200]], {
-     color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
-   }).addTo(newMap);
+    // 🌟 בגלל ששני האלמנטים מרונדרים כעת באותו אופן, המלבנים לא יזוזו מילימטר
+    L.rectangle([[75, -200], [90, 200]], {
+      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
+    }).addTo(newMap);
 
-   setMap(newMap);
+    L.rectangle([[-90, -200], [-60, 200]], {
+      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
+    }).addTo(newMap);
 
-   return () => {
-     if (mapInstanceRef.current) {
-       mapInstanceRef.current.remove();
-       mapInstanceRef.current = null;
-     }
-   };
- }, []);
+    setMap(newMap);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
 
   /*
   ================================================================================
