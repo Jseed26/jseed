@@ -4,8 +4,6 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { MaptilerLayer } from "@maptiler/leaflet-maptilersdk";
-
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
 import { useSession } from "next-auth/react";
@@ -51,69 +49,67 @@ export default function Map({
 
   /*
  ================================================================================
- 🌍 INIT MAP (הגרסה הבטוחה למובייל)
+ 🌍 INIT MAP (מנוע Leaflet טהור למקסימום יציבות וסנכרון)
  ================================================================================
  */
-  useEffect(() => {
-    if (!mapRef.current) return;
+ useEffect(() => {
+   if (!mapRef.current) return;
+   if (mapInstanceRef.current) return; 
 
-    // 🌟 הפתרון! מונע יצירת "מפות רפאים" ולא דורס את הזיכרון
-    if (mapInstanceRef.current) return;
+   const container = mapRef.current;
 
-    const container = mapRef.current;
+   const worldBounds = L.latLngBounds(
+     [-60, -180],
+     [75, 180]
+   );
 
-    const worldBounds = L.latLngBounds(
-      [-60, -180],
-      [75, 180]
-    );
+   const newMap = L.map(container, {
+     center: [20, 0], 
+     zoom: 2,         
+     minZoom: 2.3,    
+     maxZoom: 18,
+     maxBounds: worldBounds,
+     maxBoundsViscosity: 1.0,
+     worldCopyJump: false,
+     zoomControl: true,
+     preferCanvas: true,
+     zoomSnap: 0,
+     zoomAnimation: false,       
+     markerZoomAnimation: false, 
+     fadeAnimation: false        
+   });
 
-    const newMap = L.map(container, {
-      center: [20, 0], // 👈 הוספנו נקודת אמצע בטוחה 
-      zoom: 2,         // 👈 הוספנו זום התחלתי שלא דורש חישוב
-      minZoom: 0.5,
-      maxZoom: 18,
-      maxBounds: worldBounds,
-      maxBoundsViscosity: 1.0,
-      worldCopyJump: false,
-      zoomControl: true,
-      preferCanvas: true,
-      zoomSnap: 0,
-      zoomAnimation: false,
-      markerZoomAnimation: false,
-      fadeAnimation: false
-    });
+   mapInstanceRef.current = newMap;
 
-    // שומרים את הרפרנס כדי שנוכל להשמיד אותו כמו שצריך
-    mapInstanceRef.current = newMap;
+   // 🌟 הנה קסם הסנכרון: מנוע 2D טהור במקום WebGL
+   const maptilerLayer = L.tileLayer(
+     "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
+     {
+       noWrap: true,
+       bounds: worldBounds // חוסם פניות לשרת באזורי הקרח שאנחנו ממילא מסתירים!
+     }
+   );
 
-    const maptilerLayer = new MaptilerLayer({
-      apiKey: "1eZTTOxJLWMsKdfO1otY",
-      style: "https://api.maptiler.com/maps/hybrid-v4/style.json?key=1eZTTOxJLWMsKdfO1otY",
-      // @ts-ignore
-      noWrap: true,
-      renderWorldCopies: false,
-    });
+   maptilerLayer.addTo(newMap);
 
-    maptilerLayer.addTo(newMap);
+   // 🌟 בגלל ששני האלמנטים מרונדרים כעת באותו אופן, המלבנים לא יזוזו מילימטר
+   L.rectangle([[75, -200], [90, 200]], {
+     color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
+   }).addTo(newMap);
 
-    L.rectangle([[75, -200], [90, 200]], {
-      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
-    }).addTo(newMap);
+   L.rectangle([[-90, -200], [-60, 200]], {
+     color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
+   }).addTo(newMap);
 
-    L.rectangle([[-90, -200], [-60, 200]], {
-      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
-    }).addTo(newMap);
+   setMap(newMap);
 
-    setMap(newMap);
-
-    return () => {
-      // 🌟 ניקוי יסודי שמשמיד גם את מנוע ה-3D ולא משאיר שאריות למובייל
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, []);
+   return () => {
+     if (mapInstanceRef.current) {
+       mapInstanceRef.current.remove();
+       mapInstanceRef.current = null;
+     }
+   };
+ }, []);
 
   /*
   ================================================================================
