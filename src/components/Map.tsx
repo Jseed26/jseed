@@ -77,7 +77,7 @@ export default function Map({
       zoomControl: true,
       preferCanvas: true,
       zoomSnap: 0,
-      // 🌟 הפקודות שפותרות את הקפיצות - מבטלות את אנימציית המעבר 
+      // 🌟 הפקודות שפותרות את הקפיצות- מבטלות את אנימציית המעבר 
       zoomAnimation: false,
       markerZoomAnimation: false,
       fadeAnimation: false // עוזר למנוע הבהובים של השכבות בזמן הזום
