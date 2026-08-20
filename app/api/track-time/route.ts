@@ -4,9 +4,20 @@ import { auth } from "@/src/lib/auth/auth";
 export async function POST(req: Request) {
     try {
         const session = await auth();
-        const { platform, visitorId } = await req.json();
+        
+        // 🛡️ הגנה מפני בקשות ריקות (של בוטים או גרסאות ישנות)
+        let body = {};
+        try {
+            body = await req.json();
+        } catch (e) {
+            // אם מישהו פנה בלי לשלוח JSON, אנחנו פשוט נמשיך הלאה עם אובייקט ריק
+            // במקום לזרוק שגיאה אדומה
+        }
 
-        // 🌍 תופסים את קוד המדינה מ-Vercel (ברירת מחדל IL אם את מריצה במחשב שלך)
+        // שולפים את הנתונים בבטחה. אם אין פלטפורמה, נניח שזה WEB
+        const { platform = "WEB", visitorId } = body as any;
+
+        // 🌍 תופסים את קוד המדינה מ-Vercel
         const country = req.headers.get("x-vercel-ip-country") || "IL";
 
         if (session?.user?.id) {
@@ -16,23 +27,23 @@ export async function POST(req: Request) {
                 data: { 
                     timeSpentMins: { increment: 1 },
                     platform: platform,
-                    country: country // 👈 שומר את המדינה
+                    country: country 
                 }
             });
         } else if (visitorId) {
-            // עדכון אורח
+            // עדכון אורח (רק אם באמת יש לנו מזהה אורח, כדי לא לשמור בוטים זמניים)
             await prisma.visitor.upsert({
                 where: { id: visitorId },
                 update: {
                     timeSpentMins: { increment: 1 },
                     platform: platform,
-                    country: country // 👈 שומר את המדינה
+                    country: country
                 },
                 create: {
                     id: visitorId,
                     platform: platform,
                     timeSpentMins: 1,
-                    country: country // 👈 שומר את המדינה
+                    country: country 
                 }
             });
         }
