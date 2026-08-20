@@ -52,58 +52,65 @@ export default function Map({
  🌍 INIT MAP (מפת לוויין מלאה, כולל קטבים, זום מהודק שממלא את המסך)
  ================================================================================
  */
- useEffect(() => {
-   if (!mapRef.current) return;
-   if (mapInstanceRef.current) return; 
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (mapInstanceRef.current) return;
 
-   const container = mapRef.current;
+    const container = mapRef.current;
 
-   // 🌟 גבולות כל העולם האמיתיים (כולל אנטארקטיקה וגרינלנד במלואם)
-   const worldBounds = L.latLngBounds(
-     [-90, -180],
-     [90, 180]
-   );
+    // 🌟 בודקים את גודל המסך בשנייה שהמפה נטענת
+    // אם הרוחב קטן מ-768 פיקסלים, המערכת תדע שזה מובייל
+    const isMobile = window.innerWidth < 768;
 
-   const newMap = L.map(container, {
-     center: [20, 0], 
-     zoom: 2.5,       // מתחיל בזום שממלא את רוב המסך
-     minZoom: 2.5,    // 🌟 חוסם זום-אאוט מטורף כדי שהמפה לא תתכווץ
-     maxZoom: 18,
-     maxBounds: worldBounds,
-     maxBoundsViscosity: 1.0,
-     worldCopyJump: false,
-     zoomControl: true,
-     preferCanvas: true,
-     zoomSnap: 0,
-     zoomAnimation: false,       
-     markerZoomAnimation: false, 
-     fadeAnimation: false        
-   });
+    // 🌟 גבולות כל העולם האמיתיים (כולל אנטארקטיקה וגרינלנד במלואם)
+    const worldBounds = L.latLngBounds(
+      [-90, -180],
+      [90, 180]
+    );
 
-   mapInstanceRef.current = newMap;
+    const newMap = L.map(container, {
+      center: [20, 0],
 
-   // 🌟 מפת הלוויין והרחובות היציבה (מנוע Leaflet טהור)
-   const maptilerLayer = L.tileLayer(
-     "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
-     {
-       noWrap: true, // מונע שכפול של כדור הארץ לרוחב
-       bounds: worldBounds 
-     }
-   );
+      // 👈 אם זה טלפון נתחיל מזום 1.5, אם זה מחשב נתחיל מ-2.5 כמו שאהבת
+      zoom: isMobile ? 1.0 : 2.5,
 
-   maptilerLayer.addTo(newMap);
+      // 👈 אם זה טלפון נאפשר להתרחק עד 1.0 (רואים הרבה יותר), במחשב נעצור ב-2.3
+      minZoom: isMobile ? 0.5 : 2.3,
 
-   // (אין כאן מלבנים שחורים שמסתירים את הקטבים)
+      maxZoom: 18,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+      worldCopyJump: false,
+      zoomControl: true,
+      preferCanvas: true,
+      zoomSnap: 0,
+      zoomAnimation: false,
+      markerZoomAnimation: false,
+      fadeAnimation: false
+    });
 
-   setMap(newMap);
+    mapInstanceRef.current = newMap;
 
-   return () => {
-     if (mapInstanceRef.current) {
-       mapInstanceRef.current.remove();
-       mapInstanceRef.current = null;
-     }
-   };
- }, []);
+    // 🌟 מפת הלוויין והרחובות היציבה (מנוע Leaflet טהור)
+    const maptilerLayer = L.tileLayer(
+      "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
+      {
+        noWrap: true, // מונע שכפול של כדור הארץ לרוחב
+        bounds: worldBounds
+      }
+    );
+
+    maptilerLayer.addTo(newMap);
+
+    setMap(newMap);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
 
   /*
   ================================================================================

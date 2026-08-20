@@ -7,7 +7,7 @@ export default async function AdminDashboard() {
 
     // 1. האם בכלל יש משתמש מחובר?
     if (!session?.user?.id) {
-        redirect("/api/auth/signin"); // או לדף הבית
+        redirect("/api/auth/signin"); 
     }
 
     // 2. שליפת המשתמש מה-DB כדי לבדוק את הסטטוס שלו
@@ -17,20 +17,31 @@ export default async function AdminDashboard() {
 
     // 3. 🔒 האבטחה האמיתית: בודקים אם isAdmin הוא true
     if (!user?.isAdmin) {
-        redirect("/"); // אם הוא לא מנהל, הוא עף הביתה
+        redirect("/"); 
     }
     
-    // 📊 שליפת סטטיסטיקות
+    // 📊 שליפת סטטיסטיקות קיימות
     const totalUsers = await prisma.user.count();
     const totalPoints = await prisma.point.count();
     
-    // משיכת כל המשתמשים עם כמות הנקודות שהם יצרו, מסודרים לפי מי שהיה הכי הרבה זמן
+    // ⏳ חישוב הזמן הכולל של כל המשתמשים יחד
+    const totalTimeResult = await prisma.user.aggregate({
+        _sum: { timeSpentMins: true }
+    });
+    const totalPlatformTime = totalTimeResult._sum.timeSpentMins || 0;
+
+    // 📱 שליפת סטטיסטיקות פלטפורמה (מי הוריד ומי בדפדפן)
+    const pwaUsersCount = await prisma.user.count({ where: { platform: "PWA" } });
+    const webUsersCount = await prisma.user.count({ where: { platform: "WEB" } });
+    
+    // משיכת כל המשתמשים + הפלטפורמה שלהם
     const users = await prisma.user.findMany({
         select: {
             id: true,
             name: true,
             email: true,
             timeSpentMins: true,
+            platform: true, // 👈 משכנו את הפלטפורמה
             _count: { select: { points: true } }
         },
         orderBy: { timeSpentMins: "desc" }
@@ -40,14 +51,30 @@ export default async function AdminDashboard() {
         <div className="min-h-screen bg-black text-white p-8" dir="rtl">
             <h1 className="text-3xl font-bold text-yellow-500 mb-8">לוח בקרה - מנהלת (Admin)</h1>
             
-            <div className="flex gap-6 mb-12">
-                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl flex-1 text-center">
+            {/* שורת קוביות הסטטיסטיקה */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
                     <h2 className="text-gray-400 text-lg">סה"כ משתמשים</h2>
                     <p className="text-4xl font-bold text-white mt-2">{totalUsers}</p>
                 </div>
-                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl flex-1 text-center">
-                    <h2 className="text-gray-400 text-lg">סה"כ נקודות על המפה</h2>
-                    <p className="text-4xl font-bold text-white mt-2">{totalPoints}</p>
+                
+                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
+                    <h2 className="text-gray-400 text-lg">זמן שהייה כולל</h2>
+                    <p className="text-4xl font-bold text-yellow-500 mt-2">
+                        {totalPlatformTime < 60 
+                            ? `${totalPlatformTime} דק'` 
+                            : `${(totalPlatformTime / 60).toFixed(1)} שעות`}
+                    </p>
+                </div>
+
+                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
+                    <h2 className="text-gray-400 text-lg">התקנות אפליקציה (PWA)</h2>
+                    <p className="text-4xl font-bold text-white mt-2">{pwaUsersCount}</p>
+                </div>
+
+                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
+                    <h2 className="text-gray-400 text-lg">גולשי אינטרנט (Web)</h2>
+                    <p className="text-4xl font-bold text-white mt-2">{webUsersCount}</p>
                 </div>
             </div>
 
@@ -58,6 +85,7 @@ export default async function AdminDashboard() {
                         <tr className="bg-gray-900 border-b border-gray-800">
                             <th className="p-4 text-yellow-500">שם משתמש</th>
                             <th className="p-4 text-yellow-500">אימייל</th>
+                            <th className="p-4 text-yellow-500">פלטפורמה</th>
                             <th className="p-4 text-yellow-500">נקודות שיצר</th>
                             <th className="p-4 text-yellow-500">זמן שהייה (בדקות)</th>
                         </tr>
@@ -67,6 +95,13 @@ export default async function AdminDashboard() {
                             <tr key={u.id} className="border-b border-gray-800 hover:bg-[#111]">
                                 <td className="p-4">{u.name || "ללא שם"}</td>
                                 <td className="p-4 text-gray-400">{u.email}</td>
+                                <td className="p-4">
+                                    {u.platform === "PWA" ? (
+                                        <span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full text-sm">📱 אפליקציה</span>
+                                    ) : (
+                                        <span className="bg-gray-800 text-gray-300 px-3 py-1 rounded-full text-sm">💻 אתר אינטרנט</span>
+                                    )}
+                                </td>
                                 <td className="p-4 font-bold">{u._count.points}</td>
                                 <td className="p-4">
                                     {u.timeSpentMins < 60 

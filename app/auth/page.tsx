@@ -11,7 +11,6 @@ export default function AuthPage() {
     const [password, setPassword] = useState("");
     const [name, setName] = useState("");
 
-    // סטייטים חדשים עבור התקנון
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
 
@@ -21,7 +20,6 @@ export default function AuthPage() {
     async function handleRegister() {
         setError(null);
 
-        // 👈 ולידציה לשם
         if (name.trim().length < 2) {
             setError("יש להזין שם (לפחות 2 אותיות)");
             return;
@@ -37,7 +35,6 @@ export default function AuthPage() {
             return;
         }
 
-        // ולידציה של התקנון
         if (!termsAccepted) {
             setError("יש לאשר את התקנון כדי להירשם");
             return;
@@ -55,8 +52,8 @@ export default function AuthPage() {
         if (res.ok) {
             setError("נרשמת בהצלחה! עכשיו אפשר להתחבר");
             setMode("login");
-            setTermsAccepted(false); // איפוס הסימון
-            setPassword(""); // מחיקת הסיסמה מהשדה ליתר ביטחון
+            setTermsAccepted(false);
+            setPassword("");
         } else {
             setError("שגיאה בהרשמה, ייתכן שהאימייל כבר קיים");
         }
@@ -89,10 +86,7 @@ export default function AuthPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-4" dir="rtl">
 
-            {/* הכרטיס המרכזי */}
             <div className="flex flex-col gap-6 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden">
-
-                {/* רקע זוהר עדין מאחורי הכרטיס */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-yellow-500 opacity-50 blur-[10px]"></div>
 
                 <div className="text-center space-y-2">
@@ -110,10 +104,7 @@ export default function AuthPage() {
                     </div>
                 )}
 
-
                 <div className="flex flex-col gap-4">
-
-                    {/* 👈 השדה החדש שמופיע רק בהרשמה */}
                     {mode === "register" && (
                         <input
                             placeholder="שם מלא / כינוי"
@@ -123,7 +114,6 @@ export default function AuthPage() {
                             onChange={(e) => setName(e.target.value)}
                         />
                     )}
-
 
                     <input
                         placeholder="אימייל"
@@ -141,7 +131,6 @@ export default function AuthPage() {
                         onChange={(e) => setPassword(e.target.value)}
                     />
 
-                    {/* תיבת אישור תקנון - מופיעה רק בהרשמה */}
                     {mode === "register" && (
                         <div className="flex items-center gap-2 mt-1">
                             <input
@@ -159,7 +148,7 @@ export default function AuthPage() {
                                         e.preventDefault();
                                         setShowTermsModal(true);
                                     }}
-                                    className="text-yellow-500 hover:text-yellow-400 underline underline-offset-2 mr-1 mr-1"
+                                    className="text-yellow-500 hover:text-yellow-400 underline underline-offset-2 mr-1"
                                 >
                                     תקנון
                                 </button>
@@ -212,7 +201,7 @@ export default function AuthPage() {
                     <button
                         onClick={() => {
                             setMode(mode === "login" ? "register" : "login");
-                            setError(null); // איפוס שגיאות במעבר
+                            setError(null);
                         }}
                         className="text-sm text-gray-400 hover:text-white transition-colors"
                     >
@@ -221,24 +210,133 @@ export default function AuthPage() {
                 </div>
             </div>
 
-            {/* מודאל תקנון */}
+            {/* מודאל תקנון דו-לשוני */}
             {showTermsModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#111] border border-gray-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
-                        <h2 className="text-xl font-bold text-yellow-500 mb-4 border-b border-gray-800 pb-2">תקנון האתר</h2>
-                        <div className="text-gray-300 text-sm leading-relaxed mb-6 min-h-[100px]">
-                            התקנון של JSEED. בהמשך נוסיף תנאים אמיתיים.
+                    <div className="bg-[#111] border border-gray-800 p-6 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
+                        
+                        <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2 shrink-0">
+                            <h2 className="text-xl font-bold text-yellow-500">
+                                תקנון האתר / Terms of Service
+                            </h2>
                         </div>
+                        
+                        <div className="text-gray-300 text-sm leading-relaxed mb-6 overflow-y-auto custom-scrollbar flex-grow pr-4">
+                            
+                            {/* --- חלק עברי (RTL) --- */}
+                            <div dir="rtl" className="text-right space-y-4">
+                                <p className="font-semibold text-white text-base text-center">
+                                    תקנון ותנאי שימוש באפליקציית JSeed
+                                </p>
+                                <p>
+                                    ברוכים הבאים לאפליקציית JSeed. השימוש באפליקציה ובתכנים המוצגים בה כפוף לתנאים המפורטים בתקנון זה. השימוש באפליקציה מעיד על הסכמתך המלאה לתנאים אלו, ועל כן אנו ממליצים לקרוא אותם בעיון.
+                                </p>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">1. בעלות ותוכן משתמשים</h3>
+                                    <p className="mb-2"><strong>אחריות בלעדית:</strong> כל תוכן שיועלה לאפליקציה על ידי המשתמש (טקסטים, תמונות, איורים או כל מדיה אחרת) הוא באחריותו הבלעדית של המשתמש בלבד.</p>
+                                    <p className="mb-2"><strong>קניין רוחני:</strong> המשתמש מצהיר ומתחייב כי כל תוכן המועלה על ידו הינו בבעלותו המלאה או שבידיו מלוא ההרשאות והאישורים הנדרשים (לרבות זכויות צלמים, יוצרים או בעלי זכויות) לפרסומו באפליקציה.</p>
+                                    <p><strong>הסרת אחריות מהפלטפורמה:</strong> JSeed, מנהליה, עובדיה והפועלים מטעמה אינם נושאים בכל אחריות בגין הפרת זכויות יוצרים, פגיעה בפרטיות או כל נזק אחר שייגרם כתוצאה משימוש בתוכן שהעלה משתמש. המשתמש מתחייב לשפות את JSeed בגין כל תביעה, נזק או הוצאה שייגרמו לה עקב הפרת סעיף זה.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">2. התנהלות הקהילה ושימוש בטוח</h3>
+                                    <p className="mb-2"><strong>איסור פגיעה:</strong> אין להעלות תכנים פוגעניים, מסיתים, גזעניים, פורנוגרפיים, אלימים או כל תוכן העלול לפגוע בכבודו או בפרטיותו של אדם אחר.</p>
+                                    <p className="mb-2"><strong>שימוש הוגן:</strong> אין להשתמש באפליקציה לצרכים מסחריים שאינם מאושרים, אין לבצע סריקת נתונים (Scraping) או כל פעולה העלולה להכביד או לפגוע בתקינות הפעולה של שרתי האפליקציה.</p>
+                                    <p><strong>קטינים:</strong> השימוש באפליקציה מותר למשתמשים העומדים בתנאי הגיל המוגדרים בחוק.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">3. מדיניות דיווח, טיפול והסרת תוכן (Notice and Takedown)</h3>
+                                    <p className="mb-2"><strong>מנגנון דיווח:</strong> לכל משתמש ניתנת האפשרות לדווח על כל תוכן שנראה לו כמפר זכויות יוצרים או מנוגד לתקנון זה, באמצעות כפתור הדיווח ("Report") המצורף לתוכן.</p>
+                                    <p className="mb-2"><strong>טיפול בדיווחים:</strong> JSeed שומרת לעצמה את הזכות (אך אינה מחויבת) לבחון את הדיווח ולהסיר תוכן בהתאם לשיקול דעתה הבלעדי וללא הודעה מוקדמת. פעולת הסרה אינה מהווה הכרה באחריות משפטית מצד הפלטפורמה.</p>
+                                    <p><strong>אמינות הדיווח:</strong> חל איסור חמור על שימוש לרעה במנגנון הדיווח. דיווחים שקריים או זדוניים יטופלו בחומרה ועלולים להוביל לחסימת המשתמש המדווח מהאפליקציה.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">4. פרטיות המשתמש</h3>
+                                    <p>המידע האישי שנאסף באפליקציה נשמר בהתאם למדיניות הפרטיות שלנו (ראו דף מדיניות פרטיות נפרד). השימוש באפליקציה מהווה הסכמה לאיסוף ושמירה של נתונים טכניים ותוכן שהועלה על ידי המשתמש לצורך תפעול המערכת.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">5. סמכות שיפוט וסיום התקשרות</h3>
+                                    <p className="mb-2">JSeed שומרת לעצמה את הזכות לחסום משתמש או להפסיק את הגישה לאפליקציה בכל עת, לפי שיקול דעתה, אם עלה חשש להפרת התקנון.</p>
+                                    <p>על תקנון זה יחולו חוקי מדינת ישראל בלבד. כל סכסוך משפטי הנובע מהשימוש באפליקציה יתברר בבתי המשפט המוסמכים במחוז הרלוונטי.</p>
+                                </div>
+                                <p className="text-yellow-500/80 italic mt-6 text-center">
+                                    הערה: השימוש בשירות מהווה אישור כי קראת והבנת את תנאי התקנון. JSeed רשאית לעדכן את התקנון מעת לעת, ועדכון זה יחייב את המשתמשים מרגע פרסומו.
+                                </p>
+                            </div>
+
+                            {/* --- קו הפרדה בין השפות --- */}
+                            <div className="relative flex items-center py-10">
+                                <div className="flex-grow border-t border-gray-700"></div>
+                                <span className="flex-shrink-0 mx-4 text-gray-500 text-xs tracking-widest uppercase">English Below</span>
+                                <div className="flex-grow border-t border-gray-700"></div>
+                            </div>
+
+                            {/* --- חלק אנגלי (LTR) --- */}
+                            <div dir="ltr" className="text-left space-y-4">
+                                <p className="font-semibold text-white text-base text-center">
+                                    Terms of Use and Conditions for JSeed App
+                                </p>
+                                <p>
+                                    Welcome to the JSeed app. Use of the app and the content displayed within it is subject to the terms detailed in this document. Using the app indicates your full consent to these terms, and therefore we recommend reading them carefully.
+                                </p>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">1. Ownership and User Content</h3>
+                                    <p className="mb-2"><strong>Sole Responsibility:</strong> Any content uploaded to the app by a user (texts, images, illustrations, or any other media) is the user's sole and exclusive responsibility.</p>
+                                    <p className="mb-2"><strong>Intellectual Property:</strong> The user declares and warrants that any content uploaded by them is fully owned by them or that they hold all necessary permissions and approvals (including rights of photographers, creators, or other rights holders) to publish it in the app.</p>
+                                    <p><strong>Platform Limitation of Liability:</strong> JSeed, its managers, employees, and anyone acting on its behalf shall not bear any liability for copyright infringement, invasion of privacy, or any other damage caused as a result of content uploaded by a user. The user agrees to indemnify JSeed for any claim, damage, or expense incurred as a result of violating this clause.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">2. Community Conduct and Safe Use</h3>
+                                    <p className="mb-2"><strong>Prohibition of Harassment and Harm:</strong> It is prohibited to upload offensive, inciting, racist, pornographic, violent content, or any content that may infringe upon the dignity or privacy of another person.</p>
+                                    <p className="mb-2"><strong>Fair Use:</strong> The app must not be used for unauthorized commercial purposes, data scraping, or any action that may burden or impair the proper operation of the app's servers.</p>
+                                    <p><strong>Minors:</strong> Use of the app is permitted for users who meet the age requirements defined by law.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">3. Reporting, Handling, and Content Removal Policy (Notice and Takedown)</h3>
+                                    <p className="mb-2"><strong>Reporting Mechanism:</strong> Every user is given the option to report any content they believe infringes copyright or violates these terms, using the reporting button ("Report") attached to the content.</p>
+                                    <p className="mb-2"><strong>Handling Reports:</strong> JSeed reserves the right (though is not obligated) to review the report and remove content at its sole discretion and without prior notice. The act of removal does not constitute an acknowledgment of legal liability by the platform.</p>
+                                    <p><strong>Reporting Reliability:</strong> Misuse of the reporting mechanism is strictly prohibited. False or malicious reports will be dealt with severely and may lead to the banning of the reporting user from the app.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">4. User Privacy</h3>
+                                    <p>Personal information collected in the app is stored in accordance with our privacy policy (see separate Privacy Policy page). Use of the app constitutes consent to the collection and storage of technical data and content uploaded by the user for system operation purposes.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-bold text-white mb-1 text-base">5. Jurisdiction and Termination of Services</h3>
+                                    <p className="mb-2">JSeed reserves the right to block a user or terminate access to the app at any time, at its discretion, if there is a concern that these terms have been violated.</p>
+                                    <p>These terms shall be governed solely by the laws of the State of Israel. Any legal dispute arising from the use of the app shall be adjudicated in the competent courts in the relevant district.</p>
+                                </div>
+
+                                <p className="text-yellow-500/80 italic mt-6 text-center">
+                                    Note: Use of the service constitutes confirmation that you have read and understood the terms of this policy. JSeed may update these terms from time to time, and such updates shall bind users from the moment of publication.
+                                </p>
+                            </div>
+
+                            {/* --- אזור זכויות יוצרים בסוף --- */}
+                            <div className="flex flex-col items-center justify-center text-yellow-500 font-semibold text-sm space-y-1 mt-10 pb-2 border-t border-gray-800 pt-6">
+                                <span>All rights reserved © 2026 JSeed</span>
+                                <span>כל הזכויות שמורות © 2026 JSeed.</span>
+                            </div>
+                        </div>
+                        
                         <button
                             onClick={() => setShowTermsModal(false)}
-                            className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium p-2 rounded-lg transition-colors"
+                            className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium p-3 rounded-lg transition-colors mt-auto shrink-0"
                         >
                             סגירה
                         </button>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

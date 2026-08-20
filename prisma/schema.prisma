@@ -24,6 +24,7 @@ model User {
   viewedPoints ViewedPoint[]
   savedPoints  SavedPoint[]
   notifications Notification[]
+  platform      String?  @default("WEB") // יכול להיות "WEB" או "PWA"
 }
 
 model Account {
@@ -117,4 +118,12 @@ model Notification {
   createdAt DateTime @default(now())
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Visitor {
+  id            String   @id
+  platform      String   @default("WEB")
+  timeSpentMins Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

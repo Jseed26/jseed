@@ -7,17 +7,37 @@ export default function TimeTracker() {
     const { status } = useSession();
 
     useEffect(() => {
-        // מפעיל את השעון רק אם המשתמש מחובר
-        if (status !== "authenticated") return;
+        // 🌟 מחקנו את השורה שעוצרת אורחים! עכשיו כולם נכנסים למעקב
 
-        // מגדיר אינטרוול שרץ כל 60,000 מילישניות (דקה אחת)
-        const interval = setInterval(() => {
-            fetch("/api/track-time", { method: "POST" }).catch(console.error);
-        }, 60000);
+        const checkPlatform = () => {
+            const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                          (window.navigator as any).standalone === true;
+            return isPWA ? "PWA" : "WEB";
+        };
 
-        // מנקה את השעון אם המשתמש סוגר את האתר
+        const pingServer = () => {
+            // 🌟 שולפים או מייצרים מזהה אנונימי לאורח
+            let visitorId = localStorage.getItem("jseed_visitor_id");
+            if (!visitorId) {
+                visitorId = crypto.randomUUID(); // מייצר ID ייחודי
+                localStorage.setItem("jseed_visitor_id", visitorId);
+            }
+
+            fetch("/api/track-time", { 
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    platform: checkPlatform(),
+                    visitorId: visitorId // שולחים גם את מזהה האורח
+                })
+            }).catch(console.error);
+        };
+
+        pingServer(); // דיווח ראשון בפתיחת האפליקציה
+        const interval = setInterval(pingServer, 60000); // דיווח כל דקה
+
         return () => clearInterval(interval);
     }, [status]);
 
-    return null; // הקומפוננטה הזו בלתי נראית
+    return null;
 }
