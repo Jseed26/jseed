@@ -22,9 +22,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "JSeed", // 👈 שיניתי לשם האמיתי
+  title: "JSeed", 
   description: "Global Jewish Connection",
-  manifest: "/manifest.json", // 👈 הוספנו את הקישור למניפסט!
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png", // 👈 תוודאי שזה השם האמיתי של הלוגו שלך בתיקיית public
+    apple: "/logo.png", // 👈 זה מה שמכריח את אייפון להראות את הלוגו!
+  },
 };
 
 export default function RootLayout({
