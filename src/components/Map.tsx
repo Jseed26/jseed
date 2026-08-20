@@ -49,71 +49,61 @@ export default function Map({
 
   /*
  ================================================================================
- 🌍 INIT MAP (מנוע Leaflet טהור למקסימום יציבות וסנכרון)
+ 🌍 INIT MAP (מפת לוויין מלאה, כולל קטבים, זום מהודק שממלא את המסך)
  ================================================================================
  */
-  useEffect(() => {
-    if (!mapRef.current) return;
-    if (mapInstanceRef.current) return;
+ useEffect(() => {
+   if (!mapRef.current) return;
+   if (mapInstanceRef.current) return; 
 
-    const container = mapRef.current;
+   const container = mapRef.current;
 
-    const worldBounds = L.latLngBounds(
-      [-60, -180],
-      [75, 180]
-    );
+   // 🌟 גבולות כל העולם האמיתיים (כולל אנטארקטיקה וגרינלנד במלואם)
+   const worldBounds = L.latLngBounds(
+     [-90, -180],
+     [90, 180]
+   );
 
-    // 🌟 בודקים את רוחב המסך: קטן מ-768 אומר שאנחנו בטלפון נייד
-    const isMobile = window.innerWidth < 768;
-    const dynamicMinZoom = isMobile ? 0.5 : 2.3;
+   const newMap = L.map(container, {
+     center: [20, 0], 
+     zoom: 2.5,       // מתחיל בזום שממלא את רוב המסך
+     minZoom: 2.5,    // 🌟 חוסם זום-אאוט מטורף כדי שהמפה לא תתכווץ
+     maxZoom: 18,
+     maxBounds: worldBounds,
+     maxBoundsViscosity: 1.0,
+     worldCopyJump: false,
+     zoomControl: true,
+     preferCanvas: true,
+     zoomSnap: 0,
+     zoomAnimation: false,       
+     markerZoomAnimation: false, 
+     fadeAnimation: false        
+   });
 
-    const newMap = L.map(container, {
-      center: [20, 0],
-      zoom: 2,
-      minZoom: dynamicMinZoom, // 🌟 משתמשים בזום הדינמי שיצרנו!
-      maxZoom: 18,
-      maxBounds: worldBounds,
-      maxBoundsViscosity: 1.0,
-      worldCopyJump: false,
-      zoomControl: true,
-      preferCanvas: true,
-      zoomSnap: 0,
-      zoomAnimation: false,
-      markerZoomAnimation: false,
-      fadeAnimation: false
-    });
+   mapInstanceRef.current = newMap;
 
-    mapInstanceRef.current = newMap;
+   // 🌟 מפת הלוויין והרחובות היציבה (מנוע Leaflet טהור)
+   const maptilerLayer = L.tileLayer(
+     "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
+     {
+       noWrap: true, // מונע שכפול של כדור הארץ לרוחב
+       bounds: worldBounds 
+     }
+   );
 
-    // 🌟 הנה קסם הסנכרון: מנוע 2D טהור במקום WebGL
-    const maptilerLayer = L.tileLayer(
-      "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
-      {
-        noWrap: true,
-        bounds: worldBounds // חוסם פניות לשרת באזורי הקרח שאנחנו ממילא מסתירים!
-      }
-    );
+   maptilerLayer.addTo(newMap);
 
-    maptilerLayer.addTo(newMap);
+   // (אין כאן מלבנים שחורים שמסתירים את הקטבים)
 
-    // 🌟 בגלל ששני האלמנטים מרונדרים כעת באותו אופן, המלבנים לא יזוזו מילימטר
-    L.rectangle([[75, -200], [90, 200]], {
-      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
-    }).addTo(newMap);
+   setMap(newMap);
 
-    L.rectangle([[-90, -200], [-60, 200]], {
-      color: '#000000', fillColor: '#000000', fillOpacity: 1, weight: 2, interactive: false
-    }).addTo(newMap);
-
-    setMap(newMap);
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, []);
+   return () => {
+     if (mapInstanceRef.current) {
+       mapInstanceRef.current.remove();
+       mapInstanceRef.current = null;
+     }
+   };
+ }, []);
 
   /*
   ================================================================================
