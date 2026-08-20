@@ -79,9 +79,17 @@ export default function AuthPage() {
         window.location.href = "/";
     }
 
+    // 🌟 פונקציית התחברות חברתית (בלי שגיאות, כי הכפתור עצמו פשוט נעול)
+    function handleSocialLogin(provider: string) {
+        signIn(provider, { callbackUrl: "/" });
+    }
+
     function isValidEmail(email: string) {
         return /\S+@\S+\.\S+/.test(email);
     }
+
+    // משתנה עזר כדי לדעת אם הכפתורים החברתיים צריכים להיות נעולים
+    const isSocialBlocked = mode === "register" && !termsAccepted;
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-4" dir="rtl">
@@ -99,7 +107,7 @@ export default function AuthPage() {
                 </div>
 
                 {error && (
-                    <div className="bg-red-950/50 border border-red-500 text-red-200 text-sm p-3 rounded-lg text-center">
+                    <div className="bg-red-950/50 border border-red-500 text-red-200 text-sm p-3 rounded-lg text-center transition-all">
                         {error}
                     </div>
                 )}
@@ -137,7 +145,10 @@ export default function AuthPage() {
                                 type="checkbox"
                                 id="terms"
                                 checked={termsAccepted}
-                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                onChange={(e) => {
+                                    setTermsAccepted(e.target.checked);
+                                    if (e.target.checked) setError(null);
+                                }}
                                 className="w-4 h-4 accent-yellow-500 cursor-pointer rounded"
                             />
                             <label htmlFor="terms" className="text-sm text-gray-400 cursor-pointer">
@@ -159,8 +170,8 @@ export default function AuthPage() {
 
                 <button
                     onClick={mode === "login" ? handleLogin : handleRegister}
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold p-3 rounded-lg disabled:opacity-50 transition-all shadow-[0_0_10px_rgba(255,215,0,0.2)]"
+                    disabled={loading || isSocialBlocked} // נעילה פיזית של הכפתור
+                    className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold p-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(255,215,0,0.2)]"
                 >
                     {loading ? "טוען..." : mode === "login" ? "התחברות" : "הרשמה"}
                 </button>
@@ -173,28 +184,46 @@ export default function AuthPage() {
 
                 <div className="flex flex-col gap-3">
                     <button
-                        onClick={() => signIn("github", { callbackUrl: "/" })}
-                        className="flex items-center justify-center gap-3 border border-gray-700 bg-[#111] text-white p-3 rounded-lg hover:bg-gray-800 transition-colors"
+                        onClick={() => handleSocialLogin("github")}
+                        disabled={isSocialBlocked} // 🌟 נעילה פיזית
+                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${
+                            isSocialBlocked 
+                                ? "border-gray-800 bg-[#111] text-gray-600 opacity-50 cursor-not-allowed grayscale" 
+                                : "border-gray-700 bg-[#111] text-white hover:bg-gray-800"
+                        }`}
                     >
                         <img
                             src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
-                            className="w-5 h-5 invert"
+                            className={`w-5 h-5 ${isSocialBlocked ? "opacity-50" : "invert"}`}
                             alt="GitHub"
                         />
                         <span className="text-sm">המשך עם GitHub</span>
                     </button>
 
                     <button
-                        onClick={() => signIn("google", { callbackUrl: "/" })}
-                        className="flex items-center justify-center gap-3 border border-gray-300 bg-white text-black p-3 rounded-lg hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSocialLogin("google")}
+                        disabled={isSocialBlocked} // 🌟 נעילה פיזית
+                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${
+                            isSocialBlocked 
+                                ? "border-gray-600 bg-gray-300 text-gray-500 opacity-50 cursor-not-allowed grayscale" 
+                                : "border-gray-300 bg-white text-black hover:bg-gray-100"
+                        }`}
                     >
                         <img
                             src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                            className="w-5 h-5"
+                            className={`w-5 h-5 ${isSocialBlocked ? "opacity-50 grayscale" : ""}`}
                             alt="Google"
                         />
                         <span className="text-sm font-medium">המשך עם Google</span>
                     </button>
+                    
+                    {/* שורת הכיסוי המשפטי שמופיעה רק במצב התחברות */}
+                    {mode === "login" && (
+                        <p className="text-xs text-gray-500 text-center mt-2 leading-relaxed">
+                            התחברות באמצעות Google או GitHub מהווה הסכמה <br/> 
+                            ל<button onClick={() => setShowTermsModal(true)} className="text-yellow-500 hover:underline hover:text-yellow-400">תקנון האתר</button>.
+                        </p>
+                    )}
                 </div>
 
                 <div className="text-center mt-2">
@@ -210,7 +239,7 @@ export default function AuthPage() {
                 </div>
             </div>
 
-            {/* מודאל תקנון דו-לשוני */}
+            {/* מודאל תקנון */}
             {showTermsModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                     <div className="bg-[#111] border border-gray-800 p-6 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
