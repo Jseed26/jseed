@@ -10,38 +10,46 @@ export default async function AdminDashboard() {
         redirect("/api/auth/signin"); 
     }
 
-    // 2. שליפת המשתמש מה-DB כדי לבדוק את הסטטוס שלו
+    // 2. שליפת המשתמש מה-DB
     const user = await prisma.user.findUnique({
         where: { id: session.user.id }
     });
 
-    // 3. 🔒 האבטחה האמיתית: בודקים אם isAdmin הוא true
     if (!user?.isAdmin) {
         redirect("/"); 
     }
     
-    // 📊 שליפת סטטיסטיקות קיימות
+    // 📊 1. שליפת סטטיסטיקות ממשתמשים רשומים (User)
     const totalUsers = await prisma.user.count();
     const totalPoints = await prisma.point.count();
     
-    // ⏳ חישוב הזמן הכולל של כל המשתמשים יחד
-    const totalTimeResult = await prisma.user.aggregate({
-        _sum: { timeSpentMins: true }
-    });
-    const totalPlatformTime = totalTimeResult._sum.timeSpentMins || 0;
+    const totalUserTimeResult = await prisma.user.aggregate({ _sum: { timeSpentMins: true } });
+    const userTime = totalUserTimeResult._sum.timeSpentMins || 0;
 
-    // 📱 שליפת סטטיסטיקות פלטפורמה (מי הוריד ומי בדפדפן)
     const pwaUsersCount = await prisma.user.count({ where: { platform: "PWA" } });
     const webUsersCount = await prisma.user.count({ where: { platform: "WEB" } });
+
+    // 👻 2. שליפת סטטיסטיקות מאורחים (Visitor)
+    const totalVisitors = await prisma.visitor.count();
+    const totalVisitorTimeResult = await prisma.visitor.aggregate({ _sum: { timeSpentMins: true } });
+    const visitorTime = totalVisitorTimeResult._sum.timeSpentMins || 0;
+
+    const pwaVisitorsCount = await prisma.visitor.count({ where: { platform: "PWA" } });
+    const webVisitorsCount = await prisma.visitor.count({ where: { platform: "WEB" } });
     
-    // משיכת כל המשתמשים + הפלטפורמה שלהם
+    // 🧮 3. חיבור הנתונים יחד (רשומים + אורחים)
+    const totalPlatformTime = userTime + visitorTime;
+    const totalPwa = pwaUsersCount + pwaVisitorsCount;
+    const totalWeb = webUsersCount + webVisitorsCount;
+
+    // משיכת כל המשתמשים לטבלה
     const users = await prisma.user.findMany({
         select: {
             id: true,
             name: true,
             email: true,
             timeSpentMins: true,
-            platform: true, // 👈 משכנו את הפלטפורמה
+            platform: true, 
             _count: { select: { points: true } }
         },
         orderBy: { timeSpentMins: "desc" }
@@ -51,15 +59,20 @@ export default async function AdminDashboard() {
         <div className="min-h-screen bg-black text-white p-8" dir="rtl">
             <h1 className="text-3xl font-bold text-yellow-500 mb-8">לוח בקרה - מנהלת (Admin)</h1>
             
-            {/* שורת קוביות הסטטיסטיקה */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {/* 🌟 שורת קוביות הסטטיסטיקה (עכשיו עם 5 קוביות!) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
                 <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
-                    <h2 className="text-gray-400 text-lg">סה"כ משתמשים</h2>
+                    <h2 className="text-gray-400 text-lg">סה"כ רשומים</h2>
                     <p className="text-4xl font-bold text-white mt-2">{totalUsers}</p>
+                </div>
+
+                <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
+                    <h2 className="text-gray-400 text-lg">סה"כ אורחים</h2>
+                    <p className="text-4xl font-bold text-gray-400 mt-2">{totalVisitors}</p>
                 </div>
                 
                 <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
-                    <h2 className="text-gray-400 text-lg">זמן שהייה כולל</h2>
+                    <h2 className="text-gray-400 text-lg">זמן שהייה (כולל אורחים)</h2>
                     <p className="text-4xl font-bold text-yellow-500 mt-2">
                         {totalPlatformTime < 60 
                             ? `${totalPlatformTime} דק'` 
@@ -69,12 +82,12 @@ export default async function AdminDashboard() {
 
                 <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
                     <h2 className="text-gray-400 text-lg">התקנות אפליקציה (PWA)</h2>
-                    <p className="text-4xl font-bold text-white mt-2">{pwaUsersCount}</p>
+                    <p className="text-4xl font-bold text-white mt-2">{totalPwa}</p>
                 </div>
 
                 <div className="bg-[#111] border border-gray-800 p-6 rounded-xl text-center">
                     <h2 className="text-gray-400 text-lg">גולשי אינטרנט (Web)</h2>
-                    <p className="text-4xl font-bold text-white mt-2">{webUsersCount}</p>
+                    <p className="text-4xl font-bold text-white mt-2">{totalWeb}</p>
                 </div>
             </div>
 
