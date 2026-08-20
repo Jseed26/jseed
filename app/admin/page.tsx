@@ -2,6 +2,16 @@ import { prisma } from "@/src/lib/prisma";
 import { auth } from "@/src/lib/auth/auth";
 import { redirect } from "next/navigation";
 
+// 🌍 פונקציית עזר קטנה שהופכת קוד מדינה (כמו IL) לדגל אמוג'י
+function getFlagEmoji(countryCode: string | null) {
+    if (!countryCode) return "🌍";
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+}
+
 export default async function AdminDashboard() {
     const session = await auth();
 
@@ -47,6 +57,7 @@ export default async function AdminDashboard() {
         where: { updatedAt: { gte: fiveMinutesAgo } }
     });
     const totalOnlineNow = onlineUsers + onlineVisitors;
+    
 
     // משיכת משתמשים לטבלה
     const users = await prisma.user.findMany({
@@ -56,6 +67,7 @@ export default async function AdminDashboard() {
             email: true,
             timeSpentMins: true,
             platform: true, 
+            country: true, 
             _count: { select: { points: true } }
         },
         orderBy: { timeSpentMins: "desc" }
@@ -117,6 +129,7 @@ export default async function AdminDashboard() {
                         <tr className="bg-gray-900 border-b border-gray-800">
                             <th className="p-4 text-yellow-500">שם משתמש</th>
                             <th className="p-4 text-yellow-500">אימייל</th>
+                            <th className="p-4 text-yellow-500 text-center">מדינה</th>
                             <th className="p-4 text-yellow-500">פלטפורמה</th>
                             <th className="p-4 text-yellow-500">נקודות שיצר</th>
                             <th className="p-4 text-yellow-500">זמן שהייה (בדקות)</th>
@@ -127,6 +140,11 @@ export default async function AdminDashboard() {
                             <tr key={u.id} className="border-b border-gray-800 hover:bg-[#111]">
                                 <td className="p-4">{u.name || "ללא שם"}</td>
                                 <td className="p-4 text-gray-400">{u.email}</td>
+                                
+                                <td className="p-4 text-center text-2xl" title={u.country || "לא ידוע"}>
+                                    {getFlagEmoji(u.country)}
+                                </td>
+
                                 <td className="p-4">
                                     {u.platform === "PWA" ? (
                                         <span className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full text-sm">📱 אפליקציה</span>

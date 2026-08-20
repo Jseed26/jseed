@@ -25,6 +25,7 @@ model User {
   savedPoints  SavedPoint[]
   notifications Notification[]
   platform      String?  @default("WEB") // יכול להיות "WEB" או "PWA"
+  country       String?
 }
 
 model Account {
