@@ -75,7 +75,7 @@ export default function Map({
       zoom: isMobile ? 1.0 : 2.5,
 
       // 👈 אם זה טלפון נאפשר להתרחק עד 1.0 (רואים הרבה יותר), במחשב נעצור ב-2.3
-      minZoom: isMobile ? 0.5 : 2.3,
+      minZoom: isMobile ? 0.8 : 2.3,
 
       maxZoom: 18,
       maxBounds: worldBounds,
