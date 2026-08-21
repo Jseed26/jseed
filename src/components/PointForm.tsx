@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import imageCompression from "browser-image-compression"; // 👈 הייבוא החדש
+import imageCompression from "browser-image-compression";
 
 type FormState = {
     name: string;
     description: string;
     address: string;
     website: string;
-    images: File[];
-    existingImages: string[];
+    images: File[];            
+    existingImages: string[];  
     extraInfo: string;
 };
 
@@ -18,11 +18,12 @@ type Props = {
     initialData?: Partial<FormState> & {
         lat?: number;
         lng?: number;
-        existingImages?: string[];
+        existingImages?: string[]; 
     };
     category?: string | null;
     onClose: () => void;
-    onSubmit: (data: { form: FormState }) => void;
+    // 🌟 שינינו פה ל-any כדי שיוכל לקבל פעולה אסינכרונית מהשרת בלי שגיאות
+    onSubmit: (data: { form: FormState }) => any; 
 };
 
 export default function PointForm({
@@ -38,17 +39,28 @@ export default function PointForm({
         address: initialData?.address || "",
         website: initialData?.website || "",
         images: [],
-        existingImages: initialData?.existingImages || [],
+        existingImages: initialData?.existingImages || [], 
         extraInfo: initialData?.extraInfo || "",
     });
 
-    // 🌟 סטייט חדש שבודק אם אנחנו באמצע כיווץ תמונות
     const [isCompressing, setIsCompressing] = useState(false);
+    
+    // 🌟 הסטייט החדש שמונע לחיצה כפולה
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const totalImages = form.existingImages.length + form.images.length;
 
-    function handleSubmit() {
-        onSubmit({ form });
+    // 🌟 הפכנו את הפונקציה לאסינכרונית כדי שתוכל לנעול את הכפתור בזמן השמירה
+    async function handleSubmit() {
+        setIsSubmitting(true); // נועלים את הכפתור!
+        try {
+            await onSubmit({ form });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            // במקרה של שגיאה או אם החלון לא נסגר אוטומטית - משחררים את הנעילה
+            setIsSubmitting(false); 
+        }
     }
 
     return (
@@ -115,12 +127,12 @@ export default function PointForm({
                         <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition ml-3 shrink-0">
                             {isCompressing ? "מעבד..." : "הוספת תמונות"}
                         </span>
-
+                        
                         <span className="text-sm truncate text-gray-400">
-                            {isCompressing
-                                ? "מכווץ תמונות, אנא המתן..."
-                                : (totalImages > 0
-                                    ? `יש ${totalImages} תמונות (מתוך 3)`
+                            {isCompressing 
+                                ? "מכווץ תמונות, אנא המתן..." 
+                                : (totalImages > 0 
+                                    ? `יש ${totalImages} תמונות (מתוך 3)` 
                                     : "עד 3 תמונות סך הכל")
                             }
                         </span>
@@ -129,7 +141,7 @@ export default function PointForm({
                             type="file"
                             accept="image/*, .heic, .heif, .webp"
                             multiple
-                            disabled={isCompressing}
+                            disabled={isCompressing || isSubmitting}
                             className="hidden"
                             onChange={async (e) => {
                                 const newFiles = Array.from(e.target.files || []);
@@ -146,30 +158,28 @@ export default function PointForm({
                                     filesToAdd = newFiles.slice(0, availableSlots);
                                 }
 
-                                setIsCompressing(true); // מתחילים כיווץ!
+                                setIsCompressing(true); 
 
                                 try {
                                     const compressedFiles: File[] = [];
-                                    // 🌟 הגדרות הכיווץ שלנו
+                                    
                                     const options = {
-                                        maxSizeMB: 1, // הגבלת משקל התמונה למקסימום 1 מגה
-                                        maxWidthOrHeight: 1280, // הקטנת הרזולוציה
+                                        maxSizeMB: 1, 
+                                        maxWidthOrHeight: 1280, 
                                         useWebWorker: true,
                                     };
 
                                     for (const file of filesToAdd) {
-                                        // כיווץ התמונה
                                         const compressedFile = await imageCompression(file, options);
                                         compressedFiles.push(compressedFile);
                                     }
 
-                                    // מוסיף את התמונות המכווצות לסטייט
                                     setForm(prev => ({ ...prev, images: [...prev.images, ...compressedFiles] }));
                                 } catch (error) {
                                     console.error("Error compressing images:", error);
                                     alert("אירעה שגיאה בעיבוד התמונה. נסה תמונה אחרת.");
                                 } finally {
-                                    setIsCompressing(false); // סיימנו כיווץ!
+                                    setIsCompressing(false); 
                                 }
                             }}
                         />
@@ -178,7 +188,7 @@ export default function PointForm({
                     {/* גלריית תצוגה מקדימה ומחיקת תמונות */}
                     {totalImages > 0 && (
                         <div className="flex gap-3 overflow-x-auto pt-3 pb-1 mt-2 border-t border-gray-200 custom-scrollbar" dir="rtl">
-
+                            
                             {form.existingImages.map((url, i) => (
                                 <div key={`existing-${i}`} className="relative w-14 h-14 shrink-0">
                                     <img src={url} className="w-full h-full object-cover rounded-lg shadow-sm" />
@@ -219,16 +229,18 @@ export default function PointForm({
 
                 {/* כפתורים */}
                 <div className="flex justify-between items-center pt-3">
-                    <button onClick={onClose} disabled={isCompressing} className="text-red-500 hover:text-red-700 disabled:opacity-50 text-sm font-medium px-3 py-1.5">
+                    <button onClick={onClose} disabled={isCompressing || isSubmitting} className="text-red-500 hover:text-red-700 disabled:opacity-50 text-sm font-medium px-3 py-1.5">
                         ביטול
                     </button>
 
                     <button
                         onClick={handleSubmit}
-                        disabled={isCompressing} // 🌟 חוסם שמירה עד שהכיווץ מסתיים
+                        // 🌟 חוסם פיזית לחיצה כפולה!
+                        disabled={isCompressing || isSubmitting} 
                         className="bg-black hover:bg-gray-800 text-white px-5 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {mode === "create" ? "צור" : "שמור"}
+                        {/* 🌟 משנה את הטקסט כדי שתדעי שזה באמצע עבודה */}
+                        {isSubmitting ? "שומר..." : mode === "create" ? "צור" : "שמור"}
                     </button>
                 </div>
 

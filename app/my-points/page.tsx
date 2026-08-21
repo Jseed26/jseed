@@ -57,6 +57,9 @@ export default function MyPointsPage() {
     
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
+    
+    // 🌟 הוספנו סטייט חדש שנועל את כפתור המחיקה למניעת לחיצה כפולה
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const categoryNames: Record<string, string> = {
         leaf: "Community",
@@ -87,15 +90,24 @@ export default function MyPointsPage() {
         router.push("/");
     }
 
+    // 🌟 עדכנו את פונקציית המחיקה כדי שתנעל את הכפתור בזמן העבודה
     async function executeDelete() {
-        if (!pointToDelete) return;
+        if (!pointToDelete || isDeleting) return; // מונע ביצוע אם כבר באמצע מחיקה
+        
+        setIsDeleting(true); // נועלים!
 
-        const res = await fetch(`/api/points/${pointToDelete}`, { method: "DELETE" });
-        if (res.ok) {
-            setPoints((prev) => prev.filter((p) => p.id !== pointToDelete));
-            window.dispatchEvent(new Event("points-updated"));
+        try {
+            const res = await fetch(`/api/points/${pointToDelete}`, { method: "DELETE" });
+            if (res.ok) {
+                setPoints((prev) => prev.filter((p) => p.id !== pointToDelete));
+                window.dispatchEvent(new Event("points-updated"));
+            }
+        } catch (error) {
+            console.error("Error deleting point:", error);
+        } finally {
+            setIsDeleting(false); // משחררים נעילה
+            setPointToDelete(null); // סוגרים את החלונית
         }
-        setPointToDelete(null); 
     }
 
     if (status === "loading") {
@@ -158,7 +170,6 @@ export default function MyPointsPage() {
                         <div key={p.id} className="border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg">
                             <h2 className="font-bold text-xl">{p.name}</h2>
                             
-                            {/* 🌟 השתמשנו פה בגלריה המרובעת במקום בקרוסלה! */}
                             <ImageGallery images={pointImages} />
                             
                             <p className="text-sm text-gray-300 mt-3">{p.description}</p>
@@ -201,7 +212,7 @@ export default function MyPointsPage() {
                 </div>
             )}
 
-            {/* חלונית אישור מחיקה */}
+            {/* 🌟 חלונית אישור מחיקה - עכשיו עם כפתור ננעל */}
             {pointToDelete && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
                     <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">
@@ -209,13 +220,15 @@ export default function MyPointsPage() {
                         <div className="flex justify-center gap-4">
                             <button 
                                 onClick={executeDelete} 
-                                className="bg-red-500 hover:bg-red-600 text-black px-8 py-2.5 rounded-xl font-bold transition"
+                                disabled={isDeleting} // 👈 נועל פיזית את הכפתור
+                                className="bg-red-500 hover:bg-red-600 text-black px-8 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                כן, מחק
+                                {isDeleting ? "מוחק..." : "כן, מחק"}
                             </button>
                             <button 
                                 onClick={() => setPointToDelete(null)} 
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-2.5 rounded-xl font-bold transition"
+                                disabled={isDeleting} // מונע ביטול באמצע מחיקה
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-2.5 rounded-xl font-bold transition disabled:opacity-50"
                             >
                                 ביטול
                             </button>
