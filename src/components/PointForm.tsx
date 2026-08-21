@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import imageCompression from "browser-image-compression"; // 👈 הייבוא החדש
 
 type FormState = {
     name: string;
     description: string;
     address: string;
     website: string;
-    images: File[];            // 👈 תמונות חדשות להעלאה
-    existingImages: string[];  // 👈 לינקים לתמונות שכבר קיימות (לעריכה)
+    images: File[];            
+    existingImages: string[];  
     extraInfo: string;
 };
 
@@ -17,7 +18,7 @@ type Props = {
     initialData?: Partial<FormState> & {
         lat?: number;
         lng?: number;
-        existingImages?: string[]; // 👈 נעביר לפה את התמונות בעריכה
+        existingImages?: string[]; 
     };
     category?: string | null;
     onClose: () => void;
@@ -37,11 +38,13 @@ export default function PointForm({
         address: initialData?.address || "",
         website: initialData?.website || "",
         images: [],
-        existingImages: initialData?.existingImages || [], // שולף את התמונות הקיימות
+        existingImages: initialData?.existingImages || [], 
         extraInfo: initialData?.extraInfo || "",
     });
 
-    // חישוב כמה תמונות יש בסך הכל (ישנות + חדשות)
+    // 🌟 סטייט חדש שבודק אם אנחנו באמצע כיווץ תמונות
+    const [isCompressing, setIsCompressing] = useState(false);
+
     const totalImages = form.existingImages.length + form.images.length;
 
     function handleSubmit() {
@@ -108,25 +111,29 @@ export default function PointForm({
 
                 {/* --- אזור בחירת תמונות חכם --- */}
                 <div className="w-full bg-white border border-gray-300 p-2 rounded-xl focus-within:border-gray-500 transition">
-                    <label className="flex items-center cursor-pointer w-full">
+                    <label className={`flex items-center w-full ${isCompressing ? 'cursor-wait opacity-50' : 'cursor-pointer'}`}>
                         <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition ml-3 shrink-0">
-                            הוספת תמונות
+                            {isCompressing ? "מעבד..." : "הוספת תמונות"}
                         </span>
                         
                         <span className="text-sm truncate text-gray-400">
-                            {totalImages > 0 
-                                ? `יש ${totalImages} תמונות (מתוך 3)` 
-                                : "עד 3 תמונות סך הכל"}
+                            {isCompressing 
+                                ? "מכווץ תמונות, אנא המתן..." 
+                                : (totalImages > 0 
+                                    ? `יש ${totalImages} תמונות (מתוך 3)` 
+                                    : "עד 3 תמונות סך הכל")
+                            }
                         </span>
 
                         <input
                             type="file"
                             accept="image/*, .heic, .heif, .webp"
                             multiple
+                            disabled={isCompressing}
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                                 const newFiles = Array.from(e.target.files || []);
-                                const availableSlots = 3 - totalImages; // בודק כמה מקום נשאר
+                                const availableSlots = 3 - totalImages;
 
                                 if (availableSlots <= 0) {
                                     alert("הגעת למקסימום של 3 תמונות. יש למחוק תמונות קיימות כדי להוסיף חדשות.");
@@ -139,8 +146,32 @@ export default function PointForm({
                                     filesToAdd = newFiles.slice(0, availableSlots);
                                 }
 
-                                // מוסיף את התמונות החדשות למה שכבר בחרנו, לא דורס!
-                                setForm({ ...form, images: [...form.images, ...filesToAdd] });
+                                setIsCompressing(true); // מתחילים כיווץ!
+
+                                try {
+                                    const compressedFiles = [];
+                                    
+                                    // 🌟 הגדרות הכיווץ שלנו
+                                    const options = {
+                                        maxSizeMB: 1, // הגבלת משקל התמונה למקסימום 1 מגה
+                                        maxWidthOrHeight: 1280, // הקטנת הרזולוציה
+                                        useWebWorker: true,
+                                    };
+
+                                    for (const file of filesToAdd) {
+                                        // כיווץ התמונה
+                                        const compressedFile = await imageCompression(file, options);
+                                        compressedFiles.push(compressedFile);
+                                    }
+
+                                    // מוסיף את התמונות המכווצות לסטייט
+                                    setForm(prev => ({ ...prev, images: [...prev.images, ...compressedFiles] }));
+                                } catch (error) {
+                                    console.error("Error compressing images:", error);
+                                    alert("אירעה שגיאה בעיבוד התמונה. נסה תמונה אחרת.");
+                                } finally {
+                                    setIsCompressing(false); // סיימנו כיווץ!
+                                }
                             }}
                         />
                     </label>
@@ -149,13 +180,12 @@ export default function PointForm({
                     {totalImages > 0 && (
                         <div className="flex gap-3 overflow-x-auto pt-3 pb-1 mt-2 border-t border-gray-200 custom-scrollbar" dir="rtl">
                             
-                            {/* 1. מציג את התמונות שכבר קיימות במסד הנתונים */}
                             {form.existingImages.map((url, i) => (
                                 <div key={`existing-${i}`} className="relative w-14 h-14 shrink-0">
                                     <img src={url} className="w-full h-full object-cover rounded-lg shadow-sm" />
                                     <button
                                         onClick={(e) => {
-                                            e.preventDefault(); // מונע פתיחה של חלון העלאת קובץ
+                                            e.preventDefault();
                                             const newExisting = [...form.existingImages];
                                             newExisting.splice(i, 1);
                                             setForm({ ...form, existingImages: newExisting });
@@ -167,7 +197,6 @@ export default function PointForm({
                                 </div>
                             ))}
 
-                            {/* 2. מציג את התמונות החדשות שהרגע העלינו (מייצר להן URL זמני לתצוגה) */}
                             {form.images.map((file, i) => (
                                 <div key={`new-${i}`} className="relative w-14 h-14 shrink-0">
                                     <img src={URL.createObjectURL(file)} className="w-full h-full object-cover rounded-lg shadow-sm opacity-90 border-2 border-dashed border-gray-300" />
@@ -191,13 +220,14 @@ export default function PointForm({
 
                 {/* כפתורים */}
                 <div className="flex justify-between items-center pt-3">
-                    <button onClick={onClose} className="text-red-500 hover:text-red-700 text-sm font-medium px-3 py-1.5">
+                    <button onClick={onClose} disabled={isCompressing} className="text-red-500 hover:text-red-700 disabled:opacity-50 text-sm font-medium px-3 py-1.5">
                         ביטול
                     </button>
 
                     <button
                         onClick={handleSubmit}
-                        className="bg-black hover:bg-gray-800 text-white px-5 py-2 rounded-xl text-sm font-medium transition"
+                        disabled={isCompressing} // 🌟 חוסם שמירה עד שהכיווץ מסתיים
+                        className="bg-black hover:bg-gray-800 text-white px-5 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {mode === "create" ? "צור" : "שמור"}
                     </button>
