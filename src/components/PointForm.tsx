@@ -8,8 +8,8 @@ type FormState = {
     description: string;
     address: string;
     website: string;
-    images: File[];            
-    existingImages: string[];  
+    images: File[];
+    existingImages: string[];
     extraInfo: string;
 };
 
@@ -18,7 +18,7 @@ type Props = {
     initialData?: Partial<FormState> & {
         lat?: number;
         lng?: number;
-        existingImages?: string[]; 
+        existingImages?: string[];
     };
     category?: string | null;
     onClose: () => void;
@@ -38,7 +38,7 @@ export default function PointForm({
         address: initialData?.address || "",
         website: initialData?.website || "",
         images: [],
-        existingImages: initialData?.existingImages || [], 
+        existingImages: initialData?.existingImages || [],
         extraInfo: initialData?.extraInfo || "",
     });
 
@@ -115,12 +115,12 @@ export default function PointForm({
                         <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition ml-3 shrink-0">
                             {isCompressing ? "מעבד..." : "הוספת תמונות"}
                         </span>
-                        
+
                         <span className="text-sm truncate text-gray-400">
-                            {isCompressing 
-                                ? "מכווץ תמונות, אנא המתן..." 
-                                : (totalImages > 0 
-                                    ? `יש ${totalImages} תמונות (מתוך 3)` 
+                            {isCompressing
+                                ? "מכווץ תמונות, אנא המתן..."
+                                : (totalImages > 0
+                                    ? `יש ${totalImages} תמונות (מתוך 3)`
                                     : "עד 3 תמונות סך הכל")
                             }
                         </span>
@@ -149,8 +149,7 @@ export default function PointForm({
                                 setIsCompressing(true); // מתחילים כיווץ!
 
                                 try {
-                                    const compressedFiles = [];
-                                    
+                                    const compressedFiles: File[] = [];
                                     // 🌟 הגדרות הכיווץ שלנו
                                     const options = {
                                         maxSizeMB: 1, // הגבלת משקל התמונה למקסימום 1 מגה
@@ -179,7 +178,7 @@ export default function PointForm({
                     {/* גלריית תצוגה מקדימה ומחיקת תמונות */}
                     {totalImages > 0 && (
                         <div className="flex gap-3 overflow-x-auto pt-3 pb-1 mt-2 border-t border-gray-200 custom-scrollbar" dir="rtl">
-                            
+
                             {form.existingImages.map((url, i) => (
                                 <div key={`existing-${i}`} className="relative w-14 h-14 shrink-0">
                                     <img src={url} className="w-full h-full object-cover rounded-lg shadow-sm" />
