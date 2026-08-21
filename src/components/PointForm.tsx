@@ -121,7 +121,7 @@ export default function PointForm({
 
                         <input
                             type="file"
-                            accept="image/*"
+                            accept="image/*, .heic, .heif, .webp"
                             multiple
                             className="hidden"
                             onChange={(e) => {
