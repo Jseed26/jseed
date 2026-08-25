@@ -8,7 +8,6 @@ import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-// 👈 הייבוא של קומפוננטת הפעמון החדשה
 import NotificationBell from "@/src/components/NotificationBell";
 
 const Map = dynamic(() => import("@/src/components/Map"), {
@@ -16,9 +15,7 @@ const Map = dynamic(() => import("@/src/components/Map"), {
 });
 
 export default function Home() {
-  const [activeCategory, setActiveCategory] =
-    useState<PointCategory | null>(null);
-
+  const [activeCategory, setActiveCategory] = useState<PointCategory | null>(null);
   const [isCompassMode, setCompassMode] = useState(false);
   const [contactActive, setContactActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,7 +23,6 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
 
   const router = useRouter();
-
   const { data: session, status } = useSession();
 
   const isLoggedIn = status === "authenticated";
@@ -35,21 +31,23 @@ export default function Home() {
   const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: "Community" },
     { key: "star", label: "Spirit" },
-    { key: "triangle", label: "Legacy" }, 
+    { key: "triangle", label: "Legacy" },
     { key: "circle", label: "Business" },
   ];
 
   return (
-    <main className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden">
+    // 🌟 התיקון העיקרי: dvh במקום h-screen כדי להתמודד עם שורת הכתובת הדינמית בטלפונים
+    <main className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden fixed inset-0">
 
       {/* ================= HEADER ================= */}
-      <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative">
+      <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative z-50">
 
         {/* top icons */}
-        <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50">
+        <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50 pointer-events-none">
           
           {/* כפתור מצפן (שמאל) */}
           <button
+            className="pointer-events-auto"
             onClick={() => {
               setCompassMode(v => !v);
               setToast(!isCompassMode ? "במצב הוספת נקודה" : null);
@@ -59,17 +57,17 @@ export default function Home() {
             <img
               src={`/icons/ui/compass/${isCompassMode ? "active" : "default"}.png`}
               className="w-10 h-10"
+              alt="Compass"
             />
           </button>
 
-          {/* 👈 עטפנו את אזור ימין (פעמון + פרופיל) יחד כדי שיעמדו בשורה */}
-          <div className="flex items-center gap-3">
+          {/* אזור ימין (פעמון + פרופיל) */}
+          <div className="flex items-center gap-3 pointer-events-auto">
             <NotificationBell />
             
             <button
               onClick={() => {
                 if (status === "loading") return;
-
                 if (isLoggedIn) {
                   router.push("/my-points");
                 } else {
@@ -80,6 +78,7 @@ export default function Home() {
               <img
                 src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
                 className="w-10 h-10"
+                alt="Profile"
               />
             </button>
           </div>
@@ -99,7 +98,7 @@ export default function Home() {
         <div className="relative w-52 mx-auto z-40" dir="rtl">
           <Search
             size={14}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
           />
 
           <input
@@ -126,14 +125,16 @@ export default function Home() {
         </div>
       </div>
 
+      {/* TOAST MESSAGE */}
       {toast && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white text-black px-3 py-1 rounded-lg z-50 text-sm">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-1.5 rounded-lg z-[100] text-sm font-medium shadow-lg pointer-events-none">
           {toast}
         </div>
       )}
       
       {/* ================= MAP ================= */}
-      <div className="flex-1 min-h-0 w-full px-2 overflow-hidden relative z-10">
+      {/* 🌟 המפה מקבלת flex-1 ו-min-h-0 כדי שתתכווץ/תתרחב בול לשטח שנשאר בלי לדחוף כלום החוצה */}
+      <div className="flex-1 min-h-0 w-full px-2 relative z-10">
         <Map
           activeCategory={activeCategory}
           isCompassMode={isCompassMode}
@@ -144,7 +145,8 @@ export default function Home() {
       </div>
 
       {/* ================= CATEGORIES ================= */}
-      <div className="shrink-0 flex justify-center gap-4 sm:gap-6 pt-2 pb-4 sm:pb-2 relative z-40 bg-black">
+      {/* 🌟 הפס התחתון מוגדר כ-shrink-0 כדי שלעולם לא יתכווץ או ייעלם! */}
+      <div className="shrink-0 w-full flex justify-center gap-4 sm:gap-6 pt-3 pb-5 sm:pb-3 relative z-40 bg-black safe-area-bottom">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
 
@@ -157,6 +159,7 @@ export default function Home() {
               <img
                 src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
                 className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+                alt={cat.label}
               />
 
               <span className="text-[10px] sm:text-xs mt-1 text-yellow-500">
