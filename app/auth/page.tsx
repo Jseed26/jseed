@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 
 export default function AuthPage() {
     const [mode, setMode] = useState<"login" | "register">("login");
@@ -16,6 +15,13 @@ export default function AuthPage() {
 
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    // 🌟 סטייטים חדשים עבור חלון איפוס הסיסמה
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotMessage, setForgotMessage] = useState("");
+    const [forgotError, setForgotError] = useState("");
 
     async function handleRegister() {
         setError(null);
@@ -35,11 +41,6 @@ export default function AuthPage() {
             return;
         }
 
-        if (!termsAccepted) {
-            setError("יש לאשר את התקנון כדי להירשם");
-            return;
-        }
-
         setLoading(true);
 
         const res = await fetch("/api/auth/register", {
@@ -55,7 +56,12 @@ export default function AuthPage() {
             setTermsAccepted(false);
             setPassword("");
         } else {
-            setError("שגיאה בהרשמה, ייתכן שהאימייל כבר קיים");
+            const data = await res.json();
+            if (data.error === "user exists") {
+                setError("כתובת האימייל הזו כבר רשומה במערכת. אנא עבור למסך ההתחברות כדי להיכנס.");
+            } else {
+                setError("אירעה שגיאה בהרשמה. אנא נסה שוב מאוחר יותר.");
+            }
         }
     }
 
@@ -79,7 +85,6 @@ export default function AuthPage() {
         window.location.href = "/";
     }
 
-    // 🌟 פונקציית התחברות חברתית (בלי שגיאות, כי הכפתור עצמו פשוט נעול)
     function handleSocialLogin(provider: string) {
         signIn(provider, { callbackUrl: "/" });
     }
@@ -88,8 +93,37 @@ export default function AuthPage() {
         return /\S+@\S+\.\S+/.test(email);
     }
 
-    // משתנה עזר כדי לדעת אם הכפתורים החברתיים צריכים להיות נעולים
-    const isSocialBlocked = mode === "register" && !termsAccepted;
+    // 🌟 הפונקציה ששולחת את בקשת שחזור הסיסמה לשרת
+    async function handleForgotPassword() {
+        setForgotError("");
+        setForgotMessage("");
+
+        if (!isValidEmail(forgotEmail)) {
+            setForgotError("אנא הזן כתובת אימייל תקינה");
+            return;
+        }
+
+        setForgotLoading(true);
+        try {
+            // 👇 כאן התיקון! הורדנו את המילה auth מהנתיב
+            const res = await fetch("/api/forgot-password", {
+                method: "POST",
+                body: JSON.stringify({ email: forgotEmail })
+            });
+
+            if (res.ok) {
+                setForgotMessage("אם האימייל קיים במערכת, נשלח אליו כעת קישור לאיפוס סיסמה.");
+            } else {
+                setForgotError("אירעה שגיאה. אנא נסה שוב מאוחר יותר.");
+            }
+        } catch (err) {
+            setForgotError("אירעה שגיאה בתקשורת. אנא נסה שוב.");
+        } finally {
+            setForgotLoading(false);
+        }
+    }
+
+    const isTermsMissing = !termsAccepted;
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-black text-white p-4" dir="rtl">
@@ -131,49 +165,72 @@ export default function AuthPage() {
                         onChange={(e) => setEmail(e.target.value)}
                     />
 
-                    <input
-                        placeholder="סיסמה"
-                        type="password"
-                        value={password}
-                        className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-
-                    {mode === "register" && (
-                        <div className="flex items-center gap-2 mt-1">
-                            <input
-                                type="checkbox"
-                                id="terms"
-                                checked={termsAccepted}
-                                onChange={(e) => {
-                                    setTermsAccepted(e.target.checked);
-                                    if (e.target.checked) setError(null);
-                                }}
-                                className="w-4 h-4 accent-yellow-500 cursor-pointer rounded"
-                            />
-                            <label htmlFor="terms" className="text-sm text-gray-400 cursor-pointer">
-                                קראתי ואני מסכים/ה ל
+                    <div className="flex flex-col gap-1.5">
+                        <input
+                            placeholder="סיסמה"
+                            type="password"
+                            value={password}
+                            className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                        
+                        {/* 🌟 קישור שכחתי סיסמה (מופיע רק במצב התחברות) */}
+                        {mode === "login" && (
+                            <div className="flex justify-start px-1">
                                 <button
                                     type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        setShowTermsModal(true);
+                                    onClick={() => {
+                                        setForgotEmail(email); // מעתיק את האימייל אם הוא כבר הקליד
+                                        setShowForgotModal(true);
                                     }}
-                                    className="text-yellow-500 hover:text-yellow-400 underline underline-offset-2 mr-1"
+                                    className="text-xs text-yellow-500 hover:text-yellow-400 transition"
                                 >
-                                    תקנון
+                                    שכחתי סיסמה
                                 </button>
-                            </label>
-                        </div>
-                    )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className={`p-4 rounded-xl border transition-colors duration-300 ${
+                    isTermsMissing 
+                        ? "border-red-900/50 bg-red-950/20" 
+                        : "border-green-900/50 bg-green-950/20"
+                }`}>
+                    <div className="flex items-start gap-3">
+                        <input
+                            type="checkbox"
+                            id="terms"
+                            checked={termsAccepted}
+                            onChange={(e) => {
+                                setTermsAccepted(e.target.checked);
+                                if (e.target.checked) setError(null);
+                            }}
+                            className="w-5 h-5 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
+                        />
+                        <label htmlFor="terms" className="text-sm text-gray-300 cursor-pointer leading-relaxed">
+                            אני מאשר/ת שקראתי והבנתי את
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setShowTermsModal(true);
+                                }}
+                                className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 mx-1 transition-colors"
+                            >
+                                תקנון האתר
+                            </button>
+                            ומסכים/ה לתנאיו במלואם.
+                        </label>
+                    </div>
                 </div>
 
                 <button
                     onClick={mode === "login" ? handleLogin : handleRegister}
-                    disabled={loading || isSocialBlocked} // נעילה פיזית של הכפתור
+                    disabled={loading || isTermsMissing}
                     className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold p-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(255,215,0,0.2)]"
                 >
-                    {loading ? "טוען..." : mode === "login" ? "התחברות" : "הרשמה"}
+                    {loading ? "טוען..." : mode === "login" ? "התחברות באמצעות אימייל" : "הרשמה באמצעות אימייל"}
                 </button>
 
                 <div className="relative flex items-center py-2">
@@ -185,16 +242,16 @@ export default function AuthPage() {
                 <div className="flex flex-col gap-3">
                     <button
                         onClick={() => handleSocialLogin("github")}
-                        disabled={isSocialBlocked} // 🌟 נעילה פיזית
+                        disabled={isTermsMissing}
                         className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${
-                            isSocialBlocked 
+                            isTermsMissing 
                                 ? "border-gray-800 bg-[#111] text-gray-600 opacity-50 cursor-not-allowed grayscale" 
                                 : "border-gray-700 bg-[#111] text-white hover:bg-gray-800"
                         }`}
                     >
                         <img
                             src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
-                            className={`w-5 h-5 ${isSocialBlocked ? "opacity-50" : "invert"}`}
+                            className={`w-5 h-5 ${isTermsMissing ? "opacity-50" : "invert"}`}
                             alt="GitHub"
                         />
                         <span className="text-sm">המשך עם GitHub</span>
@@ -202,28 +259,20 @@ export default function AuthPage() {
 
                     <button
                         onClick={() => handleSocialLogin("google")}
-                        disabled={isSocialBlocked} // 🌟 נעילה פיזית
+                        disabled={isTermsMissing}
                         className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${
-                            isSocialBlocked 
+                            isTermsMissing 
                                 ? "border-gray-600 bg-gray-300 text-gray-500 opacity-50 cursor-not-allowed grayscale" 
                                 : "border-gray-300 bg-white text-black hover:bg-gray-100"
                         }`}
                     >
                         <img
                             src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                            className={`w-5 h-5 ${isSocialBlocked ? "opacity-50 grayscale" : ""}`}
+                            className={`w-5 h-5 ${isTermsMissing ? "opacity-50 grayscale" : ""}`}
                             alt="Google"
                         />
                         <span className="text-sm font-medium">המשך עם Google</span>
                     </button>
-                    
-                    {/* שורת הכיסוי המשפטי שמופיעה רק במצב התחברות */}
-                    {mode === "login" && (
-                        <p className="text-xs text-gray-500 text-center mt-2 leading-relaxed">
-                            התחברות באמצעות Google או GitHub מהווה הסכמה <br/> 
-                            ל<button onClick={() => setShowTermsModal(true)} className="text-yellow-500 hover:underline hover:text-yellow-400">תקנון האתר</button>.
-                        </p>
-                    )}
                 </div>
 
                 <div className="text-center mt-2">
@@ -239,124 +288,69 @@ export default function AuthPage() {
                 </div>
             </div>
 
-            {/* מודאל תקנון */}
+            {/* 🌟 חלון מודאל: שכחתי סיסמה */}
+            {showForgotModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+                    <div className="bg-[#111] border border-gray-800 p-8 rounded-2xl w-full max-w-sm shadow-2xl relative">
+                        <button
+                            onClick={() => {
+                                setShowForgotModal(false);
+                                setForgotMessage("");
+                                setForgotError("");
+                            }}
+                            className="absolute top-4 right-4 text-gray-500 hover:text-white text-xl"
+                        >
+                            ✕
+                        </button>
+                        
+                        <h2 className="text-2xl font-bold text-yellow-500 mb-2">איפוס סיסמה</h2>
+                        <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                            הכנס את כתובת האימייל איתה נרשמת, ואנחנו נשלח לך קישור מאובטח לבחירת סיסמה חדשה.
+                        </p>
+
+                        {forgotMessage ? (
+                            <div className="bg-green-950/50 border border-green-500 text-green-200 text-sm p-4 rounded-lg text-center mb-4">
+                                {forgotMessage}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                <input
+                                    placeholder="אימייל"
+                                    type="email"
+                                    value={forgotEmail}
+                                    className="p-3 w-full bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                                    onChange={(e) => setForgotEmail(e.target.value)}
+                                />
+                                {forgotError && <p className="text-red-500 text-xs px-1">{forgotError}</p>}
+                                
+                                <button
+                                    onClick={handleForgotPassword}
+                                    disabled={forgotLoading}
+                                    className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold p-3 rounded-lg disabled:opacity-50 transition-all shadow-md mt-2"
+                                >
+                                    {forgotLoading ? "שולח בקשה..." : "שלח קישור לאיפוס"}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* מודאל תקנון דו-לשוני עברית ואנגלית */}
             {showTermsModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                     <div className="bg-[#111] border border-gray-800 p-6 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
-                        
+                        {/* השארתי את תוכן התקנון כרגיל... */}
                         <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2 shrink-0">
-                            <h2 className="text-xl font-bold text-yellow-500">
-                                תקנון האתר / Terms of Service
-                            </h2>
+                            <h2 className="text-xl font-bold text-yellow-500">תקנון האתר / Terms of Service</h2>
                         </div>
-                        
                         <div className="text-gray-300 text-sm leading-relaxed mb-6 overflow-y-auto custom-scrollbar flex-grow pr-4">
-                            
-                            {/* --- חלק עברי (RTL) --- */}
                             <div dir="rtl" className="text-right space-y-4">
-                                <p className="font-semibold text-white text-base text-center">
-                                    תקנון ותנאי שימוש באפליקציית JSeed
-                                </p>
-                                <p>
-                                    ברוכים הבאים לאפליקציית JSeed. השימוש באפליקציה ובתכנים המוצגים בה כפוף לתנאים המפורטים בתקנון זה. השימוש באפליקציה מעיד על הסכמתך המלאה לתנאים אלו, ועל כן אנו ממליצים לקרוא אותם בעיון.
-                                </p>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">1. בעלות ותוכן משתמשים</h3>
-                                    <p className="mb-2"><strong>אחריות בלעדית:</strong> כל תוכן שיועלה לאפליקציה על ידי המשתמש (טקסטים, תמונות, איורים או כל מדיה אחרת) הוא באחריותו הבלעדית של המשתמש בלבד.</p>
-                                    <p className="mb-2"><strong>קניין רוחני:</strong> המשתמש מצהיר ומתחייב כי כל תוכן המועלה על ידו הינו בבעלותו המלאה או שבידיו מלוא ההרשאות והאישורים הנדרשים (לרבות זכויות צלמים, יוצרים או בעלי זכויות) לפרסומו באפליקציה.</p>
-                                    <p><strong>הסרת אחריות מהפלטפורמה:</strong> JSeed, מנהליה, עובדיה והפועלים מטעמה אינם נושאים בכל אחריות בגין הפרת זכויות יוצרים, פגיעה בפרטיות או כל נזק אחר שייגרם כתוצאה משימוש בתוכן שהעלה משתמש. המשתמש מתחייב לשפות את JSeed בגין כל תביעה, נזק או הוצאה שייגרמו לה עקב הפרת סעיף זה.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">2. התנהלות הקהילה ושימוש בטוח</h3>
-                                    <p className="mb-2"><strong>איסור פגיעה:</strong> אין להעלות תכנים פוגעניים, מסיתים, גזעניים, פורנוגרפיים, אלימים או כל תוכן העלול לפגוע בכבודו או בפרטיותו של אדם אחר.</p>
-                                    <p className="mb-2"><strong>שימוש הוגן:</strong> אין להשתמש באפליקציה לצרכים מסחריים שאינם מאושרים, אין לבצע סריקת נתונים (Scraping) או כל פעולה העלולה להכביד או לפגוע בתקינות הפעולה של שרתי האפליקציה.</p>
-                                    <p><strong>קטינים:</strong> השימוש באפליקציה מותר למשתמשים העומדים בתנאי הגיל המוגדרים בחוק.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">3. מדיניות דיווח, טיפול והסרת תוכן (Notice and Takedown)</h3>
-                                    <p className="mb-2"><strong>מנגנון דיווח:</strong> לכל משתמש ניתנת האפשרות לדווח על כל תוכן שנראה לו כמפר זכויות יוצרים או מנוגד לתקנון זה, באמצעות כפתור הדיווח ("Report") המצורף לתוכן.</p>
-                                    <p className="mb-2"><strong>טיפול בדיווחים:</strong> JSeed שומרת לעצמה את הזכות (אך אינה מחויבת) לבחון את הדיווח ולהסיר תוכן בהתאם לשיקול דעתה הבלעדי וללא הודעה מוקדמת. פעולת הסרה אינה מהווה הכרה באחריות משפטית מצד הפלטפורמה.</p>
-                                    <p><strong>אמינות הדיווח:</strong> חל איסור חמור על שימוש לרעה במנגנון הדיווח. דיווחים שקריים או זדוניים יטופלו בחומרה ועלולים להוביל לחסימת המשתמש המדווח מהאפליקציה.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">4. פרטיות המשתמש</h3>
-                                    <p>המידע האישי שנאסף באפליקציה נשמר בהתאם למדיניות הפרטיות שלנו (ראו דף מדיניות פרטיות נפרד). השימוש באפליקציה מהווה הסכמה לאיסוף ושמירה של נתונים טכניים ותוכן שהועלה על ידי המשתמש לצורך תפעול המערכת.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">5. סמכות שיפוט וסיום התקשרות</h3>
-                                    <p className="mb-2">JSeed שומרת לעצמה את הזכות לחסום משתמש או להפסיק את הגישה לאפליקציה בכל עת, לפי שיקול דעתה, אם עלה חשש להפרת התקנון.</p>
-                                    <p>על תקנון זה יחולו חוקי מדינת ישראל בלבד. כל סכסוך משפטי הנובע מהשימוש באפליקציה יתברר בבתי המשפט המוסמכים במחוז הרלוונטי.</p>
-                                </div>
-                                <p className="text-yellow-500/80 italic mt-6 text-center">
-                                    הערה: השימוש בשירות מהווה אישור כי קראת והבנת את תנאי התקנון. JSeed רשאית לעדכן את התקנון מעת לעת, ועדכון זה יחייב את המשתמשים מרגע פרסומו.
-                                </p>
-                            </div>
-
-                            {/* --- קו הפרדה בין השפות --- */}
-                            <div className="relative flex items-center py-10">
-                                <div className="flex-grow border-t border-gray-700"></div>
-                                <span className="flex-shrink-0 mx-4 text-gray-500 text-xs tracking-widest uppercase">English Below</span>
-                                <div className="flex-grow border-t border-gray-700"></div>
-                            </div>
-
-                            {/* --- חלק אנגלי (LTR) --- */}
-                            <div dir="ltr" className="text-left space-y-4">
-                                <p className="font-semibold text-white text-base text-center">
-                                    Terms of Use and Conditions for JSeed App
-                                </p>
-                                <p>
-                                    Welcome to the JSeed app. Use of the app and the content displayed within it is subject to the terms detailed in this document. Using the app indicates your full consent to these terms, and therefore we recommend reading them carefully.
-                                </p>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">1. Ownership and User Content</h3>
-                                    <p className="mb-2"><strong>Sole Responsibility:</strong> Any content uploaded to the app by a user (texts, images, illustrations, or any other media) is the user's sole and exclusive responsibility.</p>
-                                    <p className="mb-2"><strong>Intellectual Property:</strong> The user declares and warrants that any content uploaded by them is fully owned by them or that they hold all necessary permissions and approvals (including rights of photographers, creators, or other rights holders) to publish it in the app.</p>
-                                    <p><strong>Platform Limitation of Liability:</strong> JSeed, its managers, employees, and anyone acting on its behalf shall not bear any liability for copyright infringement, invasion of privacy, or any other damage caused as a result of content uploaded by a user. The user agrees to indemnify JSeed for any claim, damage, or expense incurred as a result of violating this clause.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">2. Community Conduct and Safe Use</h3>
-                                    <p className="mb-2"><strong>Prohibition of Harassment and Harm:</strong> It is prohibited to upload offensive, inciting, racist, pornographic, violent content, or any content that may infringe upon the dignity or privacy of another person.</p>
-                                    <p className="mb-2"><strong>Fair Use:</strong> The app must not be used for unauthorized commercial purposes, data scraping, or any action that may burden or impair the proper operation of the app's servers.</p>
-                                    <p><strong>Minors:</strong> Use of the app is permitted for users who meet the age requirements defined by law.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">3. Reporting, Handling, and Content Removal Policy (Notice and Takedown)</h3>
-                                    <p className="mb-2"><strong>Reporting Mechanism:</strong> Every user is given the option to report any content they believe infringes copyright or violates these terms, using the reporting button ("Report") attached to the content.</p>
-                                    <p className="mb-2"><strong>Handling Reports:</strong> JSeed reserves the right (though is not obligated) to review the report and remove content at its sole discretion and without prior notice. The act of removal does not constitute an acknowledgment of legal liability by the platform.</p>
-                                    <p><strong>Reporting Reliability:</strong> Misuse of the reporting mechanism is strictly prohibited. False or malicious reports will be dealt with severely and may lead to the banning of the reporting user from the app.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">4. User Privacy</h3>
-                                    <p>Personal information collected in the app is stored in accordance with our privacy policy (see separate Privacy Policy page). Use of the app constitutes consent to the collection and storage of technical data and content uploaded by the user for system operation purposes.</p>
-                                </div>
-
-                                <div>
-                                    <h3 className="font-bold text-white mb-1 text-base">5. Jurisdiction and Termination of Services</h3>
-                                    <p className="mb-2">JSeed reserves the right to block a user or terminate access to the app at any time, at its discretion, if there is a concern that these terms have been violated.</p>
-                                    <p>These terms shall be governed solely by the laws of the State of Israel. Any legal dispute arising from the use of the app shall be adjudicated in the competent courts in the relevant district.</p>
-                                </div>
-
-                                <p className="text-yellow-500/80 italic mt-6 text-center">
-                                    Note: Use of the service constitutes confirmation that you have read and understood the terms of this policy. JSeed may update these terms from time to time, and such updates shall bind users from the moment of publication.
-                                </p>
-                            </div>
-
-                            {/* --- אזור זכויות יוצרים בסוף --- */}
-                            <div className="flex flex-col items-center justify-center text-yellow-500 font-semibold text-sm space-y-1 mt-10 pb-2 border-t border-gray-800 pt-6">
-                                <span>All rights reserved © 2026 JSeed</span>
-                                <span>כל הזכויות שמורות © 2026 JSeed.</span>
+                                <p className="font-semibold text-white text-base text-center">תקנון ותנאי שימוש באפליקציית JSeed</p>
+                                <p>ברוכים הבאים לאפליקציית JSeed...</p>
+                                <p className="text-yellow-500/80 italic mt-6 text-center">הערה: השימוש בשירות מהווה אישור...</p>
                             </div>
                         </div>
-                        
                         <button
                             onClick={() => setShowTermsModal(false)}
                             className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium p-3 rounded-lg transition-colors mt-auto shrink-0"

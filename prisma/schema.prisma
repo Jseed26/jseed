@@ -8,40 +8,40 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  email    String @unique
-  password String?
-  name     String?
-  image    String?
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  name          String?
+  image         String?
   emailVerified DateTime?
 
-  isAdmin       Boolean   @default(false) // 👈 מזהה אם המשתמש הוא מנהל
-  timeSpentMins Int       @default(0)     // 👈 סופר כמה דקות המשתמש בילה באתר
-  updatedAt DateTime @default(now()) @updatedAt
-  accounts Account[]
-  sessions Session[]
-  points       Point[]
-  viewedPoints ViewedPoint[]
-  savedPoints  SavedPoint[]
+  isAdmin       Boolean   @default(false)
+  timeSpentMins Int       @default(0)
+  updatedAt     DateTime  @default(now()) @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  points        Point[]
+  viewedPoints  ViewedPoint[]
+  savedPoints   SavedPoint[]
   notifications Notification[]
-  platform      String?  @default("WEB") // יכול להיות "WEB" או "PWA"
+  platform      String?   @default("WEB")
   country       String?
 }
 
 model Account {
-  id                String @id @default(cuid())
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
 
-  refresh_token String?
-  access_token  String?
-  expires_at    Int?
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
 
-  token_type   String?
-  scope        String?
-  id_token     String?
+  token_type        String?
+  scope             String?
+  id_token          String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -49,8 +49,8 @@ model Account {
 }
 
 model Session {
-  id           String @id @default(cuid())
-  sessionToken String @unique
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
   userId       String
   expires      DateTime
 
@@ -59,14 +59,14 @@ model Session {
 
 model VerificationToken {
   identifier String
-  token      String @unique
+  token      String   @unique
   expires    DateTime
 
   @@unique([identifier, token])
 }
 
 model Point {
-  id          Int @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   category    String
   latitude    Float
@@ -76,44 +76,42 @@ model Point {
   address     String?
   website     String?
   imageUrl    String?
-  imageUrls   String[]  @default([])
+  imageUrls   String[] @default([])
   extraInfo   String?
-  userId String?
+  userId      String?
   linkClicks  Int      @default(0)
-  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  viewedBy     ViewedPoint[]
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedBy    ViewedPoint[]
   savedBy     SavedPoint[]
 }
 
 model ViewedPoint {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  pointId   Int
-  viewedAt  DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  userId   String
+  pointId  Int
+  viewedAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  point Point @relation(fields: [pointId], references: [id], onDelete: Cascade)
 
-  // מוודא שלכל משתמש תהיה רשומה אחת לכל נקודה, ואנחנו פשוט נעדכן את זמן הצפייה
   @@unique([userId, pointId]) 
 }
 
 model SavedPoint {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  pointId   Int
-  savedAt   DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  userId   String
+  pointId  Int
+  savedAt  DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  point Point @relation(fields: [pointId], references: [id], onDelete: Cascade)
 
-  // מונע שמירה כפולה של אותה נקודה על ידי אותו משתמש
   @@unique([userId, pointId]) 
 }
 
 model Notification {
   id        Int      @id @default(autoincrement())
-  userId    String   // 👈 שימי לב: אם ה-id של ה-User שלך מוגדר כ-Int, תשני כאן ל-Int במקום String
+  userId    String   
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -128,4 +126,14 @@ model Visitor {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   country       String?
+}
+
+// 🌟 המודל החדש לאיפוס סיסמה!
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
 }
