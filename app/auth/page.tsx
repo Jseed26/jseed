@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
     const [mode, setMode] = useState<"login" | "register">("login");
@@ -125,10 +126,26 @@ export default function AuthPage() {
 
     const isTermsMissing = !termsAccepted;
 
+    const router = useRouter();
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-black text-white p-4" dir="rtl">
+
+        <div className="min-h-screen flex items-center justify-center bg-black text-white p-4 relative" dir="rtl">
+
+            {/* 🌟 הכפתור החדש: בולט, באנגלית, ממוקם למעלה בצד ימין של המסך */}
+            <button
+                onClick={() => router.push("/")}
+                className="absolute top-6 right-6 flex items-center gap-2 text-sm font-bold text-gray-300 hover:text-yellow-500 bg-gray-900 border border-gray-700 hover:border-yellow-500 px-5 py-2 rounded-full transition-all z-50 shadow-lg"
+                dir="ltr"
+            >
+                Back to Map
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
 
             <div className="flex flex-col gap-6 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden">
+
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-yellow-500 opacity-50 blur-[10px]"></div>
 
                 <div className="text-center space-y-2">
@@ -173,7 +190,7 @@ export default function AuthPage() {
                             className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
                             onChange={(e) => setPassword(e.target.value)}
                         />
-                        
+
                         {/* 🌟 קישור שכחתי סיסמה (מופיע רק במצב התחברות) */}
                         {mode === "login" && (
                             <div className="flex justify-start px-1">
@@ -192,11 +209,10 @@ export default function AuthPage() {
                     </div>
                 </div>
 
-                <div className={`p-4 rounded-xl border transition-colors duration-300 ${
-                    isTermsMissing 
-                        ? "border-red-900/50 bg-red-950/20" 
-                        : "border-green-900/50 bg-green-950/20"
-                }`}>
+                <div className={`p-4 rounded-xl border transition-colors duration-300 ${isTermsMissing
+                    ? "border-red-900/50 bg-red-950/20"
+                    : "border-green-900/50 bg-green-950/20"
+                    }`}>
                     <div className="flex items-start gap-3">
                         <input
                             type="checkbox"
@@ -243,11 +259,10 @@ export default function AuthPage() {
                     <button
                         onClick={() => handleSocialLogin("github")}
                         disabled={isTermsMissing}
-                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${
-                            isTermsMissing 
-                                ? "border-gray-800 bg-[#111] text-gray-600 opacity-50 cursor-not-allowed grayscale" 
-                                : "border-gray-700 bg-[#111] text-white hover:bg-gray-800"
-                        }`}
+                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${isTermsMissing
+                            ? "border-gray-800 bg-[#111] text-gray-600 opacity-50 cursor-not-allowed grayscale"
+                            : "border-gray-700 bg-[#111] text-white hover:bg-gray-800"
+                            }`}
                     >
                         <img
                             src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg"
@@ -260,11 +275,10 @@ export default function AuthPage() {
                     <button
                         onClick={() => handleSocialLogin("google")}
                         disabled={isTermsMissing}
-                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${
-                            isTermsMissing 
-                                ? "border-gray-600 bg-gray-300 text-gray-500 opacity-50 cursor-not-allowed grayscale" 
-                                : "border-gray-300 bg-white text-black hover:bg-gray-100"
-                        }`}
+                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${isTermsMissing
+                            ? "border-gray-600 bg-gray-300 text-gray-500 opacity-50 cursor-not-allowed grayscale"
+                            : "border-gray-300 bg-white text-black hover:bg-gray-100"
+                            }`}
                     >
                         <img
                             src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -302,7 +316,7 @@ export default function AuthPage() {
                         >
                             ✕
                         </button>
-                        
+
                         <h2 className="text-2xl font-bold text-yellow-500 mb-2">איפוס סיסמה</h2>
                         <p className="text-gray-400 text-sm mb-6 leading-relaxed">
                             הכנס את כתובת האימייל איתה נרשמת, ואנחנו נשלח לך קישור מאובטח לבחירת סיסמה חדשה.
@@ -322,7 +336,7 @@ export default function AuthPage() {
                                     onChange={(e) => setForgotEmail(e.target.value)}
                                 />
                                 {forgotError && <p className="text-red-500 text-xs px-1">{forgotError}</p>}
-                                
+
                                 <button
                                     onClick={handleForgotPassword}
                                     disabled={forgotLoading}

@@ -16,9 +16,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 👈 הגדרות צבע לאפליקציה במובייל (הצבע שיופיע למעלה בשורת הסטטוס)
-export const viewport: Viewport = {
-  themeColor: "#000000",
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // 👈 זה הקסם שמונע מהאייפון להשתגע!
 };
 
 export const metadata: Metadata = {
@@ -30,6 +32,7 @@ export const metadata: Metadata = {
     apple: "/logo.png", // 👈 זה מה שמכריח את אייפון להראות את הלוגו!
   },
 };
+
 
 export default function RootLayout({
   children,

@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import MapLightbox from "@/src/components/MapLightbox";
 
 import NotificationBell from "@/src/components/NotificationBell";
 
@@ -170,6 +171,9 @@ export default function Home() {
         })}
       </div>
 
+      {/* 🌟 זה הקולטן שיקפוץ כשנלחץ על תמונה במפה! */}
+      <MapLightbox />
     </main>
+
   );
 }

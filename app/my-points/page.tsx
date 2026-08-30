@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PointForm from "@/src/components/PointForm";
 import { signOut, useSession } from "next-auth/react";
 import { PointCategory } from "@/src/types/point";
+import ImageGallery from "@/src/components/ImageGallery";
 
 type Point = {
     id: number;
@@ -25,26 +26,7 @@ type Point = {
     };
 };
 
-// =================================================================
-// 🌟 קומפוננטת גלריה חדשה: תמונות מרובעות זו ליד זו
-// =================================================================
-function ImageGallery({ images }: { images: string[] }) {
-    if (!images || images.length === 0) return null;
 
-    return (
-        <div className="mt-4 flex flex-wrap gap-3">
-            {images.map((src, i) => (
-                <div key={i} className="w-24 h-24 sm:w-28 sm:h-28 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-md shrink-0">
-                    <img 
-                        src={src} 
-                        className="w-full h-full object-cover transition-transform hover:scale-105" 
-                        alt={`תמונה ${i + 1}`}
-                    />
-                </div>
-            ))}
-        </div>
-    );
-}
 // =================================================================
 
 export default function MyPointsPage() {
