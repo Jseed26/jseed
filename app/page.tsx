@@ -37,16 +37,13 @@ export default function Home() {
   ];
 
   return (
-    // 🌟 התיקון העיקרי: dvh במקום h-screen כדי להתמודד עם שורת הכתובת הדינמית בטלפונים
     <main className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden fixed inset-0">
 
       {/* ================= HEADER ================= */}
       <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative z-50">
 
-        {/* top icons */}
         <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50 pointer-events-none">
           
-          {/* כפתור מצפן (שמאל) */}
           <button
             className="pointer-events-auto"
             onClick={() => {
@@ -62,7 +59,6 @@ export default function Home() {
             />
           </button>
 
-          {/* אזור ימין (פעמון + פרופיל) */}
           <div className="flex items-center gap-3 pointer-events-auto">
             <NotificationBell />
             
@@ -86,7 +82,6 @@ export default function Home() {
           
         </div>
 
-        {/* LOGO */}
         <Image
           src="/icons/ui/logo/logo.png"
           alt="JSeed"
@@ -95,7 +90,6 @@ export default function Home() {
           className="relative z-40"
         />
 
-        {/* SEARCH */}
         <div className="relative w-52 mx-auto z-40" dir="rtl">
           <Search
             size={14}
@@ -126,15 +120,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* TOAST MESSAGE */}
       {toast && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-1.5 rounded-lg z-[100] text-sm font-medium shadow-lg pointer-events-none">
           {toast}
         </div>
       )}
       
-      {/* ================= MAP ================= */}
-      {/* 🌟 המפה מקבלת flex-1 ו-min-h-0 כדי שתתכווץ/תתרחב בול לשטח שנשאר בלי לדחוף כלום החוצה */}
       <div className="flex-1 min-h-0 w-full px-2 relative z-10">
         <Map
           activeCategory={activeCategory}
@@ -145,8 +136,6 @@ export default function Home() {
         />
       </div>
 
-      {/* ================= CATEGORIES ================= */}
-      {/* 🌟 הפס התחתון מוגדר כ-shrink-0 כדי שלעולם לא יתכווץ או ייעלם! */}
       <div className="shrink-0 w-full flex justify-center gap-4 sm:gap-6 pt-3 pb-5 sm:pb-3 relative z-40 bg-black safe-area-bottom">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
@@ -171,9 +160,7 @@ export default function Home() {
         })}
       </div>
 
-      {/* 🌟 זה הקולטן שיקפוץ כשנלחץ על תמונה במפה! */}
       <MapLightbox />
     </main>
-
   );
 }

@@ -1,3 +1,7 @@
+// שימי לב שהקובץ התחלק לשניים: הקוד למעלה זה Home, וזה הקוד של Map 
+// חשוב שיהיו באותו קובץ או שתפרידי אותם אם הם נפרדים אצלך!
+// אם הקוד של Map נמצא באותו קובץ אצלך, תדביקי גם את זה:
+
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -42,27 +46,20 @@ export default function Map({
   const isLoggedIn = status === "authenticated";
 
   const [isFollowing, setIsFollowing] = useState(false);
-
   const [filterRadius, setFilterRadius] = useState<number | null>(null);
+  
+  // 🌟 סטייט חדש ששומר אם ה-GPS מנסה לאתר כרגע
+  const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
 
-  /*
- ================================================================================
- 🌍 INIT MAP (מפת לוויין מלאה, כולל קטבים, זום מהודק שממלא את המסך)
- ================================================================================
- */
   useEffect(() => {
     if (!mapRef.current) return;
     if (mapInstanceRef.current) return;
 
     const container = mapRef.current;
-
-    // 🌟 בודקים את גודל המסך בשנייה שהמפה נטענת
-    // אם הרוחב קטן מ-768 פיקסלים, המערכת תדע שזה מובייל
     const isMobile = window.innerWidth < 768;
 
-    // 🌟 גבולות כל העולם האמיתיים (כולל אנטארקטיקה וגרינלנד במלואם)
     const worldBounds = L.latLngBounds(
       [-90, -180],
       [90, 180]
@@ -70,13 +67,8 @@ export default function Map({
 
     const newMap = L.map(container, {
       center: [20, 0],
-
-      // 👈 אם זה טלפון נתחיל מזום 1.5, אם זה מחשב נתחיל מ-2.5 כמו שאהבת
       zoom: isMobile ? 1.0 : 2.5,
-
-      // 👈 אם זה טלפון נאפשר להתרחק עד 1.0 (רואים הרבה יותר), במחשב נעצור ב-2.3
       minZoom: isMobile ? 0.8 : 2.3,
-
       maxZoom: 18,
       maxBounds: worldBounds,
       maxBoundsViscosity: 1.0,
@@ -91,17 +83,15 @@ export default function Map({
 
     mapInstanceRef.current = newMap;
 
-    // 🌟 מפת הלוויין והרחובות היציבה (מנוע Leaflet טהור)
     const maptilerLayer = L.tileLayer(
       "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
       {
-        noWrap: true, // מונע שכפול של כדור הארץ לרוחב
+        noWrap: true,
         bounds: worldBounds
       }
     );
 
     maptilerLayer.addTo(newMap);
-
     setMap(newMap);
 
     return () => {
@@ -112,18 +102,12 @@ export default function Map({
     };
   }, []);
 
-  /*
-  ================================================================================
-  📡 LOAD POINTS, HISTORY & SAVED
-  ================================================================================
-  */
   useEffect(() => {
     async function load() {
       const res = await fetch("/api/points");
       const data = await res.json();
       setPoints(Array.isArray(data) ? data : []);
     }
-
     load();
   }, []);
 
@@ -137,9 +121,7 @@ export default function Map({
           const data = await res.json();
           setViewedIds(data.map((p: Point) => p.id));
         }
-      } catch (err) {
-        console.error("Failed to load history", err);
-      }
+      } catch (err) {}
     }
 
     loadHistory();
@@ -155,32 +137,22 @@ export default function Map({
           const data = await res.json();
           setSavedIds(data.map((p: Point) => p.id));
         }
-      } catch (err) {
-        console.error("Failed to load saved points", err);
-      }
+      } catch (err) {}
     }
 
     loadSaved();
   }, [isLoggedIn]);
 
-  /*
-  ================================================================================
-  🔄 SEARCH & LIVE REFRESH
-  ================================================================================
-  */
   useEffect(() => {
     async function search() {
       const params = new URLSearchParams();
-
       if (searchQuery.trim()) params.append("q", searchQuery);
       if (activeCategory) params.append("category", activeCategory);
 
       const res = await fetch(`/api/points?${params.toString()}`);
       const data = await res.json();
-
       setPoints(data);
     }
-
     search();
   }, [searchQuery, activeCategory]);
 
@@ -200,17 +172,11 @@ export default function Map({
     };
 
     window.addEventListener("points-updated", refresh);
-
     return () => {
       window.removeEventListener("points-updated", refresh);
     };
   }, [isLoggedIn]);
 
-  /*
-  ================================================================================
-  📍 MAP EVENTS (CLICK, LOCATION, MOVE)
-  ================================================================================
-  */
   useEffect(() => {
     if (!map) return;
 
@@ -234,11 +200,25 @@ export default function Map({
     };
 
     const handleLocationError = () => {
-      alert("לא הצלחנו למצוא את המיקום שלך. ודאי ששירותי המיקום (GPS) דולקים ואישרת לדפדפן לגשת אליהם.");
+      setIsLocating(false);
+      setIsFollowing(false);
+      alert("לא הצלחנו למצוא את המיקום שלך. ודא ששירותי המיקום (GPS) דולקים ואישרת לדפדפן לגשת אליהם.");
     };
 
     const handleLocationFound = (e: any) => {
+      setIsLocating(false);
+      
+      // 🌟 ההגנה המרכזית: בדיקת 0,0! אם ה-GPS מחזיר 0,0 זה אומר שהייתה שגיאה פנימית במכשיר
+      if (e.latlng.lat === 0 && e.latlng.lng === 0) {
+        setIsFollowing(false);
+        setUserLocation(null);
+        setFilterRadius(null); // מכבים את הסינון כדי לא להעלים לו את הנקודות
+        alert("שירות המיקום של המכשיר שלך לא יציב כרגע. אנא נסה שוב מאוחר יותר.");
+        return;
+      }
+
       setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+      setIsFollowing(true); // המפה ממוקדת על המשתמש
     };
 
     const onMove = () => setIsFollowing(false);
@@ -256,12 +236,6 @@ export default function Map({
     };
   }, [map, isCompassMode, activeCategory, isLoggedIn]);
 
-  /*
-  ================================================================================
-  🔍 RADIUS FILTER (דברים סביבי)
-  ================================================================================
-  */
-  // מונע בנייה מחדש של המערך סתם כך בעזרת useMemo
   const filteredPoints = useMemo(() => {
     if (!filterRadius || !userLocation || !map) return points;
 
@@ -270,12 +244,18 @@ export default function Map({
         [Number(p.latitude), Number(p.longitude)],
         [userLocation.lat, userLocation.lng]
       );
-
       return distanceInMeters <= filterRadius * 1000;
     });
   }, [points, filterRadius, userLocation, map]);
 
   useEffect(() => {
+    // מנקים מעגל קודם אם קיים (חשוב במיוחד כשהרדיוס מבוטל)
+    map?.eachLayer((layer: any) => {
+      if (layer.options && layer.options.dashArray === "5, 5") {
+        map.removeLayer(layer);
+      }
+    });
+
     if (!map || !userLocation || !filterRadius) return;
 
     const circle = L.circle([userLocation.lat, userLocation.lng], {
@@ -289,36 +269,23 @@ export default function Map({
 
     map.fitBounds(circle.getBounds());
 
-    return () => { circle.remove(); };
   }, [map, userLocation, filterRadius]);
 
-  /*
-  ================================================================================
-  📍 MARKERS
-  ================================================================================
-  */
   useMapMarkers({
     map,
-    points: filteredPoints, // חייב להיות המשתנה המסונן
+    points: filteredPoints,
     activeCategory,
     viewedIds,
     savedIds,
   });
 
-  /*
-  ================================================================================
-  🧠 UI
-  ================================================================================
-  */
   return (
     <div className="relative w-full h-full">
-      {/* MAP */}
       <div
         ref={mapRef}
         className="w-full h-full min-h-[50vh] rounded-2xl overflow-hidden bg-black relative"
       />
 
-      {/* CROSSHAIR (IMAGE) OVERLAY */}
       {isCompassMode && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400]">
           <img
@@ -329,7 +296,6 @@ export default function Map({
         </div>
       )}
 
-      {/* MODAL */}
       {modal && (
         <PointForm
           mode="create"
@@ -342,59 +308,47 @@ export default function Map({
           onSubmit={async ({ form }) => {
             if (status !== "authenticated") return;
 
-            // ברירת מחדל: המיקום של המצפן
             let finalLat = modal.lat;
             let finalLng = modal.lng;
 
-            // מנקה רווחים מיותרים ומוודא שהכתובת באמת קיימת
             const cleanAddress = form.address ? form.address.trim() : "";
 
             if (cleanAddress !== "") {
-              // --- מצב 1: המשתמש הקליד משהו בכתובת ---
               try {
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
                 const geoData = await geoRes.json();
 
                 if (geoData && geoData.length > 0) {
-                  // הכתובת נמצאה
                   finalLat = parseFloat(geoData[0].lat);
                   finalLng = parseFloat(geoData[0].lon);
                 } else {
-                  // הכתובת לא נמצאה
                   const useCompass = window.confirm("המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?");
-
                   if (!useCompass) {
                     alert("אנא הזן רחוב, מספר ועיר בלבד");
-                    return; // עוצר את השמירה
+                    return;
                   }
                 }
-              } catch (err) {
-                console.error("Geocoding failed:", err);
-              }
+              } catch (err) {}
             } else {
-              // --- מצב 2: שדה הכתובת ריק לגמרי! ---
               const useCompass = window.confirm("לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?");
-
               if (!useCompass) {
                 alert("אנא הזן רחוב, מספר ועיר בלבד");
-                return; // עוצר את השמירה
+                return;
               }
             }
 
             const formData = new FormData();
-
             formData.append("name", form.name);
             formData.append("description", form.description);
-            formData.append("address", cleanAddress); // שומרים את הכתובת הנקייה
+            formData.append("address", cleanAddress);
             formData.append("website", form.website);
             formData.append("category", activeCategory ?? "");
-
             formData.append("latitude", String(finalLat));
             formData.append("longitude", String(finalLng));
 
             if (form.images && form.images.length > 0) {
               form.images.forEach((img) => {
-                formData.append("images", img); // שימי לב: המפתח חייב להיות "images" ברבים
+                formData.append("images", img);
               });
             }
 
@@ -425,27 +379,36 @@ export default function Map({
         />
       )}
 
-      {/* כפתור מיקום - GPS משולב */}
+      {/* כפתור מיקום - GPS משולב (עם חיווי טעינה כשהוא מחפש) */}
       <button
         onClick={() => {
           if (!map) return;
+          if (isLocating) return; // לא עושים כלום אם כבר מחפשים
 
           if (isFollowing) {
-            map.setView([31.7683, 35.2137], 3);
+            map.setView([31.7683, 35.2137], 3); // חזרה לישראל
             setIsFollowing(false);
           } else {
+            setIsLocating(true); // מדליקים אנימציית טעינה
             map.locate({
               setView: true,
               maxZoom: 16,
               enableHighAccuracy: true
             });
-            setIsFollowing(true);
           }
         }}
-        className="absolute bottom-6 right-6 z-[400] bg-gray-900 border border-gray-700 p-3 rounded-full shadow-lg hover:bg-gray-800 transition-colors"
+        className={`absolute bottom-6 right-6 z-[400] border p-3 rounded-full shadow-lg transition-colors ${
+          isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"
+        }`}
         title={isFollowing ? "זום אאוט למפה" : "המיקום שלי"}
       >
-        {isFollowing ? (
+        {isLocating ? (
+           // אנימציית טעינה יפה
+           <svg className="animate-spin h-6 w-6 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+        ) : isFollowing ? (
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -459,11 +422,16 @@ export default function Map({
       {/* תפריט רדיוס חכם */}
       <div className="absolute bottom-6 right-20 z-[400] flex flex-col-reverse items-end gap-2">
 
-        {/* כפתור הפעלה */}
         <button
           onClick={() => {
+            // 🌟 התיקון הקריטי לתפריט הרדיוס: אם אין לנו מיקום, אנחנו קודם מפעילים איתור ולא נותנים לבחור
             if (!userLocation && map) {
-              map.locate({ enableHighAccuracy: true });
+              if (!isLocating) {
+                setIsLocating(true);
+                map.locate({ enableHighAccuracy: true });
+              }
+              alert("מאתר מיקום... אנא המתן לפני בחירת רדיוס.");
+              return;
             }
             setShowRadiusMenu(!showRadiusMenu);
           }}
@@ -478,8 +446,7 @@ export default function Map({
           </svg>
         </button>
 
-        {/* רשימת המרחקים הקופצת */}
-        {showRadiusMenu && (
+        {showRadiusMenu && userLocation && (
           <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
             <button
               onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}

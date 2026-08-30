@@ -15,23 +15,36 @@ function cleanKeywords(text: string): string {
 }
 
 /**
- * GET - שליפת נקודות עם חיפוש חכם
+ * GET - שליפת נקודות עם חיפוש חכם (תומך בצמדי מילים!)
  */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const qRaw = searchParams.get("q")?.trim();
   const category = searchParams.get("category");
 
-  // מפצלים את שורת החיפוש למילים נפרדות (למשל "kosher food" -> ["kosher", "food"])
-  const rawTerms = qRaw ? qRaw.split(/\s+/).filter(t => t.length > 0) : [];
+  let searchGroups: string[][] = [];
 
-  // מעבירים כל מילה דרך המילון. נקבל מערך של מערכים (למשל: [ ["כשר", "kosher"], ["אוכל", "food"] ])
-  const searchGroups = rawTerms.map(t => normalizeSearchTerm(t));
+  if (qRaw) {
+    let remainingQuery = qRaw.toLowerCase();
 
-  // פיצול המילים של המשתמש וניקוי תחיליות (ב', ל', ו', ה')
-  const searchTerms = qRaw
-    ? qRaw.split(/\s+/).filter(t => t.length > 0).map(t => normalizeSearchTerm(t))
-    : [];
+    // 🌟 רשימת צמדי מילים (ביטויים) שאנחנו לא רוצים שהמערכת תפצל בטעות!
+    const multiWordPhrases = ["בית כנסת", "בתי כנסת", "בית תפילה"];
+
+    multiWordPhrases.forEach(phrase => {
+      if (remainingQuery.includes(phrase)) {
+        // אם המשתמש חיפש את הצמד, נכניס אותו בשלמותו למילון ונייצר קבוצת חיפוש
+        searchGroups.push(normalizeSearchTerm(phrase));
+        // נמחק אותו משורת החיפוש כדי שהמילים לא יפוצלו שוב בהמשך
+        remainingQuery = remainingQuery.replace(phrase, " ").trim();
+      }
+    });
+
+    // 🌟 את מה שנשאר מהחיפוש (המילים הרגילות), נפצל לפי רווחים ונעביר למילון
+    const rawTerms = remainingQuery.split(/\s+/).filter(t => t.length > 0);
+    rawTerms.forEach(t => {
+      searchGroups.push(normalizeSearchTerm(t));
+    });
+  }
 
   const results = await prisma.point.findMany({
     where: {
@@ -39,7 +52,7 @@ export async function GET(req: Request) {
 
       // מחפשים נקודות שכל מילות החיפוש מופיעות באחד השדות שלהן
       AND: searchGroups.map(groupOptions => ({
-        // בתוך הקבוצה (למשל "אוכל" או "food"), מספיק שאחד מהם יופיע באחד השדות
+        // בתוך הקבוצה (למשל "בתי כנסת" או "synagogue"), מספיק שאחד מהם יופיע באחד השדות
         OR: groupOptions.map(option => ({
           OR: [
             { name: { contains: option, mode: "insensitive" } },
