@@ -29,7 +29,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
   function createPopupNode(point: Point, isSaved: boolean, mapInstance: L.Map) {
     const container = document.createElement("div");
     container.style.width = "230px";
-    // 🌟 הסרנו את האנימציה האיטית כדי שהמעטפת תגדל יחד עם התוכן באופן מיידי
     container.style.fontFamily = "sans-serif";
     container.dir = "rtl";
 
@@ -132,35 +131,37 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
         isExpanded = !isExpanded;
         
-        // 🌟 חישוב חכם של הרוחב: הרבה יותר גדול במסכים רחבים, וקצת פחות בטלפונים קטנים
         const expandedWidth = window.innerWidth < 450 ? "320px" : "400px";
-        container.style.width = isExpanded ? expandedWidth : "230px";
+        const newWidth = isExpanded ? expandedWidth : "230px";
+        
+        container.style.width = newWidth;
+        
+        // 🌟 מכריחים את המעטפת האפורה של המפה לאמץ את הגודל החדש מיד!
+        const leafletContent = container.closest('.leaflet-popup-content') as HTMLElement;
+        if (leafletContent) {
+            leafletContent.style.width = newWidth;
+        }
         
         const title = container.querySelector(".point-title") as HTMLElement;
         if (title) title.style.whiteSpace = isExpanded ? "normal" : "nowrap";
         
-        // 🌟 תמונה גדולה בהרבה
         const imgContainer = container.querySelector(".point-image-container") as HTMLElement;
         if (imgContainer) imgContainer.style.height = isExpanded ? "240px" : "120px";
         
-        // 🌟 מקום להרבה יותר טקסט
         const descContainer = container.querySelector(".point-desc-container") as HTMLElement;
         if (descContainer) descContainer.style.maxHeight = isExpanded ? "350px" : "100px";
 
         expandBtn.innerHTML = isExpanded ? collapseSvg : expandSvg;
         expandBtn.title = isExpanded ? "הקטן חלונית" : "הגדל חלונית";
 
-        // 🌟 קוראים למפה לרענן את הבועה באופן *מיידי* (זה יפתור את הזליגה של האפור)
+        // מרעננים את המפה וממרכזים על הבועה החדשה
         mapInstance.eachLayer((layer: any) => {
           if (layer instanceof L.Marker && layer.getLatLng().lat === point.latitude && layer.getLatLng().lng === point.longitude) {
             const popup = layer.getPopup();
             if (popup) {
               popup.update(); 
-
-              // 🌟 מרכוז מושלם: מזיזים את המפה ככה שהבועה הגדולה תהיה באמצע המסך
               const targetLatLng = layer.getLatLng();
               const px = mapInstance.project(targetLatLng);
-              // כשהבועה מורחבת, מזיזים את המפה קצת למטה כדי שהבועה תרד למרכז המסך
               px.y -= isExpanded ? 220 : 100; 
               mapInstance.panTo(mapInstance.unproject(px), { animate: true });
             }
@@ -324,6 +325,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         closeButton: true,
         className: "custom-popup",
         autoPan: true,
+        maxWidth: 500, // 🌟 הנה התיקון הקריטי! מאשרים למפה לגדול לרוחב המלא במחשב
+        minWidth: 230,
         autoPanPaddingTopLeft: [0, 150],
         autoPanPaddingBottomRight: [0, 20]
       });
