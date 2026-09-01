@@ -37,34 +37,38 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
 
-    const expandSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
-    const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.5 5a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 5.5 6h-4a.5.5 0 0 1 0-1h4zM10.5 5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 0-1 0v4A1.5 1.5 0 0 0 10.5 6h4a.5.5 0 0 0 0-1h-4zM5.5 11a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 1 0v-4A1.5 1.5 0 0 0 5.5 10h-4a.5.5 0 0 0 0 1h4zm5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 10.5 10h4a.5.5 0 0 1 0 1h-4z"/></svg>`;
+    // 🌟 הקטנו את האייקונים ל-12x12 כדי שיהיו עדינים בדיוק כמו ה-X
+    const expandSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
+    const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.5 5a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 5.5 6h-4a.5.5 0 0 1 0-1h4zM10.5 5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 0-1 0v4A1.5 1.5 0 0 0 10.5 6h4a.5.5 0 0 0 0-1h-4zM5.5 11a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 1 0v-4A1.5 1.5 0 0 0 5.5 10h-4a.5.5 0 0 0 0 1h4zm5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 10.5 10h4a.5.5 0 0 1 0 1h-4z"/></svg>`;
 
     const headerHtml = `
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151; padding-right: 15px;">
-        <div style="display: flex; gap: 8px; margin-top: 2px;">
-          <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
+        
+        <div style="display: flex; align-items: flex-start; gap: 8px; padding-right: 15px; padding-left: 20px;">
+          <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
             <img src="/icons/categories/${point.category}/active.png" alt="${point.category}" style="width: 18px; height: 18px; object-fit: contain;" />
           </div>
-        </div>
-        <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: right; flex-grow: 1; margin-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;">
-          ${display(point.name)}
+          
+          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: right; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; margin-top: 5px;">
+            ${display(point.name)}
+          </div>
         </div>
         
-        <button class="expand-point-btn" style="background: none; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; margin-left: 5px; margin-right: auto; transition: color 0.2s;" title="הגדל חלונית">
+        <!-- 🌟 שינינו את ה-top ל--10px בשביל האמצע המושלם -->
+        <button class="expand-point-btn" style="position: absolute; top: -10px; left: -20px; width: 30px; height: 30px; background: transparent; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; z-index: 10;" title="הגדל חלונית">
           ${expandSvg}
         </button>
       </div>
     `;
 
-    const imagesList = point.imageUrls && point.imageUrls.length > 0 
-      ? point.imageUrls 
+    const imagesList = point.imageUrls && point.imageUrls.length > 0
+      ? point.imageUrls
       : (point.imageUrl ? [point.imageUrl] : []);
 
     const imagesJsonStr = JSON.stringify(imagesList).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
-    
+
     let imageHtml = "";
-    
+
     if (imagesList.length === 1) {
       imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" title="לחץ להגדלה" />`;
     } else if (imagesList.length > 1) {
@@ -120,49 +124,47 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     let isExpanded = false;
     const expandBtn = container.querySelector(".expand-point-btn") as HTMLButtonElement;
-    
+
     if (expandBtn) {
       expandBtn.onmouseover = () => expandBtn.style.color = "#FFD700";
       expandBtn.onmouseout = () => expandBtn.style.color = "#9ca3af";
-      
+
       expandBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
 
         isExpanded = !isExpanded;
-        
+
         const expandedWidth = window.innerWidth < 450 ? "320px" : "400px";
         const newWidth = isExpanded ? expandedWidth : "230px";
-        
+
         container.style.width = newWidth;
-        
-        // 🌟 מכריחים את המעטפת האפורה של המפה לאמץ את הגודל החדש מיד!
+
         const leafletContent = container.closest('.leaflet-popup-content') as HTMLElement;
         if (leafletContent) {
-            leafletContent.style.width = newWidth;
+          leafletContent.style.width = newWidth;
         }
-        
+
         const title = container.querySelector(".point-title") as HTMLElement;
         if (title) title.style.whiteSpace = isExpanded ? "normal" : "nowrap";
-        
+
         const imgContainer = container.querySelector(".point-image-container") as HTMLElement;
         if (imgContainer) imgContainer.style.height = isExpanded ? "240px" : "120px";
-        
+
         const descContainer = container.querySelector(".point-desc-container") as HTMLElement;
         if (descContainer) descContainer.style.maxHeight = isExpanded ? "350px" : "100px";
 
         expandBtn.innerHTML = isExpanded ? collapseSvg : expandSvg;
         expandBtn.title = isExpanded ? "הקטן חלונית" : "הגדל חלונית";
 
-        // מרעננים את המפה וממרכזים על הבועה החדשה
         mapInstance.eachLayer((layer: any) => {
           if (layer instanceof L.Marker && layer.getLatLng().lat === point.latitude && layer.getLatLng().lng === point.longitude) {
             const popup = layer.getPopup();
             if (popup) {
-              popup.update(); 
+              popup.update();
               const targetLatLng = layer.getLatLng();
               const px = mapInstance.project(targetLatLng);
-              px.y -= isExpanded ? 220 : 100; 
+              px.y -= isExpanded ? 220 : 100;
               mapInstance.panTo(mapInstance.unproject(px), { animate: true });
             }
           }
@@ -176,13 +178,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         const target = e.target as HTMLElement;
         const imgsJson = target.getAttribute("data-images") || "[]";
         const idx = parseInt(target.getAttribute("data-index") || "0");
-        
+
         try {
           const imgsArray = JSON.parse(imgsJson);
-          window.dispatchEvent(new CustomEvent("open-map-lightbox", { 
-            detail: { images: imgsArray, index: idx } 
+          window.dispatchEvent(new CustomEvent("open-map-lightbox", {
+            detail: { images: imgsArray, index: idx }
           }));
-        } catch (err) {}
+        } catch (err) { }
       });
     });
 
@@ -306,7 +308,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     if (!map || !layerRef.current) return;
 
     layerRef.current.clearLayers();
-    markersRef.current = {}; 
+    markersRef.current = {};
 
     const filtered = activeCategory
       ? points.filter((p) => p.category === activeCategory)
@@ -325,7 +327,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         closeButton: true,
         className: "custom-popup",
         autoPan: true,
-        maxWidth: 500, // 🌟 הנה התיקון הקריטי! מאשרים למפה לגדול לרוחב המלא במחשב
+        maxWidth: 500,
         minWidth: 230,
         autoPanPaddingTopLeft: [0, 150],
         autoPanPaddingBottomRight: [0, 20]
