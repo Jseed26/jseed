@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 model User {
@@ -83,6 +85,8 @@ model Point {
   user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   viewedBy    ViewedPoint[]
   savedBy     SavedPoint[]
+  // 🌟 העמודה החדשה: שומרת את 384 המספרים של ה-AI
+  embedding   Unsupported("vector(384)")?
 }
 
 model ViewedPoint {

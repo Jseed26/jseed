@@ -1,88 +1,107 @@
 import { prisma } from "@/src/lib/prisma";
+import AIEngine from "@/src/lib/ai"; 
+import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
-import { normalizeSearchTerm } from "@/src/lib/searchUtils";
 
-/**
- * פונקציית עזר לניקוי מילות מפתח לפני שמירה ב-DB
- */
-function cleanKeywords(text: string): string {
-  return text
-    .replace(/[,\.\n]/g, " ")
-    .split(/\s+/)
-    .filter(w => w.length > 1)
-    .join(" ");
+// פונקציית צלף לבדיקת מילים 
+function containsConcept(text: string, concept: string) {
+    if (!concept || concept.length < 2) return false;
+    const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
+    return regex.test(text);
 }
 
-/**
- * GET - שליפת נקודות עם חיפוש חכם (תומך בצמדי מילים!)
- */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const qRaw = searchParams.get("q")?.trim();
   const category = searchParams.get("category");
 
-  let searchGroups: string[][] = [];
+  try {
+    if (!qRaw) {
+      const results = await prisma.point.findMany({
+        where: { ...(category ? { category } : {}) },
+        include: { _count: { select: { savedBy: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+      return Response.json(results);
+    }
 
-  if (qRaw) {
-    let remainingQuery = qRaw.toLowerCase();
+    const cleanUserQuery = cleanTextForMatching(qRaw);
+    const bonusConcepts = getDictionaryConcepts(qRaw);
 
-    // 🌟 רשימת צמדי מילים (ביטויים) שאנחנו לא רוצים שהמערכת תפצל בטעות!
-    const multiWordPhrases = ["בית כנסת", "בתי כנסת", "בית תפילה"];
+    // תיקון שגיאות כתיב לטובת ה-AI בלבד
+    let aiQuery = qRaw.toLowerCase();
+    const typos: Record<string, string> = { "כנסט": "כנסת", "כנסות": "כנסת", "מקוה": "מקווה", "חבד": "חב\"ד", "ביט": "בית" };
+    for (const [bad, good] of Object.entries(typos)) {
+        aiQuery = aiQuery.replace(new RegExp(bad, 'g'), good);
+    }
 
-    multiWordPhrases.forEach(phrase => {
-      if (remainingQuery.includes(phrase)) {
-        // אם המשתמש חיפש את הצמד, נכניס אותו בשלמותו למילון ונייצר קבוצת חיפוש
-        searchGroups.push(normalizeSearchTerm(phrase));
-        // נמחק אותו משורת החיפוש כדי שהמילים לא יפוצלו שוב בהמשך
-        remainingQuery = remainingQuery.replace(phrase, " ").trim();
-      }
-    });
+    const extractor = await AIEngine.getInstance();
+    const output = await extractor(aiQuery, { pooling: 'mean', normalize: true });
+    const queryEmbeddingArray = Array.from(output.data);
+    const embeddingString = `[${queryEmbeddingArray.join(',')}]`;
 
-    // 🌟 את מה שנשאר מהחיפוש (המילים הרגילות), נפצל לפי רווחים ונעביר למילון
-    const rawTerms = remainingQuery.split(/\s+/).filter(t => t.length > 0);
-    rawTerms.forEach(t => {
-      searchGroups.push(normalizeSearchTerm(t));
-    });
-  }
+    let searchResults = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        id, name, description, category, "extraInfo", address, website, latitude, longitude, "imageUrl", "imageUrls",
+        1 - (embedding <=> $1::vector) AS score
+      FROM "Point"
+      WHERE embedding IS NOT NULL
+      ${category ? `AND category = '${category}'` : ""}
+      ORDER BY embedding <=> $1::vector
+      LIMIT 100; 
+    `, embeddingString);
 
-  const results = await prisma.point.findMany({
-    where: {
-      ...(category ? { category } : {}),
+    // 🌟 ארכיטקטורת ניקוד מצטבר (הפתרון הסופי לבעיית המקווה) 🌟
+    searchResults = searchResults.map(point => {
+        const rawText = `${point.name} ${point.description || ""} ${point.category} ${point.extraInfo || ""}`;
+        const cleanPointText = cleanTextForMatching(rawText);
 
-      // מחפשים נקודות שכל מילות החיפוש מופיעות באחד השדות שלהן
-      AND: searchGroups.map(groupOptions => ({
-        // בתוך הקבוצה (למשל "בתי כנסת" או "synagogue"), מספיק שאחד מהם יופיע באחד השדות
-        OR: groupOptions.map(option => ({
-          OR: [
-            { name: { contains: option, mode: "insensitive" } },
-            { description: { contains: option, mode: "insensitive" } },
-            { address: { contains: option, mode: "insensitive" } },
-            { extraInfo: { contains: option, mode: "insensitive" } },
-          ]
-        }))
-      }))
-    },
+        let textBoost = 0;
+        let foundSynonym = false;
 
-    include: {
-      _count: {
-        select: {
-          savedBy: true // סופר כמה אנשים שמרו את הנקודה
+        // 1. האם המילה הספציפית שהמשתמש חיפש נמצאת?
+        // בונוס קטן בלבד! מקווה שכתוב בו "אין אוכל" יקבל קצת ניקוד ויסונן החוצה.
+        if (containsConcept(cleanPointText, cleanUserQuery)) {
+            textBoost += 0.15; 
         }
-      }
-    },
-    orderBy: { createdAt: "desc" },
-  });
 
-  return Response.json(results);
+        // 2. האם יש מילים נרדפות מהמילון התרבותי שלנו?
+        // כאן אנחנו מחלקים בונוס שמן. אם חיפשת "אוכל" ובטקסט כתוב "חבד" או "מסעדה" - זה בינגו.
+        bonusConcepts.forEach(concept => {
+            if (concept.length > 2 && concept !== cleanUserQuery) {
+                if (containsConcept(cleanPointText, concept)) {
+                    foundSynonym = true;
+                    textBoost += 0.20; // מצטבר על כל מילה נרדפת שמופיעה בטקסט
+                }
+            }
+        });
+
+        if (foundSynonym) {
+            textBoost += 0.25; // בונוס בוסטר שדוחף את התוצאה בוודאות מעל הרף
+        }
+
+        return { ...point, score: point.score + textBoost };
+    });
+
+    const finalResults = searchResults
+        // רף אופטימלי 0.65: שפות זרות עוברות בכיף. בעברית, תוצאות לא קשורות (כמו המקווה) נזרקות החוצה.
+        .filter(p => p.score >= 0.65) 
+        .sort((a, b) => b.score - a.score)
+        .map(p => {
+            const { score, ...pointData } = p;
+            return pointData;
+        });
+    
+    return Response.json(finalResults);
+
+  } catch (error) {
+    console.error("GET Points Error:", error);
+    return Response.json([]);
+  }
 }
 
-/**
- * POST - יצירת נקודה חדשה עם מילות מפתח נקיות
- */
-/**
- * POST - יצירת נקודה חדשה עם תמיכה במספר תמונות
- */
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
@@ -98,16 +117,14 @@ export async function POST(req: Request) {
     const website = formData.get("website") as string;
     const extraInfo = formData.get("extraInfo") as string | null;
 
-    // 👈 שולפים את כל הקבצים שנשלחו (עד 3)
     const files = formData.getAll("images") as File[];
     let imageUrls: string[] = [];
 
-    // מעלים את כל התמונות ל-Cloudinary במקביל
     if (files && files.length > 0) {
       const uploadPromises = files.map(async (file) => {
         const buffer = Buffer.from(await file.arrayBuffer());
         const uploadResult: any = await new Promise((resolve, reject) => {
-          cloudinary.uploader.upload_stream({ folder: "points" }, (err, result) => {
+          cloudinary.uploader.upload_stream({ folder: "points" }, (err: any, result: any) => {
             if (err) reject(err);
             else resolve(result);
           }).end(buffer);
@@ -115,14 +132,11 @@ export async function POST(req: Request) {
         return uploadResult.secure_url;
       });
 
-      // מחכים שכולן יעלו ומקבלים מערך של לינקים
       imageUrls = await Promise.all(uploadPromises);
     }
 
     let finalLatitude = latitude;
     let finalLongitude = longitude;
-
-    // גיאוקודינג חכם אם יש כתובת
     const hasAddress = address && address.trim().length > 3;
 
     if (hasAddress) {
@@ -137,27 +151,33 @@ export async function POST(req: Request) {
           finalLongitude = Number(results[0].lon);
         }
       } catch (err) {
-        console.error("Geocoding failed, keeping original click coordinates", err);
+        console.error("Geocoding failed", err);
       }
     }
 
     const newPoint = await prisma.point.create({
       data: {
-        name,
-        category,
-        latitude: finalLatitude,
-        longitude: finalLongitude,
-        description,
-        
-        imageUrls, // 👈 שומרים את כל המערך במסד הנתונים
-        imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // שומרים את התמונה הראשונה גם בשדה הישן לתאימות לאחור
-        
-        address: hasAddress ? address : null,
-        website,
-        extraInfo: extraInfo || null,
+        name, category, latitude: finalLatitude, longitude: finalLongitude,
+        description, imageUrls, imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
+        address: hasAddress ? address : null, website, extraInfo: extraInfo || null,
         userId: session.user.id,
       },
     });
+
+    try {
+      const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category} ${newPoint.extraInfo || ""} ${newPoint.address || ""}`;
+      const extractor = await AIEngine.getInstance();
+      const output = await extractor(textToAnalyze, { pooling: 'mean', normalize: true });
+      const embeddingArray = Array.from(output.data);
+      const embeddingString = `[${embeddingArray.join(',')}]`;
+      
+      await prisma.$executeRawUnsafe(
+          `UPDATE "Point" SET embedding = $1::vector WHERE id = $2`,
+          embeddingString, newPoint.id
+      );
+    } catch (aiError) {
+      console.error("AI Embedding Error:", aiError);
+    }
 
     return Response.json(newPoint);
   } catch (error) {
