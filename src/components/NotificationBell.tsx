@@ -34,7 +34,7 @@ export default function NotificationBell() {
 
     fetchNotifications();
     // אפשר גם לרענן כל כמה דקות אם רוצים
-    const interval = setInterval(fetchNotifications, 60000); 
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, [session]);
 
@@ -64,10 +64,23 @@ export default function NotificationBell() {
         onClick={handleOpen}
         className="relative p-2 text-gray-300 hover:text-yellow-500 transition-colors focus:outline-none"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#fbbf24"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="hover:scale-110 transition-transform"
+          style={{ filter: "drop-shadow(0px 0px 4px rgba(251,191,36,0.4))" }}
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
-        
+
         {/* נקודה אדומה אם יש התראות */}
         {unreadCount > 0 && (
           <span className="absolute top-1 right-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">

@@ -26,11 +26,41 @@ type Point = {
     };
 };
 
-
-// =================================================================
+const t = {
+    loading: { he: "טוען נתונים...", en: "Loading data..." },
+    myArea: { he: "האזור שלי", en: "My Area" },
+    toMap: { he: "למפה", en: "To Map" },
+    language: { he: "שפה", en: "Language" },
+    mySeeds: { he: "הנקודות שלי", en: "My Seeds" },
+    history: { he: "היסטוריה", en: "History" },
+    saved: { he: "שמורים", en: "Saved" },
+    selectCategory: { he: "בחרי קטגוריה כדי לראות נקודות שמורות", en: "Select a category to view saved seeds" },
+    noSeeds: { he: "אין כאן נקודות להצגה...", en: "No seeds to display here..." },
+    category: { he: "קטגוריה:", en: "Category:" },
+    address: { he: "כתובת:", en: "Address:" },
+    none: { he: "אין", en: "None" },
+    website: { he: "אתר:", en: "Website:" },
+    visitSite: { he: "למעבר לאתר", en: "Visit Site" },
+    views: { he: "צפיות", en: "Views" },
+    saves: { he: "שמירות", en: "Saves" },
+    clicks: { he: "קליקים", en: "Clicks" },
+    edit: { he: "ערוך", en: "Edit" },
+    delete: { he: "מחק", en: "Delete" },
+    viewOnMap: { he: "צפה במפה", en: "View on Map" },
+    deleteConfirm: { he: "האם אתה בטוח שברצונך למחוק גרעין זה?", en: "Are you sure you want to delete this seed?" },
+    deleting: { he: "מוחק...", en: "Deleting..." },
+    yesDelete: { he: "כן, מחק", en: "Yes, delete" },
+    cancel: { he: "ביטול", en: "Cancel" },
+    logout: { he: "התנתק", en: "Log Out" },
+};
 
 export default function MyPointsPage() {
     const { data: session, status } = useSession();
+    
+    // 🌟 ברירת מחדל: עברית
+    const [lang, setLang] = useState<"en" | "he">("he");
+    const [isLangOpen, setIsLangOpen] = useState(false);
+
     const [tab, setTab] = useState<"my" | "history" | "saved">("my");
     const [savedCategory, setSavedCategory] = useState<PointCategory | null>(null);
     const [points, setPoints] = useState<Point[]>([]);
@@ -39,8 +69,6 @@ export default function MyPointsPage() {
     
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
-    
-    // 🌟 הוספנו סטייט חדש שנועל את כפתור המחיקה למניעת לחיצה כפולה
     const [isDeleting, setIsDeleting] = useState(false);
 
     const categoryNames: Record<string, string> = {
@@ -72,11 +100,10 @@ export default function MyPointsPage() {
         router.push("/");
     }
 
-    // 🌟 עדכנו את פונקציית המחיקה כדי שתנעל את הכפתור בזמן העבודה
     async function executeDelete() {
-        if (!pointToDelete || isDeleting) return; // מונע ביצוע אם כבר באמצע מחיקה
+        if (!pointToDelete || isDeleting) return; 
         
-        setIsDeleting(true); // נועלים!
+        setIsDeleting(true); 
 
         try {
             const res = await fetch(`/api/points/${pointToDelete}`, { method: "DELETE" });
@@ -87,16 +114,16 @@ export default function MyPointsPage() {
         } catch (error) {
             console.error("Error deleting point:", error);
         } finally {
-            setIsDeleting(false); // משחררים נעילה
-            setPointToDelete(null); // סוגרים את החלונית
+            setIsDeleting(false); 
+            setPointToDelete(null); 
         }
     }
 
     if (status === "loading") {
-        return <div className="min-h-screen bg-black text-yellow-500 flex items-center justify-center">טוען נתונים...</div>;
+        return <div className="min-h-screen bg-black text-yellow-500 flex items-center justify-center">{t.loading[lang]}</div>;
     }
 
-    const userName = session?.user?.name ? session.user.name : "האזור שלי";
+    const userName = session?.user?.name ? session.user.name : t.myArea[lang];
 
     const displayPoints = tab === "my"
         ? points
@@ -107,22 +134,57 @@ export default function MyPointsPage() {
                 : savedPoints;
 
     return (
-        <div className="p-6 text-white bg-black min-h-screen" dir="rtl">
+        <div className="p-6 text-white bg-black min-h-screen" dir={lang === "he" ? "rtl" : "ltr"}>
+            
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl">{userName}</h1>
-                <button onClick={() => router.push("/")} className="bg-gray-800 px-3 py-2 rounded hover:bg-gray-700">למפה</button>
+                <h1 className="text-2xl font-bold">{userName}</h1>
+                
+                <div className="flex items-center gap-3">
+                    {/* 🌟 תפריט בחירת שפה נפתח */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsLangOpen(!isLangOpen)}
+                            className="flex items-center gap-1.5 border border-yellow-500 text-yellow-500 px-3 py-1.5 rounded-lg hover:bg-yellow-500/10 transition text-sm font-bold"
+                        >
+                            🌐 {t.language[lang]}
+                        </button>
+                        
+                        {isLangOpen && (
+                            <div className={`absolute top-full mt-2 w-28 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden ${lang === "he" ? "right-0" : "left-0"}`}>
+                                <button 
+                                    onClick={() => { setLang("he"); setIsLangOpen(false); }}
+                                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                                >
+                                    עברית
+                                </button>
+                                <button 
+                                    onClick={() => { setLang("en"); setIsLangOpen(false); }}
+                                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                                >
+                                    English
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <button onClick={() => router.push("/")} className="bg-gray-800 px-4 py-1.5 rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors border border-gray-700">
+                        {t.toMap[lang]}
+                    </button>
+                </div>
             </div>
 
-            {/* טאבים לניווט */}
             <div className="flex gap-4 border-b border-gray-800 pb-2 mb-6 text-lg">
-                <button onClick={() => {setTab("my"); setSavedCategory(null);}} className={tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400"}>הנקודות שלי</button>
-                <button onClick={() => {setTab("history"); setSavedCategory(null);}} className={tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400"}>היסטוריה</button>
+                <button onClick={() => {setTab("my"); setSavedCategory(null);}} className={tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400"}>
+                    {t.mySeeds[lang]}
+                </button>
+                <button onClick={() => {setTab("history"); setSavedCategory(null);}} className={tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500 pb-1" : "text-gray-400"}>
+                    {t.history[lang]}
+                </button>
                 <button onClick={() => setTab("saved")} className={`flex items-center gap-1.5 pb-1 ${tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400"}`}>
-                    שמורים <img src="/icons/ui/plant/active.png" className="w-4 h-4 object-contain" />
+                    {t.saved[lang]} <img src="/icons/ui/plant/active.png" className="w-4 h-4 object-contain" />
                 </button>
             </div>
 
-            {/* סינון קטגוריות לטאב שמורים */}
             {tab === "saved" && (
                 <div className="flex justify-center gap-3 mb-6">
                     {["leaf", "star", "triangle", "circle"].map((cat) => (
@@ -133,12 +195,11 @@ export default function MyPointsPage() {
                 </div>
             )}
 
-            {/* רשימת נקודות */}
             {displayPoints.length === 0 ? (
                 <p className="text-gray-400">
                     {tab === "saved" && !savedCategory
-                        ? "בחרי קטגוריה כדי לראות נקודות שמורות"
-                        : "אין כאן נקודות להצגה..."
+                        ? t.selectCategory[lang]
+                        : t.noSeeds[lang]
                     }
                 </p>
             ) : (
@@ -157,19 +218,19 @@ export default function MyPointsPage() {
                             <p className="text-sm text-gray-300 mt-3">{p.description}</p>
                             
                             <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
-                                <p>📍 קטגוריה: {categoryNames[p.category] || p.category}</p>
-                                <p>🏠 כתובת: {p.address || "אין"}</p>
-                                <p>🌐 אתר: {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:underline">למעבר לאתר</a> : "אין"}</p>
+                                <p>📍 {t.category[lang]} {categoryNames[p.category] || p.category}</p>
+                                <p>🏠 {t.address[lang]} {p.address || t.none[lang]}</p>
+                                <p>🌐 {t.website[lang]} {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:underline">{t.visitSite[lang]}</a> : t.none[lang]}</p>
                             </div>
                             
                             {tab === "my" && (
                                 <div className="flex justify-around mt-4 pt-4 border-t border-gray-800 text-xs text-gray-400">
-                                    <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} צפיות</span>
+                                    <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} {t.views[lang]}</span>
                                     <span className="flex items-center gap-1">
-                                        <img src="/icons/ui/plant/active.png" alt="שמירות" className="w-4 h-4 object-contain" />
-                                        {p._count?.savedBy || 0} שמירות
+                                        <img src="/icons/ui/plant/active.png" alt="Saves" className="w-4 h-4 object-contain" />
+                                        {p._count?.savedBy || 0} {t.saves[lang]}
                                     </span>
-                                    {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} קליקים</span>}
+                                    {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} {t.clicks[lang]}</span>}
                                 </div>
                             )}
                             
@@ -177,8 +238,8 @@ export default function MyPointsPage() {
                                 <div className="flex gap-2">
                                     {tab === "my" && (
                                         <>
-                                            <button onClick={() => setEditingPoint(p)} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-4 py-2 rounded-lg text-sm transition">ערוך</button>
-                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 px-4 py-2 rounded-lg text-sm transition">מחק</button>
+                                            <button onClick={() => setEditingPoint(p)} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-4 py-2 rounded-lg text-sm transition">{t.edit[lang]}</button>
+                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 px-4 py-2 rounded-lg text-sm transition">{t.delete[lang]}</button>
                                         </>
                                     )}
                                 </div>
@@ -186,7 +247,7 @@ export default function MyPointsPage() {
                                     onClick={() => router.push(`/?point=${p.id}`)}
                                     className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg"
                                 >
-                                    📍 צפה במפה
+                                    📍 {t.viewOnMap[lang]}
                                 </button>
                             </div>
                         </div>
@@ -194,32 +255,30 @@ export default function MyPointsPage() {
                 </div>
             )}
 
-            {/* 🌟 חלונית אישור מחיקה - עכשיו עם כפתור ננעל */}
             {pointToDelete && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
                     <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-white">האם אתה בטוח שברצונך למחוק גרעין זה?</h3>
+                        <h3 className="text-lg font-bold text-white">{t.deleteConfirm[lang]}</h3>
                         <div className="flex justify-center gap-4">
                             <button 
                                 onClick={executeDelete} 
-                                disabled={isDeleting} // 👈 נועל פיזית את הכפתור
+                                disabled={isDeleting}
                                 className="bg-red-500 hover:bg-red-600 text-black px-8 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isDeleting ? "מוחק..." : "כן, מחק"}
+                                {isDeleting ? t.deleting[lang] : t.yesDelete[lang]}
                             </button>
                             <button 
                                 onClick={() => setPointToDelete(null)} 
-                                disabled={isDeleting} // מונע ביטול באמצע מחיקה
+                                disabled={isDeleting}
                                 className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-2.5 rounded-xl font-bold transition disabled:opacity-50"
                             >
-                                ביטול
+                                {t.cancel[lang]}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* טופס עריכה */}
             {editingPoint && (
                 <PointForm
                     mode="edit"
@@ -243,7 +302,7 @@ export default function MyPointsPage() {
                         formData.append("description", form.description);
                         formData.append("address", form.address);
                         formData.append("website", form.website);
-                        formData.append("category", editingPoint.category);
+                        formData.append("category", form.category || editingPoint.category);
                         if (form.extraInfo) formData.append("extraInfo", form.extraInfo);
                         
                         if (form.images && form.images.length > 0) {
@@ -273,7 +332,9 @@ export default function MyPointsPage() {
                 />
             )}
 
-            <button onClick={handleLogout} className="mt-8 bg-red-900/30 border border-red-800 text-red-400 px-6 py-2 rounded-lg hover:bg-red-900/50 transition">התנתק</button>
+            <button onClick={handleLogout} className="mt-8 bg-red-900/30 border border-red-800 text-red-400 px-6 py-2 rounded-lg hover:bg-red-900/50 transition">
+                {t.logout[lang]}
+            </button>
         </div>
     );
 }
