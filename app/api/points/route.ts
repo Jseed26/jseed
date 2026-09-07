@@ -1,15 +1,15 @@
 import { prisma } from "@/src/lib/prisma";
-import AIEngine from "@/src/lib/ai";
+import AIEngine from "@/src/lib/ai"; 
 import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
-import translate from "google-translate-api-x";
+import translate from "google-translate-api-x"; 
 
 function containsConcept(text: string, concept: string) {
-  if (!concept || concept.length < 2) return false;
-  const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
-  return regex.test(text);
+    if (!concept || concept.length < 2) return false;
+    const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
+    return regex.test(text);
 }
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
@@ -19,20 +19,10 @@ export async function GET(req: Request) {
   const qRaw = searchParams.get("q")?.trim();
   const category = searchParams.get("category");
 
-  // 🌟 הגדרת חלון הזמן: 36 שעות אחורה
-  const thirtySixHoursAgo = new Date(Date.now() - 36 * 60 * 60 * 1000);
-
   try {
     if (!qRaw) {
       const results = await prisma.point.findMany({
-        where: {
-          ...(category ? { category } : {}),
-          // 🌟 הנה הסינון: תביא את הכל, אבל אם זה chai - רק מה שנוצר ב-36 שעות האחרונות!
-          OR: [
-            { category: { not: "chai" } },
-            { category: "chai", createdAt: { gte: thirtySixHoursAgo } }
-          ]
-        },
+        where: { ...(category ? { category } : {}) },
         include: { _count: { select: { savedBy: true } } },
         orderBy: { createdAt: "desc" },
       });
@@ -45,7 +35,7 @@ export async function GET(req: Request) {
     let aiQuery = qRaw.toLowerCase();
     const typos: Record<string, string> = { "כנסט": "כנסת", "כנסות": "כנסת", "מקוה": "מקווה", "חבד": "חב\"ד", "ביט": "בית" };
     for (const [bad, good] of Object.entries(typos)) {
-      aiQuery = aiQuery.replace(new RegExp(bad, 'g'), good);
+        aiQuery = aiQuery.replace(new RegExp(bad, 'g'), good);
     }
 
     const extractor = await AIEngine.getInstance();
@@ -53,54 +43,52 @@ export async function GET(req: Request) {
     const queryEmbeddingArray = Array.from(output.data);
     const embeddingString = `[${queryEmbeddingArray.join(',')}]`;
 
-    // 🌟 הוספנו את "createdAt" ל-SELECT, והוספנו תנאי SQL לסינון 36 שעות
     let searchResults = await prisma.$queryRawUnsafe<any[]>(`
       SELECT 
-        id, name, name_en, description, description_en, category, "extraInfo", "extraInfo_en", address, website, latitude, longitude, "imageUrl", "imageUrls", "createdAt",
+        id, name, name_en, description, description_en, category, address, website, latitude, longitude, "imageUrl", "imageUrls", "createdAt",
         1 - (embedding <=> $1::vector) AS score
       FROM "Point"
       WHERE embedding IS NOT NULL
       ${category ? `AND category = '${category}'` : ""}
-      AND (category != 'chai' OR "createdAt" >= NOW() - INTERVAL '36 hours')
       ORDER BY embedding <=> $1::vector
       LIMIT 100; 
     `, embeddingString);
 
     searchResults = searchResults.map(point => {
-      const rawText = `${point.name} ${point.description || ""} ${point.category}`;
-      const cleanPointText = cleanTextForMatching(rawText);
+        const rawText = `${point.name} ${point.description || ""} ${point.category}`;
+        const cleanPointText = cleanTextForMatching(rawText);
 
-      let textBoost = 0;
-      let foundSynonym = false;
+        let textBoost = 0;
+        let foundSynonym = false;
 
-      if (containsConcept(cleanPointText, cleanUserQuery)) {
-        textBoost += 0.15;
-      }
-
-      bonusConcepts.forEach(concept => {
-        if (concept.length > 2 && concept !== cleanUserQuery) {
-          if (containsConcept(cleanPointText, concept)) {
-            foundSynonym = true;
-            textBoost += 0.20;
-          }
+        if (containsConcept(cleanPointText, cleanUserQuery)) {
+            textBoost += 0.15; 
         }
-      });
 
-      if (foundSynonym) {
-        textBoost += 0.25;
-      }
+        bonusConcepts.forEach(concept => {
+            if (concept.length > 2 && concept !== cleanUserQuery) {
+                if (containsConcept(cleanPointText, concept)) {
+                    foundSynonym = true;
+                    textBoost += 0.20; 
+                }
+            }
+        });
 
-      return { ...point, score: point.score + textBoost };
+        if (foundSynonym) {
+            textBoost += 0.25; 
+        }
+
+        return { ...point, score: point.score + textBoost };
     });
 
     const finalResults = searchResults
-      .filter(p => p.score >= 0.65)
-      .sort((a, b) => b.score - a.score)
-      .map(p => {
-        const { score, ...pointData } = p;
-        return pointData;
-      });
-
+        .filter(p => p.score >= 0.65) 
+        .sort((a, b) => b.score - a.score)
+        .map(p => {
+            const { score, ...pointData } = p;
+            return pointData;
+        });
+    
     return Response.json(finalResults);
 
   } catch (error) {
@@ -109,7 +97,7 @@ export async function GET(req: Request) {
   }
 }
 
-// ... כאן נשארת פונקציית ה-POST כפי שהיא ...
+
 
 export async function POST(req: Request) {
   try {
@@ -124,7 +112,6 @@ export async function POST(req: Request) {
     const longitude = Number(formData.get("longitude"));
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
-    const extraInfo = formData.get("extraInfo") as string | null;
 
     // =========================================
     // 🌟 תרגום חכם דו-כיווני! (מזהה שפה אוטומטית)
@@ -133,8 +120,7 @@ export async function POST(req: Request) {
     let final_name_en = name;
     let final_desc_he = description;
     let final_desc_en = description;
-    let final_extra_he = extraInfo;
-    let final_extra_en = extraInfo;
+
 
     try {
       if (name) {
@@ -153,13 +139,7 @@ export async function POST(req: Request) {
         }
       }
 
-      if (extraInfo) {
-        if (hasHebrew(extraInfo)) {
-          final_extra_en = (await translate(extraInfo, { to: 'en' })).text;
-        } else {
-          final_extra_he = (await translate(extraInfo, { to: 'he' })).text;
-        }
-      }
+    
     } catch (translateError) {
       console.error("Translation API limit/error, skipping translation:", translateError);
     }
@@ -216,14 +196,12 @@ export async function POST(req: Request) {
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
         address: hasAddress ? address : null,
         website,
-        extraInfo: final_extra_he || null,
-        extraInfo_en: final_extra_en || null,
         userId: session.user.id,
       },
     });
 
     try {
-      const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category} ${newPoint.extraInfo || ""} ${newPoint.address || ""}`;
+      const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category} || ""} ${newPoint.address || ""}`;
       const extractor = await AIEngine.getInstance();
       const output = await extractor(textToAnalyze, { pooling: 'mean', normalize: true });
       const embeddingArray = Array.from(output.data);

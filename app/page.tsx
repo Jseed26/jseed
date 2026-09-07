@@ -146,7 +146,7 @@ export default function Home() {
         </div>
 
         <Image
-          src="/icons/ui/logo/logo.png"
+          src="/icons/ui/logo/logo2.png"
           alt="JSeed"
           width={90}
           height={60}
@@ -170,7 +170,7 @@ export default function Home() {
       </div>
 
       {toast && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white text-black px-4 py-1.5 rounded-lg z-[100] text-sm font-medium shadow-lg pointer-events-none">
+        <div className="absolute top-[130px] left-1/2 -translate-x-1/2 bg-white text-black px-4 py-1.5 rounded-lg z-[99999] text-sm font-bold shadow-2xl pointer-events-none border border-yellow-500">
           {toast}
         </div>
       )}
@@ -187,31 +187,31 @@ export default function Home() {
 
         {/* ================= כפתור השפה צף קבוע משמאל ================= */}
         <div className="absolute bottom-6 left-[125px] z-[400]">
-            <div className="relative pointer-events-auto">
-              <button
-                onClick={() => setIsLangOpen(!isLangOpen)}
-                className="flex items-center justify-center gap-1.5 border border-gray-600 text-yellow-500 px-3 py-2 rounded-full hover:bg-gray-800 transition text-xs font-bold bg-gray-900 shadow-lg"
-              >
-                🌐 {lang === "he" ? "עברית" : "English"}
-              </button>
+          <div className="relative pointer-events-auto">
+            <button
+              onClick={() => setIsLangOpen(!isLangOpen)}
+              className="flex items-center justify-center gap-1.5 border border-gray-600 text-yellow-500 px-3 py-2 rounded-full hover:bg-gray-800 transition text-xs font-bold bg-gray-900 shadow-lg"
+            >
+              🌐 {lang === "he" ? "עברית" : "English"}
+            </button>
 
-              {isLangOpen && (
-                <div className="absolute bottom-full mb-2 w-24 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden left-0">
-                  <button
-                    onClick={() => changeLanguage("he")}
-                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
-                  >
-                    עברית
-                  </button>
-                  <button
-                    onClick={() => changeLanguage("en")}
-                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
-                  >
-                    English
-                  </button>
-                </div>
-              )}
-            </div>
+            {isLangOpen && (
+              <div className="absolute bottom-full mb-2 w-24 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden left-0">
+                <button
+                  onClick={() => changeLanguage("he")}
+                  className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                >
+                  עברית
+                </button>
+                <button
+                  onClick={() => changeLanguage("en")}
+                  className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                >
+                  English
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

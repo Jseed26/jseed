@@ -371,10 +371,6 @@ export default function Map({
               });
             }
 
-            if (form.extraInfo) {
-              formData.append("extraInfo", form.extraInfo);
-            }
-
             const res = await fetch("/api/points", {
               method: "POST",
               body: formData,

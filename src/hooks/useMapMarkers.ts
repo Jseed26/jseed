@@ -11,7 +11,7 @@ type Props = {
   activeCategory: Point["category"] | null;
   viewedIds: number[];
   savedIds?: number[];
-  lang?: "he" | "en";
+  lang?: "he" | "en"; 
 };
 
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he" }: Props) {
@@ -31,7 +31,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const container = document.createElement("div");
     container.style.width = "230px";
     container.style.fontFamily = "sans-serif";
-
+    
     const isHe = lang === "he";
     container.dir = isHe ? "rtl" : "ltr";
 
@@ -84,28 +84,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    // 🌟 יצירת השעון עצר דינמי לקטגוריית "חי"
-    let timerHtml = "";
-    if (point.category === "chai" && (point as any).createdAt) {
-      const createdTime = new Date((point as any).createdAt).getTime();
-      const expiresAt = createdTime + (36 * 60 * 60 * 1000);
-      const timeLeft = expiresAt - Date.now();
-
-      if (timeLeft > 0) {
-        const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
-        const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-        const timeString = isHe
-          ? `⏳ נעלם בעוד ${hoursLeft} שעות ו־${minutesLeft} דקות`
-          : `⏳ Disappears in ${hoursLeft}h ${minutesLeft}m`;
-
-        timerHtml = `
-              <div style="background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.4); color: #fb923c; font-size: 11px; padding: 4px 8px; border-radius: 6px; margin-bottom: 10px; text-align: center; font-weight: bold;">
-                ${timeString}
-              </div>
-            `;
-      }
-    }
-
     const imagesList = point.imageUrls && point.imageUrls.length > 0
       ? point.imageUrls
       : (point.imageUrl ? [point.imageUrl] : []);
@@ -138,7 +116,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     container.innerHTML = `
       ${headerHtml}
-      ${timerHtml} <!-- 🌟 הוספנו את הבאנג' של הטיימר פה -->
       ${imageHtml}
       
       <div class="point-desc-container" style="max-height: 100px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
@@ -441,5 +418,5 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       map.off("zoomend", handleZoomEnd);
     };
 
-  }, [map, points, activeCategory, viewedIds, savedIds, lang]);
+  }, [map, points, activeCategory, viewedIds, savedIds, lang]); 
 }

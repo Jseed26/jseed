@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import imageCompression from "browser-image-compression";
 
 type FormState = {
@@ -30,7 +30,7 @@ const CATEGORIES = [
     { key: "star", label: { he: "רוח", en: "Spirit" } },
     { key: "triangle", label: { he: "מורשת", en: "Legacy" } },
     { key: "circle", label: { he: "עסקים", en: "Business" } },
-    { key: "chai", label: {he: "חי", en: "Chai"}},
+    { key: "chai", label: { he: "חי", en: "Chai" } },
 ];
 
 const tForm = {
@@ -50,10 +50,9 @@ const tForm = {
     create: { he: "צור", en: "Create" },
     save: { he: "שמור", en: "Save" },
     saving: { he: "שומר...", en: "Saving..." },
-    chaiWarning: { 
-        he: "⏳ שימו לב: גרעיני 'חי' הם זמניים ויופיעו על המפה ל-36 שעות בלבד (אך יישמרו בהיסטוריה שלכם).", 
-        en: "⏳ Note: 'Chai' seeds are temporary and will only appear on the map for 36 hours (but remain in your history)." 
-    },
+    chaiNamePlaceholder: { he: "הצטרף ליוזמה או צור חדשה", en: "Join an initiative or create a new one" },
+    addNewInitiative: { he: "הוסף יוזמה חדשה", en: "Add a new initiative" },
+    noMatches: { he: "לא נמצאו יוזמות תואמות", en: "No matching initiatives" }
 };
 
 export default function PointForm({ mode, initialData, onClose, onSubmit, category }: Props) {
@@ -77,15 +76,40 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
     const [isCompressing, setIsCompressing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // משתנים לניהול החיפוש הדינמי בגרעין חי
+    const [chaiInitiatives, setChaiInitiatives] = useState<string[]>([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const nameInputRef = useRef<HTMLInputElement>(null);
+
     const totalImages = form.existingImages.length + form.images.length;
+
+    // משיכת היוזמות הקיימות מהשרת
+    useEffect(() => {
+        if (form.category === "chai" && chaiInitiatives.length === 0) {
+            fetch("/api/points?category=chai")
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        const uniqueNames = Array.from(new Set(data.map((p: any) => p.name)));
+                        setChaiInitiatives(uniqueNames as string[]);
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [form.category]);
+
+    // סינון דינמי לפי מה שהוקלד בשדה
+    const filteredInitiatives = chaiInitiatives.filter(init => 
+        init.toLowerCase().includes(form.name.toLowerCase())
+    );
 
     async function handleSubmit() {
         if (!form.category) {
             alert(lang === "he" ? "נא לבחור קטגוריה לגרעין." : "Please select a category for the seed.");
             return;
         }
-        if (!form.name) {
-            alert(lang === "he" ? "נא להזין שם לגרעין." : "Please enter a name for the seed.");
+        if (!form.name || form.name.trim() === "") {
+            alert(lang === "he" ? "נא להזין שם לגרעין (או לבחור מהרשימה)." : "Please enter a name for the seed.");
             return;
         }
 
@@ -114,7 +138,10 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
                         <button
                             key={cat.key}
                             type="button"
-                            onClick={() => setForm({ ...form, category: cat.key })}
+                            onClick={() => {
+                                setForm({ ...form, category: cat.key, name: "" });
+                                setIsDropdownOpen(false); // סוגר את התפריט כשמחליפים קטגוריה
+                            }}
                             className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg transition-all ${
                                 form.category === cat.key
                                     ? "bg-yellow-500/10 border border-yellow-500/50 scale-105"
@@ -133,18 +160,84 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
                     ))}
                 </div>
 
-                {form.category === "chai" && (
-                    <div className="bg-orange-500/10 border border-orange-500/30 text-orange-400 p-3 rounded-xl text-xs font-medium text-center shadow-inner">
-                        {tForm.chaiWarning[lang]}
-                    </div>
-                )}
+                {form.category === "chai" ? (
+                    <div className="relative z-50">
+                        <div className="relative z-20 flex items-center w-full bg-gray-800 border border-gray-700 rounded-xl focus-within:border-yellow-500 transition-colors">
+                            <input
+                                ref={nameInputRef}
+                                placeholder={tForm.chaiNamePlaceholder[lang]}
+                                className="w-full bg-transparent p-3 text-sm focus:outline-none placeholder-gray-500 text-white"
+                                value={form.name}
+                                onChange={(e) => {
+                                    setForm({ ...form, name: e.target.value });
+                                    setIsDropdownOpen(true);
+                                }}
+                                onClick={() => setIsDropdownOpen(true)}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className={`p-3 text-gray-400 hover:text-yellow-500 transition-colors flex items-center justify-center border-gray-700 ${lang === 'he' ? 'border-r' : 'border-l'}`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d={isDropdownOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                                </svg>
+                            </button>
+                        </div>
 
-                <input
-                    placeholder={tForm.namePlaceholder[lang]}
-                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
+                        {/* תפריט היוזמות */}
+                        {isDropdownOpen && (
+                            <>
+                                {/* שכבה בלתי נראית לסגירת התפריט בלחיצה מחוץ לאזור */}
+                                <div 
+                                    className="fixed inset-0 z-10" 
+                                    onClick={() => setIsDropdownOpen(false)}
+                                />
+                                
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-20 max-h-48 overflow-y-auto custom-scrollbar">
+                                    <button
+                                        type="button"
+                                        className={`w-full text-${lang === "he" ? "right" : "left"} p-3 text-sm text-yellow-500 font-bold border-b border-gray-700 hover:bg-gray-700 transition-colors truncate`}
+                                        onClick={() => {
+                                            // רק סוגר את התפריט, לא מוחק את מה שכתבנו!
+                                            setIsDropdownOpen(false);
+                                            nameInputRef.current?.focus();
+                                        }}
+                                    >
+                                        ➕ {form.name.trim() !== "" ? `${tForm.addNewInitiative[lang]}: "${form.name}"` : tForm.addNewInitiative[lang]}
+                                    </button>
+                                    
+                                    {filteredInitiatives.length > 0 ? (
+                                        filteredInitiatives.map((initName, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                className={`w-full text-${lang === "he" ? "right" : "left"} p-3 text-sm text-gray-300 hover:bg-gray-700 transition-colors truncate`}
+                                                onClick={() => {
+                                                    setForm({ ...form, name: initName });
+                                                    setIsDropdownOpen(false);
+                                                }}
+                                            >
+                                                {initName}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="p-3 text-sm text-gray-500 text-center">
+                                            {tForm.noMatches[lang]}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <input
+                        placeholder={tForm.namePlaceholder[lang]}
+                        className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    />
+                )}
 
                 <textarea
                     placeholder={tForm.descPlaceholder[lang]}
