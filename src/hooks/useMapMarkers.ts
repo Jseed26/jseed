@@ -90,7 +90,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let timerHtml = "";
     if (point.category === "chai" && (point as any).createdAt) {
       const createdTime = new Date((point as any).createdAt).getTime();
-      const expiresAt = createdTime + (1 * 60 * 1000); // 1 דקה במקום 36 שעות
+      const expiresAt = createdTime + (36 * 60 * 60 * 1000);
       const timeLeft = expiresAt - Date.now();
 
       if (timeLeft > 0) {

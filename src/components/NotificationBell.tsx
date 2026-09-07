@@ -13,6 +13,11 @@ type Notification = {
 const t = {
   title: { he: "התראות", en: "Notifications" },
   empty: { he: "אין התראות חדשות.", en: "No new notifications." },
+  // 🌟 הוספנו את התרגום למילון
+  savedSeed: { 
+    he: "מישהו הרגע שמר את הגרעין שלך! 🌱", 
+    en: "Someone just saved your seed! 🌱" 
+  }
 };
 
 export default function NotificationBell() {
@@ -102,7 +107,6 @@ export default function NotificationBell() {
 
       {isOpen && (
         <div 
-            // {/* 🌟 שינוי: הוגדר right-0 תמיד כדי שייפתח שמאלה, ו-z-[9999] ליתר ביטחון */}
             className="absolute mt-2 w-72 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-[9999] overflow-hidden right-0" 
             dir={lang === "he" ? "rtl" : "ltr"}
         >
@@ -113,14 +117,21 @@ export default function NotificationBell() {
             {notifications.length === 0 ? (
               <div className="p-4 text-sm text-gray-400 text-center">{t.empty[lang]}</div>
             ) : (
-              notifications.map((notif) => (
-                <div key={notif.id} className="p-3 border-b border-gray-700/50 hover:bg-gray-800 transition-colors text-sm text-gray-200">
-                  {notif.message}
-                  <div className="text-xs text-gray-500 mt-1">
-                    {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US")}
+              notifications.map((notif) => {
+                // 🌟 הטריק הדינמי: מזהים את המשפט של השרת ומתרגמים למשתמש
+                const displayMsg = notif.message.includes("שמר את הגרעין") 
+                  ? t.savedSeed[lang] 
+                  : notif.message;
+
+                return (
+                  <div key={notif.id} className="p-3 border-b border-gray-700/50 hover:bg-gray-800 transition-colors text-sm text-gray-200">
+                    {displayMsg}
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US")}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

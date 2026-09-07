@@ -195,7 +195,7 @@ export default function MyPointsPage() {
                         // 🌟 חישוב פג תוקף! 36 שעות 🌟
                         const isChai = p.category === "chai";
                         const createdTime = p.createdAt ? new Date(p.createdAt).getTime() : Date.now();
-                        const isExpired = isChai && (Date.now() - createdTime > 1 * 60 * 1000); // שינינו ל-1 דקה
+                        const isExpired = isChai && (Date.now() - createdTime > 36 * 60 * 60 * 1000);
 
                         return (
                         <div key={p.id} className={`relative border ${isExpired ? "border-red-900/50 bg-gray-900/30 opacity-80" : "border-gray-800 bg-gray-900/50"} p-4 rounded-xl shadow-lg overflow-hidden`}>

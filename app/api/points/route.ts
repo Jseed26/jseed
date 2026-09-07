@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
 
   // 🌟 הגדרת חלון הזמן: 36 שעות אחורה
-  const thirtySixHoursAgo = new Date(Date.now() - 1 * 60 * 1000);
+  const thirtySixHoursAgo = new Date(Date.now() - 36 * 60 * 60 * 1000);
 
   try {
     if (!qRaw) {
