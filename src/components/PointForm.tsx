@@ -52,6 +52,11 @@ const tForm = {
     create: { he: "צור", en: "Create" },
     save: { he: "שמור", en: "Save" },
     saving: { he: "שומר...", en: "Saving..." },
+    // 🌟 ההודעה החדשה לגרעיני "חי"
+    chaiWarning: { 
+        he: "⏳ שימו לב: גרעיני 'חי' הם זמניים ויופיעו על המפה ל-36 שעות בלבד (אך יישמרו בהיסטוריה שלכם).", 
+        en: "⏳ Note: 'Chai' seeds are temporary and will only appear on the map for 36 hours (but remain in your history)." 
+    },
 };
 
 export default function PointForm({
@@ -114,7 +119,6 @@ export default function PointForm({
                     </h2>
                 </div>
 
-                {/* קטגוריות - סודרו ב-5 עמודות ורווחים הוקטנו */}
                 <div className="grid grid-cols-5 gap-1 bg-gray-800/50 p-1.5 rounded-xl border border-gray-700">
                     {CATEGORIES.map(cat => (
                         <button
@@ -138,6 +142,13 @@ export default function PointForm({
                         </button>
                     ))}
                 </div>
+
+                {/* 🌟 אזהרה שמוצגת רק אם נבחרה קטגוריית חי */}
+                {form.category === "chai" && (
+                    <div className="bg-orange-500/10 border border-orange-500/30 text-orange-400 p-3 rounded-xl text-xs font-medium text-center shadow-inner">
+                        {tForm.chaiWarning[lang]}
+                    </div>
+                )}
 
                 <input
                     placeholder={tForm.namePlaceholder[lang]}

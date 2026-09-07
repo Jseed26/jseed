@@ -7,7 +7,6 @@ import { signOut, useSession } from "next-auth/react";
 import { PointCategory } from "@/src/types/point";
 import ImageGallery from "@/src/components/ImageGallery";
 
-// 🌟 הוספנו לכאן את העמודות באנגלית כדי שהעמוד יכיר אותן!
 type Point = {
     id: number;
     name: string;
@@ -24,6 +23,7 @@ type Point = {
     extraInfo?: string;
     extraInfo_en?: string | null;
     linkClicks: number;
+    createdAt: string; // 🌟 הוספנו את תאריך היצירה
     _count?: {
         viewedBy: number;
         savedBy: number;
@@ -55,6 +55,8 @@ const t = {
     yesDelete: { he: "כן, מחק", en: "Yes, delete" },
     cancel: { he: "ביטול", en: "Cancel" },
     logout: { he: "התנתק", en: "Log Out" },
+    expired: { he: "פג תוקף (הוסר מהמפה)", en: "Expired (Removed from map)" },
+    expiredTip: { he: "גרעין חי נמחק מהמפה לאחר 36 שעות", en: "Chai seed is removed from map after 36 hours" }
 };
 
 export default function MyPointsPage() {
@@ -82,7 +84,7 @@ export default function MyPointsPage() {
         star: "Spirit",
         triangle: "Legacy",
         circle: "Business",
-        chai: "Chai", // אות קטנה
+        chai: "Chai", 
     };
 
     const router = useRouter();
@@ -187,18 +189,30 @@ export default function MyPointsPage() {
                             ? p.imageUrls 
                             : (p.imageUrl ? [p.imageUrl] : []);
                         
-                        // 🌟 משתנים חכמים ששולפים את הטקסט הנכון לפי השפה!
                         const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
                         const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
                         
+                        // 🌟 חישוב פג תוקף! 36 שעות 🌟
+                        const isChai = p.category === "chai";
+                        const createdTime = p.createdAt ? new Date(p.createdAt).getTime() : Date.now();
+                        const isExpired = isChai && (Date.now() - createdTime > 1 * 60 * 1000); // שינינו ל-1 דקה
+
                         return (
-                        <div key={p.id} className="border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg">
-                            {/* 🌟 עכשיו זה שואב את השם הנכון */}
-                            <h2 className="font-bold text-xl">{displayName}</h2>
+                        <div key={p.id} className={`relative border ${isExpired ? "border-red-900/50 bg-gray-900/30 opacity-80" : "border-gray-800 bg-gray-900/50"} p-4 rounded-xl shadow-lg overflow-hidden`}>
                             
-                            <ImageGallery images={pointImages} />
+                            {/* מדבקת פג תוקף */}
+                            {isExpired && (
+                                <div className={`absolute top-0 ${lang === "he" ? "left-0 rounded-br-lg" : "right-0 rounded-bl-lg"} bg-red-600 text-white text-[10px] font-bold px-3 py-1 shadow-md z-10`}>
+                                    {t.expired[lang]}
+                                </div>
+                            )}
+
+                            <h2 className={`font-bold text-xl ${isExpired && "text-gray-400"}`}>{displayName}</h2>
                             
-                            {/* 🌟 עכשיו זה שואב את התיאור הנכון */}
+                            <div className={isExpired ? "grayscale opacity-70" : ""}>
+                                <ImageGallery images={pointImages} />
+                            </div>
+                            
                             <p className="text-sm text-gray-300 mt-3">{displayDesc}</p>
                             
                             <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
@@ -227,9 +241,13 @@ export default function MyPointsPage() {
                                         </>
                                     )}
                                 </div>
+                                
+                                {/* 🌟 אם פג תוקף - הכפתור חסום! */}
                                 <button 
-                                    onClick={() => router.push(`/?point=${p.id}`)}
-                                    className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg"
+                                    onClick={() => !isExpired && router.push(`/?point=${p.id}`)}
+                                    disabled={isExpired}
+                                    title={isExpired ? t.expiredTip[lang] : ""}
+                                    className={`${isExpired ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-yellow-500 hover:bg-yellow-400 text-black"} px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg`}
                                 >
                                     📍 {t.viewOnMap[lang]}
                                 </button>

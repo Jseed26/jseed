@@ -5,7 +5,6 @@ import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
 import translate from "google-translate-api-x"; 
 
-// פונקציית צלף לבדיקת מילים 
 function containsConcept(text: string, concept: string) {
     if (!concept || concept.length < 2) return false;
     const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -13,7 +12,6 @@ function containsConcept(text: string, concept: string) {
     return regex.test(text);
 }
 
-// 🌟 הפונקציה החדשה שמזהה אם יש אפילו אות אחת בעברית
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
 export async function GET(req: Request) {
@@ -21,10 +19,20 @@ export async function GET(req: Request) {
   const qRaw = searchParams.get("q")?.trim();
   const category = searchParams.get("category");
 
+  // 🌟 הגדרת חלון הזמן: 36 שעות אחורה
+  const thirtySixHoursAgo = new Date(Date.now() - 1 * 60 * 1000);
+
   try {
     if (!qRaw) {
       const results = await prisma.point.findMany({
-        where: { ...(category ? { category } : {}) },
+        where: { 
+            ...(category ? { category } : {}),
+            // 🌟 הנה הסינון: תביא את הכל, אבל אם זה chai - רק מה שנוצר ב-36 שעות האחרונות!
+            OR: [
+                { category: { not: "chai" } },
+                { category: "chai", createdAt: { gte: thirtySixHoursAgo } }
+            ]
+        },
         include: { _count: { select: { savedBy: true } } },
         orderBy: { createdAt: "desc" },
       });
@@ -45,13 +53,15 @@ export async function GET(req: Request) {
     const queryEmbeddingArray = Array.from(output.data);
     const embeddingString = `[${queryEmbeddingArray.join(',')}]`;
 
+    // 🌟 הוספנו את "createdAt" ל-SELECT, והוספנו תנאי SQL לסינון 36 שעות
     let searchResults = await prisma.$queryRawUnsafe<any[]>(`
       SELECT 
-        id, name, name_en, description, description_en, category, "extraInfo", "extraInfo_en", address, website, latitude, longitude, "imageUrl", "imageUrls",
+        id, name, name_en, description, description_en, category, "extraInfo", "extraInfo_en", address, website, latitude, longitude, "imageUrl", "imageUrls", "createdAt",
         1 - (embedding <=> $1::vector) AS score
       FROM "Point"
       WHERE embedding IS NOT NULL
       ${category ? `AND category = '${category}'` : ""}
+      AND (category != 'chai' OR "createdAt" >= NOW() - INTERVAL '36 hours')
       ORDER BY embedding <=> $1::vector
       LIMIT 100; 
     `, embeddingString);
@@ -98,6 +108,8 @@ export async function GET(req: Request) {
     return Response.json([]);
   }
 }
+
+// ... כאן נשארת פונקציית ה-POST כפי שהיא ...
 
 export async function POST(req: Request) {
   try {

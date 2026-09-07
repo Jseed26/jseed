@@ -11,7 +11,7 @@ type Props = {
   activeCategory: Point["category"] | null;
   viewedIds: number[];
   savedIds?: number[];
-  lang?: "he" | "en"; // 🌟 הוספנו את השפה כפרמטר
+  lang?: "he" | "en";
 };
 
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he" }: Props) {
@@ -31,17 +31,14 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const container = document.createElement("div");
     container.style.width = "230px";
     container.style.fontFamily = "sans-serif";
-    
-    // 🌟 הגדרת כיווניות לפי השפה
+
     const isHe = lang === "he";
     container.dir = isHe ? "rtl" : "ltr";
 
-    // 🌟 שליפת התוכן המתאים - אם אנחנו באנגלית ויש תרגום נציג אותו, אחרת נחזור למקור
     const displayName = isHe ? point.name : (point.name_en || point.name);
     const displayDesc = isHe ? point.description : (point.description_en || point.description);
     const displayExtra = isHe ? point.extraInfo : (point.extraInfo_en || point.extraInfo);
 
-    // 🌟 מילון תרגומים פנימי לחלונית
     const t = {
       desc: isHe ? "תיאור:" : "Description:",
       loc: isHe ? "מיקום:" : "Location:",
@@ -70,7 +67,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const expandSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
     const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.5 5a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 5.5 6h-4a.5.5 0 0 1 0-1h4zM10.5 5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 0-1 0v4A1.5 1.5 0 0 0 10.5 6h4a.5.5 0 0 0 0-1h-4zM5.5 11a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 1 0v-4A1.5 1.5 0 0 0 5.5 10h-4a.5.5 0 0 0 0 1h4zm5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 10.5 10h4a.5.5 0 0 1 0 1h-4z"/></svg>`;
 
-const headerHtml = `
+    const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         
         <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 20px' : '0 20px 0 15px'};">
@@ -83,12 +80,33 @@ const headerHtml = `
           </div>
         </div>
         
-        <!-- 🌟 כאן השינוי: קבענו את המיקום תמיד ל- left: -20px -->
         <button class="expand-point-btn" style="position: absolute; top: -10px; left: -20px; width: 30px; height: 30px; background: transparent; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; z-index: 10;" title="${t.expand}">
           ${expandSvg}
         </button>
       </div>
     `;
+
+    // 🌟 יצירת השעון עצר דינמי לקטגוריית "חי"
+    let timerHtml = "";
+    if (point.category === "chai" && (point as any).createdAt) {
+      const createdTime = new Date((point as any).createdAt).getTime();
+      const expiresAt = createdTime + (1 * 60 * 1000); // 1 דקה במקום 36 שעות
+      const timeLeft = expiresAt - Date.now();
+
+      if (timeLeft > 0) {
+        const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const timeString = isHe
+          ? `⏳ נעלם בעוד ${hoursLeft} שעות ו־${minutesLeft} דקות`
+          : `⏳ Disappears in ${hoursLeft}h ${minutesLeft}m`;
+
+        timerHtml = `
+              <div style="background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.4); color: #fb923c; font-size: 11px; padding: 4px 8px; border-radius: 6px; margin-bottom: 10px; text-align: center; font-weight: bold;">
+                ${timeString}
+              </div>
+            `;
+      }
+    }
 
     const imagesList = point.imageUrls && point.imageUrls.length > 0
       ? point.imageUrls
@@ -122,6 +140,7 @@ const headerHtml = `
 
     container.innerHTML = `
       ${headerHtml}
+      ${timerHtml} <!-- 🌟 הוספנו את הבאנג' של הטיימר פה -->
       ${imageHtml}
       
       <div class="point-desc-container" style="max-height: 100px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
@@ -425,5 +444,5 @@ const headerHtml = `
       map.off("zoomend", handleZoomEnd);
     };
 
-  }, [map, points, activeCategory, viewedIds, savedIds, lang]); // 🌟 הוספנו את lang ל-useEffect כדי שיתרענן בשינוי שפה
+  }, [map, points, activeCategory, viewedIds, savedIds, lang]);
 }
