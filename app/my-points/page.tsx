@@ -20,8 +20,6 @@ type Point = {
     imageUrls?: string[];
     latitude: number;
     longitude: number;
-    extraInfo?: string;
-    extraInfo_en?: string | null;
     linkClicks: number;
     createdAt: string; // 🌟 הוספנו את תאריך היצירה
     _count?: {
@@ -290,7 +288,6 @@ export default function MyPointsPage() {
                         description: editingPoint.description,
                         address: editingPoint.address,
                         website: editingPoint.website,
-                        extraInfo: editingPoint.extraInfo,
                         lat: editingPoint.latitude,
                         lng: editingPoint.longitude,
                         existingImages: editingPoint.imageUrls && editingPoint.imageUrls.length > 0 
@@ -305,7 +302,6 @@ export default function MyPointsPage() {
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", form.category || editingPoint.category);
-                        if (form.extraInfo) formData.append("extraInfo", form.extraInfo);
                         
                         if (form.images && form.images.length > 0) {
                             form.images.forEach(img => {

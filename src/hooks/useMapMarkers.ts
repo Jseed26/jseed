@@ -37,12 +37,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const displayName = isHe ? point.name : (point.name_en || point.name);
     const displayDesc = isHe ? point.description : (point.description_en || point.description);
-    const displayExtra = isHe ? point.extraInfo : (point.extraInfo_en || point.extraInfo);
 
     const t = {
       desc: isHe ? "תיאור:" : "Description:",
       loc: isHe ? "מיקום:" : "Location:",
-      extra: isHe ? "מידע נוסף:" : "Extra Info:",
       link: isHe ? "קישור:" : "Website:",
       visit: isHe ? "למעבר לאתר" : "Visit Website",
       saves: isHe ? "שמירות" : "Saves",
@@ -146,7 +144,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       <div class="point-desc-container" style="max-height: 100px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.desc}</strong> ${display(displayDesc)}</div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> ${display(point.address)}</div>
-        ${displayExtra ? `<div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.extra}</strong> ${displayExtra}</div>` : ""}
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
         ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
         : "-"

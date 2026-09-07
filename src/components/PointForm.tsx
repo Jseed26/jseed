@@ -10,7 +10,6 @@ type FormState = {
     website: string;
     images: File[];            
     existingImages: string[];  
-    extraInfo: string;
     category: string;
 };
 
@@ -39,7 +38,6 @@ const tForm = {
     editTitle: { he: "עריכת גרעין", en: "Edit Seed" },
     namePlaceholder: { he: "שם הגרעין (לדוג: יד ושם...)", en: "Seed Name (e.g., Yad Vashem)" },
     descPlaceholder: { he: "תיאור (לדוג: רשות הזיכרון לשואה ולגבורה)", en: "Description (e.g., The World Holocaust Remembrance Center)" },
-    extraPlaceholder: { he: "מידע נוסף (לדוג: מורשת, שעות פתיחה...)", en: "Extra Info (e.g., Opening hours, Heritage site...)" },
     addressPlaceholder: { he: "כתובת (רחוב, מספר ועיר)", en: "Address (Street, number, and city)" },
     websitePlaceholder: { he: "קישור לאתר (לדוג: https://...)", en: "Website Link (e.g., https://...)" },
     addImages: { he: "הוספת תמונות", en: "Add Images" },
@@ -52,20 +50,13 @@ const tForm = {
     create: { he: "צור", en: "Create" },
     save: { he: "שמור", en: "Save" },
     saving: { he: "שומר...", en: "Saving..." },
-    // 🌟 ההודעה החדשה לגרעיני "חי"
     chaiWarning: { 
         he: "⏳ שימו לב: גרעיני 'חי' הם זמניים ויופיעו על המפה ל-36 שעות בלבד (אך יישמרו בהיסטוריה שלכם).", 
         en: "⏳ Note: 'Chai' seeds are temporary and will only appear on the map for 36 hours (but remain in your history)." 
     },
 };
 
-export default function PointForm({
-    mode,
-    initialData,
-    onClose,
-    onSubmit,
-    category,
-}: Props) {
+export default function PointForm({ mode, initialData, onClose, onSubmit, category }: Props) {
     const [lang, setLang] = useState<"en" | "he">("he");
 
     useEffect(() => {
@@ -80,7 +71,6 @@ export default function PointForm({
         website: initialData?.website || "",
         images: [],
         existingImages: initialData?.existingImages || [], 
-        extraInfo: initialData?.extraInfo || "",
         category: initialData?.category || category || "", 
     });
 
@@ -143,7 +133,6 @@ export default function PointForm({
                     ))}
                 </div>
 
-                {/* 🌟 אזהרה שמוצגת רק אם נבחרה קטגוריית חי */}
                 {form.category === "chai" && (
                     <div className="bg-orange-500/10 border border-orange-500/30 text-orange-400 p-3 rounded-xl text-xs font-medium text-center shadow-inner">
                         {tForm.chaiWarning[lang]}
@@ -162,13 +151,6 @@ export default function PointForm({
                     className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-20 placeholder-gray-500 text-white transition-colors"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-
-                <textarea
-                    placeholder={tForm.extraPlaceholder[lang]}
-                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-16 placeholder-gray-500 text-white transition-colors"
-                    value={form.extraInfo}
-                    onChange={(e) => setForm({ ...form, extraInfo: e.target.value })}
                 />
 
                 <input

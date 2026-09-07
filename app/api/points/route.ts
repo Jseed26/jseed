@@ -1,15 +1,15 @@
 import { prisma } from "@/src/lib/prisma";
-import AIEngine from "@/src/lib/ai"; 
+import AIEngine from "@/src/lib/ai";
 import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
-import translate from "google-translate-api-x"; 
+import translate from "google-translate-api-x";
 
 function containsConcept(text: string, concept: string) {
-    if (!concept || concept.length < 2) return false;
-    const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
-    return regex.test(text);
+  if (!concept || concept.length < 2) return false;
+  const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
+  return regex.test(text);
 }
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
@@ -25,13 +25,13 @@ export async function GET(req: Request) {
   try {
     if (!qRaw) {
       const results = await prisma.point.findMany({
-        where: { 
-            ...(category ? { category } : {}),
-            // 🌟 הנה הסינון: תביא את הכל, אבל אם זה chai - רק מה שנוצר ב-36 שעות האחרונות!
-            OR: [
-                { category: { not: "chai" } },
-                { category: "chai", createdAt: { gte: thirtySixHoursAgo } }
-            ]
+        where: {
+          ...(category ? { category } : {}),
+          // 🌟 הנה הסינון: תביא את הכל, אבל אם זה chai - רק מה שנוצר ב-36 שעות האחרונות!
+          OR: [
+            { category: { not: "chai" } },
+            { category: "chai", createdAt: { gte: thirtySixHoursAgo } }
+          ]
         },
         include: { _count: { select: { savedBy: true } } },
         orderBy: { createdAt: "desc" },
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     let aiQuery = qRaw.toLowerCase();
     const typos: Record<string, string> = { "כנסט": "כנסת", "כנסות": "כנסת", "מקוה": "מקווה", "חבד": "חב\"ד", "ביט": "בית" };
     for (const [bad, good] of Object.entries(typos)) {
-        aiQuery = aiQuery.replace(new RegExp(bad, 'g'), good);
+      aiQuery = aiQuery.replace(new RegExp(bad, 'g'), good);
     }
 
     const extractor = await AIEngine.getInstance();
@@ -67,40 +67,40 @@ export async function GET(req: Request) {
     `, embeddingString);
 
     searchResults = searchResults.map(point => {
-        const rawText = `${point.name} ${point.description || ""} ${point.category} ${point.extraInfo || ""}`;
-        const cleanPointText = cleanTextForMatching(rawText);
+      const rawText = `${point.name} ${point.description || ""} ${point.category}`;
+      const cleanPointText = cleanTextForMatching(rawText);
 
-        let textBoost = 0;
-        let foundSynonym = false;
+      let textBoost = 0;
+      let foundSynonym = false;
 
-        if (containsConcept(cleanPointText, cleanUserQuery)) {
-            textBoost += 0.15; 
+      if (containsConcept(cleanPointText, cleanUserQuery)) {
+        textBoost += 0.15;
+      }
+
+      bonusConcepts.forEach(concept => {
+        if (concept.length > 2 && concept !== cleanUserQuery) {
+          if (containsConcept(cleanPointText, concept)) {
+            foundSynonym = true;
+            textBoost += 0.20;
+          }
         }
+      });
 
-        bonusConcepts.forEach(concept => {
-            if (concept.length > 2 && concept !== cleanUserQuery) {
-                if (containsConcept(cleanPointText, concept)) {
-                    foundSynonym = true;
-                    textBoost += 0.20; 
-                }
-            }
-        });
+      if (foundSynonym) {
+        textBoost += 0.25;
+      }
 
-        if (foundSynonym) {
-            textBoost += 0.25; 
-        }
-
-        return { ...point, score: point.score + textBoost };
+      return { ...point, score: point.score + textBoost };
     });
 
     const finalResults = searchResults
-        .filter(p => p.score >= 0.65) 
-        .sort((a, b) => b.score - a.score)
-        .map(p => {
-            const { score, ...pointData } = p;
-            return pointData;
-        });
-    
+      .filter(p => p.score >= 0.65)
+      .sort((a, b) => b.score - a.score)
+      .map(p => {
+        const { score, ...pointData } = p;
+        return pointData;
+      });
+
     return Response.json(finalResults);
 
   } catch (error) {
@@ -137,31 +137,31 @@ export async function POST(req: Request) {
     let final_extra_en = extraInfo;
 
     try {
-        if (name) {
-            if (hasHebrew(name)) {
-                final_name_en = (await translate(name, { to: 'en' })).text;
-            } else {
-                final_name_he = (await translate(name, { to: 'he' })).text;
-            }
+      if (name) {
+        if (hasHebrew(name)) {
+          final_name_en = (await translate(name, { to: 'en' })).text;
+        } else {
+          final_name_he = (await translate(name, { to: 'he' })).text;
         }
-        
-        if (description) {
-            if (hasHebrew(description)) {
-                final_desc_en = (await translate(description, { to: 'en' })).text;
-            } else {
-                final_desc_he = (await translate(description, { to: 'he' })).text;
-            }
-        }
+      }
 
-        if (extraInfo) {
-            if (hasHebrew(extraInfo)) {
-                final_extra_en = (await translate(extraInfo, { to: 'en' })).text;
-            } else {
-                final_extra_he = (await translate(extraInfo, { to: 'he' })).text;
-            }
+      if (description) {
+        if (hasHebrew(description)) {
+          final_desc_en = (await translate(description, { to: 'en' })).text;
+        } else {
+          final_desc_he = (await translate(description, { to: 'he' })).text;
         }
+      }
+
+      if (extraInfo) {
+        if (hasHebrew(extraInfo)) {
+          final_extra_en = (await translate(extraInfo, { to: 'en' })).text;
+        } else {
+          final_extra_he = (await translate(extraInfo, { to: 'he' })).text;
+        }
+      }
     } catch (translateError) {
-        console.error("Translation API limit/error, skipping translation:", translateError);
+      console.error("Translation API limit/error, skipping translation:", translateError);
     }
     // =========================================
 
@@ -205,19 +205,19 @@ export async function POST(req: Request) {
 
     const newPoint = await prisma.point.create({
       data: {
-        name: final_name_he, 
-        name_en: final_name_en, 
-        category, 
-        latitude: finalLatitude, 
+        name: final_name_he,
+        name_en: final_name_en,
+        category,
+        latitude: finalLatitude,
         longitude: finalLongitude,
-        description: final_desc_he, 
-        description_en: final_desc_en, 
-        imageUrls, 
+        description: final_desc_he,
+        description_en: final_desc_en,
+        imageUrls,
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
-        address: hasAddress ? address : null, 
-        website, 
+        address: hasAddress ? address : null,
+        website,
         extraInfo: final_extra_he || null,
-        extraInfo_en: final_extra_en || null, 
+        extraInfo_en: final_extra_en || null,
         userId: session.user.id,
       },
     });
@@ -228,10 +228,10 @@ export async function POST(req: Request) {
       const output = await extractor(textToAnalyze, { pooling: 'mean', normalize: true });
       const embeddingArray = Array.from(output.data);
       const embeddingString = `[${embeddingArray.join(',')}]`;
-      
+
       await prisma.$executeRawUnsafe(
-          `UPDATE "Point" SET embedding = $1::vector WHERE id = $2`,
-          embeddingString, newPoint.id
+        `UPDATE "Point" SET embedding = $1::vector WHERE id = $2`,
+        embeddingString, newPoint.id
       );
     } catch (aiError) {
       console.error("AI Embedding Error:", aiError);

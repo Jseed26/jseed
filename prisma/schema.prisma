@@ -81,8 +81,6 @@ model Point {
   website        String?
   imageUrl       String?
   imageUrls      String[] @default([])
-  extraInfo      String?
-  extraInfo_en   String?  // 🌟 חדש: מידע נוסף באנגלית
   userId         String?
   linkClicks     Int      @default(0)
   user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
