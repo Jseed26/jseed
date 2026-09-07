@@ -1,6 +1,7 @@
 import { prisma } from "@/src/lib/prisma";
 import { auth } from "@/src/lib/auth/auth";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 // 🌍 פונקציית עזר קטנה שהופכת קוד מדינה (כמו IL) לדגל אמוג'י
 function getFlagEmoji(countryCode: string | null) {
@@ -12,7 +13,12 @@ function getFlagEmoji(countryCode: string | null) {
     return String.fromCodePoint(...codePoints);
 }
 
-export default async function AdminDashboard() {
+// 🌟 התיקון כאן: אנחנו מודיעים למערכת שזה Promise
+export default async function AdminDashboard({
+    searchParams
+}: {
+    searchParams: Promise<{ q?: string }>
+}) {
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -58,7 +64,6 @@ export default async function AdminDashboard() {
     });
     const totalOnlineNow = onlineUsers + onlineVisitors;
     
-
     // משיכת משתמשים לטבלה
     const users = await prisma.user.findMany({
         select: {
@@ -73,14 +78,52 @@ export default async function AdminDashboard() {
         orderBy: { timeSpentMins: "desc" }
     });
 
+    // ==========================================
+    // 🌟 אזור חדש: ניהול וחיפוש גרעינים
+    // ==========================================
+    
+    // 🌟 התיקון השני: אנחנו ממתינים (await) כדי לחלץ את מילת החיפוש
+    const resolvedSearchParams = await searchParams;
+    const searchQuery = resolvedSearchParams?.q || "";
+    
+    let searchedPoints: any[] = [];
+
+    // אם המנהל חיפש משהו, נמשוך את כל הגרעינים שדומים לשם הזה
+    if (searchQuery) {
+        searchedPoints = await prisma.point.findMany({
+            where: { 
+                name: { contains: searchQuery, mode: "insensitive" } 
+            },
+            include: {
+                user: { select: { name: true, email: true } }, // מי העלה
+                _count: { select: { viewedBy: true, savedBy: true } } // סטטיסטיקות
+            },
+            orderBy: { createdAt: "desc" }
+        });
+    }
+
+    // 🌟 פונקציית מחיקה שתרוץ ישירות על השרת (Server Action)
+    async function deletePointAction(formData: FormData) {
+        "use server";
+        
+        // מוודאים שוב שזה באמת המנהל שמנסה למחוק
+        const currentSession = await auth();
+        const adminCheck = await prisma.user.findUnique({ where: { id: currentSession?.user?.id } });
+        if (!adminCheck?.isAdmin) return;
+
+        const pointId = Number(formData.get("pointId"));
+        if (pointId) {
+            await prisma.point.delete({ where: { id: pointId } });
+            revalidatePath("/admin"); // מרענן את הדף אוטומטית אחרי המחיקה!
+        }
+    }
+
     return (
         <div className="min-h-screen bg-black text-white p-8" dir="rtl">
             <h1 className="text-3xl font-bold text-yellow-500 mb-8">לוח בקרה - מנהלת (Admin)</h1>
             
             {/* 🌟 רשת הקוביות - סודרה ב-3 עמודות */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                
-                {/* 🟢 קוביית LIVE חדשה עם אנימציית הבהוב */}
                 <div className="bg-[#111] border border-green-900/50 p-6 rounded-xl text-center relative shadow-[0_0_15px_rgba(34,197,94,0.1)]">
                     <div className="absolute top-4 right-4 flex items-center gap-2">
                         <span className="relative flex h-4 w-4">
@@ -122,8 +165,86 @@ export default async function AdminDashboard() {
                 </div>
             </div>
 
+            {/* ========================================== */}
+            {/* 🌟 אזור חדש: מנוע חיפוש ומחיקת גרעינים */}
+            {/* ========================================== */}
+            <div className="mb-12">
+                <h2 className="text-xl font-bold mb-4 text-yellow-500">חיפוש וניהול גרעינים</h2>
+                <div className="bg-[#111] p-6 rounded-xl border border-gray-800">
+                    <form method="GET" className="flex gap-4 mb-6">
+                        <input 
+                            type="text" 
+                            name="q" 
+                            defaultValue={searchQuery}
+                            placeholder='הקלידי שם גרעין לחיפוש (לדוגמה: "בית חב"ד מנילה")...' 
+                            className="flex-1 bg-gray-900 border border-gray-700 p-3 rounded-xl text-white focus:outline-none focus:border-yellow-500"
+                        />
+                        <button type="submit" className="bg-yellow-500 text-black px-8 py-3 rounded-xl font-bold hover:bg-yellow-400 transition">
+                            חפש גרעין
+                        </button>
+                        {searchQuery && (
+                            <a href="/admin" className="bg-gray-800 text-gray-300 px-6 py-3 rounded-xl hover:bg-gray-700 transition flex items-center border border-gray-600">
+                                נקה
+                            </a>
+                        )}
+                    </form>
+
+                    {searchQuery && searchedPoints.length === 0 && (
+                        <p className="text-gray-400 text-center py-4">לא נמצאו גרעינים התואמים לחיפוש "{searchQuery}".</p>
+                    )}
+
+                    {searchedPoints.length > 0 && (
+                        <div className="overflow-x-auto border border-gray-800 rounded-xl">
+                            <table className="w-full text-right border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-900 border-b border-gray-800">
+                                        <th className="p-4 text-yellow-500">שם הגרעין</th>
+                                        <th className="p-4 text-yellow-500">קטגוריה</th>
+                                        <th className="p-4 text-yellow-500">הועלה ע"י</th>
+                                        <th className="p-4 text-yellow-500">צפיות 👀</th>
+                                        <th className="p-4 text-yellow-500">שמירות 🌟</th>
+                                        <th className="p-4 text-yellow-500 text-center">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {searchedPoints.map((p) => (
+                                        <tr key={p.id} className="border-b border-gray-800 hover:bg-[#1a1a1a]">
+                                            <td className="p-4 font-bold text-white">{p.name}</td>
+                                            <td className="p-4 text-gray-400">{p.category}</td>
+                                            <td className="p-4">
+                                                {p.user ? (
+                                                    <div>
+                                                        <div className="text-white">{p.user.name}</div>
+                                                        <div className="text-xs text-gray-500">{p.user.email}</div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-600 text-sm">משתמש לא ידוע</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4 text-gray-300">{p._count.viewedBy}</td>
+                                            <td className="p-4 text-gray-300">{p._count.savedBy}</td>
+                                            <td className="p-4 text-center">
+                                                <form action={deletePointAction}>
+                                                    <input type="hidden" name="pointId" value={p.id} />
+                                                    <button 
+                                                        type="submit" 
+                                                        className="bg-red-900/40 border border-red-800 text-red-400 px-4 py-2 rounded-lg hover:bg-red-900/60 transition text-sm font-bold"
+                                                    >
+                                                        מחק מן המפה
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <h2 className="text-xl font-bold mb-4">טבלת משתמשים פעילים</h2>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto border border-gray-800 rounded-xl mb-12">
                 <table className="w-full text-right border-collapse">
                     <thead>
                         <tr className="bg-gray-900 border-b border-gray-800">
