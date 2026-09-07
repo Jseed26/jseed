@@ -78,7 +78,8 @@ export default function MyPointsPage() {
         leaf: "Community",
         star: "Spirit",
         triangle: "Legacy",
-        circle: "Business"
+        circle: "Business",
+        Chai: "Chai",
     };
 
     const router = useRouter();
@@ -161,7 +162,7 @@ export default function MyPointsPage() {
 
             {tab === "saved" && (
                 <div className="flex justify-center gap-3 mb-6">
-                    {["leaf", "star", "triangle", "circle"].map((cat) => (
+                    {["leaf", "star", "triangle", "circle", "hai"].map((cat) => (
                         <button key={cat} onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} className={`p-2 rounded-full border ${savedCategory === cat ? "border-yellow-500 bg-yellow-500/20" : "border-gray-700 bg-gray-800"}`}>
                             <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-8 h-8" />
                         </button>

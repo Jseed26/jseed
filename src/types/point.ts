@@ -2,7 +2,8 @@ export type PointCategory =
   | "circle"
   | "triangle"
   | "star"
-  | "leaf";
+  | "leaf"
+  | "hai";
 
 export type Point = {
   id: number;

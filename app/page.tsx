@@ -28,6 +28,7 @@ const t = {
   spirit: { he: "רוח", en: "Spirit" },
   legacy: { he: "מורשת", en: "Legacy" },
   business: { he: "עסקים", en: "Business" },
+  hai: {he: "חי", en: "Chai"},
 };
 
 export default function Home() {
@@ -62,6 +63,7 @@ export default function Home() {
     { key: "star", label: t.spirit[lang] },
     { key: "triangle", label: t.legacy[lang] },
     { key: "circle", label: t.business[lang] },
+    { key: "hai", label: t.hai[lang]},
   ];
 
   const userFirstName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "User";
