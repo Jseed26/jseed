@@ -30,7 +30,6 @@ const t = {
     loading: { he: "טוען נתונים...", en: "Loading data..." },
     myArea: { he: "האזור שלי", en: "My Area" },
     toMap: { he: "למפה", en: "To Map" },
-    language: { he: "שפה", en: "Language" },
     mySeeds: { he: "הנקודות שלי", en: "My Seeds" },
     history: { he: "היסטוריה", en: "History" },
     saved: { he: "שמורים", en: "Saved" },
@@ -57,9 +56,13 @@ const t = {
 export default function MyPointsPage() {
     const { data: session, status } = useSession();
     
-    // 🌟 ברירת מחדל: עברית
+    // 🌟 טעינה אוטומטית של השפה מה-localStorage
     const [lang, setLang] = useState<"en" | "he">("he");
-    const [isLangOpen, setIsLangOpen] = useState(false);
+
+    useEffect(() => {
+        const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
+        if (savedLang) setLang(savedLang);
+    }, []);
 
     const [tab, setTab] = useState<"my" | "history" | "saved">("my");
     const [savedCategory, setSavedCategory] = useState<PointCategory | null>(null);
@@ -139,38 +142,9 @@ export default function MyPointsPage() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">{userName}</h1>
                 
-                <div className="flex items-center gap-3">
-                    {/* 🌟 תפריט בחירת שפה נפתח */}
-                    <div className="relative">
-                        <button 
-                            onClick={() => setIsLangOpen(!isLangOpen)}
-                            className="flex items-center gap-1.5 border border-yellow-500 text-yellow-500 px-3 py-1.5 rounded-lg hover:bg-yellow-500/10 transition text-sm font-bold"
-                        >
-                            🌐 {t.language[lang]}
-                        </button>
-                        
-                        {isLangOpen && (
-                            <div className={`absolute top-full mt-2 w-28 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden ${lang === "he" ? "right-0" : "left-0"}`}>
-                                <button 
-                                    onClick={() => { setLang("he"); setIsLangOpen(false); }}
-                                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
-                                >
-                                    עברית
-                                </button>
-                                <button 
-                                    onClick={() => { setLang("en"); setIsLangOpen(false); }}
-                                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
-                                >
-                                    English
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <button onClick={() => router.push("/")} className="bg-gray-800 px-4 py-1.5 rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors border border-gray-700">
-                        {t.toMap[lang]}
-                    </button>
-                </div>
+                <button onClick={() => router.push("/")} className="bg-gray-800 px-4 py-1.5 rounded-lg hover:bg-gray-700 text-sm font-medium transition-colors border border-gray-700">
+                    {t.toMap[lang]}
+                </button>
             </div>
 
             <div className="flex gap-4 border-b border-gray-800 pb-2 mb-6 text-lg">

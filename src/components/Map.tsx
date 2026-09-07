@@ -22,11 +22,28 @@ type ModalState = {
   lng: number;
 } | null;
 
+const tMap = {
+  loginRequired: { he: "צריך להתחבר כדי להוסיף גרעין", en: "Please log in to add a seed" },
+  locationError: { he: "לא הצלחנו למצוא את המיקום שלך. ודא ששירותי המיקום (GPS) דולקים.", en: "Could not find your location. Please ensure GPS is enabled." },
+  locationUnstable: { he: "שירות המיקום של המכשיר שלך לא יציב כרגע. אנא נסה שוב מאוחר יותר.", en: "Your device's location service is unstable. Please try again later." },
+  locating: { he: "מאתר מיקום... אנא המתן לפני בחירת רדיוס.", en: "Locating... Please wait before selecting a radius." },
+  noFilter: { he: "ללא סינון", en: "No filter" },
+  upTo: { he: "עד", en: "Up to" },
+  km: { he: "ק\"מ", en: "km" },
+  zoomOut: { he: "זום אאוט למפה", en: "Zoom out" },
+  myLocation: { he: "המיקום שלי", en: "My Location" },
+  filterDist: { he: "סינון לפי מרחק", en: "Filter by distance" },
+  locNotFound: { he: "המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?", en: "Location not found. Use the compass location on the map?" },
+  enterAddress: { he: "אנא הזן רחוב, מספר ועיר בלבד", en: "Please enter street, number, and city only" },
+  noAddress: { he: "לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?", en: "No address entered. Save point using the compass location?" },
+};
+
 export default function Map({
   activeCategory,
   isCompassMode,
   searchQuery,
   setCompassMode,
+  isLoggedIn,
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
@@ -38,8 +55,15 @@ export default function Map({
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
 
+  // 🌟 קריאת השפה מ-localStorage ישירות במפה כדי שתתעדכן אוטומטית
+  const [lang, setLang] = useState<"en" | "he">("he");
+
+  useEffect(() => {
+    const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
+    if (savedLang) setLang(savedLang);
+  }, []);
+
   const { status } = useSession();
-  const isLoggedIn = status === "authenticated";
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [filterRadius, setFilterRadius] = useState<number | null>(null);
@@ -179,7 +203,7 @@ export default function Map({
       if (!isCompassMode) return;
 
       if (!isLoggedIn) {
-        alert("Please log in to add a seed");
+        alert(tMap.loginRequired[lang]);
         return;
       }
 
@@ -192,7 +216,7 @@ export default function Map({
     const handleLocationError = () => {
       setIsLocating(false);
       setIsFollowing(false);
-      alert("Could not find your location. Please ensure GPS is enabled.");
+      alert(tMap.locationError[lang]);
     };
 
     const handleLocationFound = (e: any) => {
@@ -202,7 +226,7 @@ export default function Map({
         setIsFollowing(false);
         setUserLocation(null);
         setFilterRadius(null);
-        alert("Your device's location service is unstable. Please try again later.");
+        alert(tMap.locationUnstable[lang]);
         return;
       }
 
@@ -223,7 +247,7 @@ export default function Map({
       map.off("locationfound", handleLocationFound);
       map.off("movestart", onMove);
     };
-  }, [map, isCompassMode, activeCategory, isLoggedIn]);
+  }, [map, isCompassMode, activeCategory, isLoggedIn, lang]);
 
   const filteredPoints = useMemo(() => {
     if (!filterRadius || !userLocation || !map) return points;
@@ -320,17 +344,17 @@ export default function Map({
                   finalLat = parseFloat(geoData[0].lat);
                   finalLng = parseFloat(geoData[0].lon);
                 } else {
-                  const useCompass = window.confirm("Location not found. Use the compass location on the map?");
+                  const useCompass = window.confirm(tMap.locNotFound[lang]);
                   if (!useCompass) {
-                    alert("Please enter street, number, and city only");
+                    alert(tMap.enterAddress[lang]);
                     return;
                   }
                 }
               } catch (err) { }
             } else {
-              const useCompass = window.confirm("No address entered. Save point using the compass location?");
+              const useCompass = window.confirm(tMap.noAddress[lang]);
               if (!useCompass) {
-                alert("Please enter street, number, and city only");
+                alert(tMap.enterAddress[lang]);
                 return;
               }
             }
@@ -395,9 +419,9 @@ export default function Map({
             });
           }
         }}
-        className={`absolute bottom-6 right-6 z-[400] border p-3 rounded-full shadow-lg transition-colors ${isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"
+        className={`absolute bottom-6 ${lang === 'he' ? 'left-6' : 'right-6'} z-[400] border p-3 rounded-full shadow-lg transition-colors ${isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"
           }`}
-        title={isFollowing ? "Zoom out" : "My Location"}
+        title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
       >
         {isLocating ? (
           <svg className="animate-spin h-6 w-6 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -416,7 +440,7 @@ export default function Map({
       </button>
 
       {/* Radius Menu */}
-      <div className="absolute bottom-6 right-20 z-[400] flex flex-col-reverse items-end gap-2">
+      <div className={`absolute bottom-6 ${lang === 'he' ? 'left-20' : 'right-20'} z-[400] flex flex-col-reverse items-end gap-2`}>
         <button
           onClick={() => {
             if (!userLocation && map) {
@@ -424,7 +448,7 @@ export default function Map({
                 setIsLocating(true);
                 map.locate({ enableHighAccuracy: true });
               }
-              alert("Locating... Please wait before selecting a radius.");
+              alert(tMap.locating[lang]);
               return;
             }
             setShowRadiusMenu(!showRadiusMenu);
@@ -433,7 +457,7 @@ export default function Map({
             ? "bg-yellow-500 border-yellow-400 text-black"
             : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
             }`}
-          title="Filter by distance"
+          title={tMap.filterDist[lang]}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -444,18 +468,18 @@ export default function Map({
           <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
             <button
               onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}
-              className={`text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
+              className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
             >
-              No filter
+              {tMap.noFilter[lang]}
             </button>
 
             {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
               <button
                 key={dist}
                 onClick={() => { setFilterRadius(dist); setShowRadiusMenu(false); }}
-                className={`text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
+                className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
               >
-                Up to {dist} km
+                {tMap.upTo[lang]} {dist} {tMap.km[lang]}
               </button>
             ))}
           </div>

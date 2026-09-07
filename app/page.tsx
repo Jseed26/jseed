@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PointCategory } from "@/src/types/point";
 import Image from "next/image";
 import { Search } from "lucide-react";
@@ -15,10 +15,39 @@ const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
 });
 
+const t = {
+  search: { he: "חיפוש seed", en: "Search seed" },
+  cancel: { he: "ביטול", en: "Cancel" },
+  addSeed: { he: "הוסף נקודה חדשה", en: "Add a new seed" },
+  selectPoint: { he: "בחר נקודה על המפה", en: "Select a point on the map" },
+  notifications: { he: "התראות", en: "Notifications" },
+  myProfile: { he: "הפרופיל שלי", en: "My Profile" },
+  logIn: { he: "התחבר", en: "Log In" },
+  language: { he: "שפה", en: "Language" },
+  community: { he: "קהילה", en: "Community" },
+  spirit: { he: "רוח", en: "Spirit" },
+  legacy: { he: "מורשת", en: "Legacy" },
+  business: { he: "עסקים", en: "Business" },
+};
+
 export default function Home() {
+  // 🌟 טעינת השפה השמורה מהדפדפן, ברירת מחדל עברית
+  const [lang, setLang] = useState<"en" | "he">("he");
+  const [isLangOpen, setIsLangOpen] = useState(false);
+
+  useEffect(() => {
+    const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
+    if (savedLang) setLang(savedLang);
+  }, []);
+
+  const changeLanguage = (newLang: "en" | "he") => {
+    setLang(newLang);
+    localStorage.setItem("jseed_lang", newLang);
+    setIsLangOpen(false);
+  };
+
   const [activeCategory, setActiveCategory] = useState<PointCategory | null>(null);
   const [isCompassMode, setCompassMode] = useState(false);
-  const [contactActive, setContactActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [toast, setToast] = useState<string | null>(null);
@@ -27,13 +56,12 @@ export default function Home() {
   const { data: session, status } = useSession();
 
   const isLoggedIn = status === "authenticated";
-  const isLoading = status === "loading";
 
   const categories: { key: PointCategory; label: string }[] = [
-    { key: "leaf", label: "Community" },
-    { key: "star", label: "Spirit" },
-    { key: "triangle", label: "Legacy" },
-    { key: "circle", label: "Business" },
+    { key: "leaf", label: t.community[lang] },
+    { key: "star", label: t.spirit[lang] },
+    { key: "triangle", label: t.legacy[lang] },
+    { key: "circle", label: t.business[lang] },
   ];
 
   const userFirstName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "User";
@@ -44,7 +72,7 @@ export default function Home() {
       {/* ================= HEADER ================= */}
       <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative z-50">
 
-        <div className="absolute top-3 left-0 w-full flex justify-between px-6 z-50 pointer-events-none">
+        <div className="absolute top-3 w-full flex justify-between px-6 z-50 pointer-events-none" style={{ direction: lang === "he" ? "rtl" : "ltr" }}>
 
           <button
             className="pointer-events-auto flex items-center justify-center p-2 rounded-full transition-all"
@@ -52,10 +80,10 @@ export default function Home() {
               background: isCompassMode ? "rgba(251, 191, 36, 0.15)" : "transparent",
               border: isCompassMode ? "1px solid rgba(251, 191, 36, 0.4)" : "1px solid transparent"
             }}
-            title={isCompassMode ? "Cancel" : "Add a new seed"}
+            title={isCompassMode ? t.cancel[lang] : t.addSeed[lang]}
             onClick={() => {
               setCompassMode(v => !v);
-              setToast(!isCompassMode ? "Select a point on the map" : null);
+              setToast(!isCompassMode ? t.selectPoint[lang] : null);
               setTimeout(() => setToast(null), 2000);
             }}
           >
@@ -85,18 +113,46 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-3 pointer-events-auto">
-            <div title="Notifications" className="flex items-center">
+            
+            {/* כפתור שפה */}
+            <div className="relative">
+                <button 
+                    onClick={() => setIsLangOpen(!isLangOpen)}
+                    className="flex items-center gap-1.5 border border-yellow-500/50 text-yellow-500 px-3 py-1 rounded-full hover:bg-yellow-500/10 transition text-xs font-bold bg-black/60 backdrop-blur-sm"
+                >
+                    🌐 {t.language[lang]}
+                </button>
+                
+                {isLangOpen && (
+                    <div className={`absolute top-full mt-2 w-28 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden ${lang === "he" ? "left-0" : "right-0"}`}>
+                        <button 
+                            onClick={() => changeLanguage("he")}
+                            className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                        >
+                            עברית
+                        </button>
+                        <button 
+                            onClick={() => changeLanguage("en")}
+                            className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                        >
+                            English
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            <div title={t.notifications[lang]} className="flex items-center">
               <NotificationBell />
             </div>
 
-            <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm">
+            <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm" style={{ direction: "ltr" }}>
               {isLoggedIn && (
                 <span className="text-xs text-gray-300 font-medium hidden sm:block">
                   Hi, {userFirstName}
                 </span>
               )}
               <button
-                title={isLoggedIn ? "My Profile" : "Log In"}
+                title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
                 onClick={() => {
                   if (status === "loading") return;
                   if (isLoggedIn) {
@@ -125,20 +181,19 @@ export default function Home() {
           className="relative z-40"
         />
 
-        <div className="relative w-52 mx-auto z-40" dir="ltr">
+        <div className="relative w-52 mx-auto z-40" dir={lang === "he" ? "rtl" : "ltr"}>
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            className={`absolute ${lang === "he" ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none`}
           />
 
           <input
             type="text"
-            placeholder="Search seed"
-            className="
+            placeholder={t.search[lang]}
+            className={`
               w-full
               py-1.5
-              pl-8
-              pr-3
+              ${lang === "he" ? "pr-8 pl-3" : "pl-8 pr-3"}
               text-center
               text-sm
               rounded-lg
@@ -150,7 +205,7 @@ export default function Home() {
               focus:outline-none
               focus:border-gray-400
               focus:ring-0
-            "
+            `}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
@@ -169,6 +224,7 @@ export default function Home() {
           setCompassMode={setCompassMode}
           searchQuery={searchQuery}
           isLoggedIn={isLoggedIn}
+          lang={lang}
         />
       </div>
 
