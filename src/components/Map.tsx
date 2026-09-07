@@ -15,6 +15,7 @@ type MapProps = {
   setCompassMode: (value: boolean) => void;
   searchQuery: string;
   isLoggedIn: boolean;
+  lang: "he" | "en";
 };
 
 type ModalState = {

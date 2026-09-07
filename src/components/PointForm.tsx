@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import imageCompression from "browser-image-compression";
 
 type FormState = {
@@ -27,11 +27,31 @@ type Props = {
 };
 
 const CATEGORIES = [
-    { key: "leaf", label: "Community" },
-    { key: "star", label: "Spirit" },
-    { key: "triangle", label: "Legacy" },
-    { key: "circle", label: "Business" },
+    { key: "leaf", label: { he: "קהילה", en: "Community" } },
+    { key: "star", label: { he: "רוח", en: "Spirit" } },
+    { key: "triangle", label: { he: "מורשת", en: "Legacy" } },
+    { key: "circle", label: { he: "עסקים", en: "Business" } },
 ];
+
+const tForm = {
+    createTitle: { he: "יצירת גרעין", en: "Create Seed" },
+    editTitle: { he: "עריכת גרעין", en: "Edit Seed" },
+    namePlaceholder: { he: "שם הגרעין (לדוג: יד ושם...)", en: "Seed Name (e.g., Yad Vashem)" },
+    descPlaceholder: { he: "תיאור (לדוג: רשות הזיכרון לשואה ולגבורה)", en: "Description (e.g., The World Holocaust Remembrance Center)" },
+    extraPlaceholder: { he: "מידע נוסף (לדוג: מורשת, שעות פתיחה...)", en: "Extra Info (e.g., Opening hours, Heritage site...)" },
+    addressPlaceholder: { he: "כתובת (רחוב, מספר ועיר)", en: "Address (Street, number, and city)" },
+    websitePlaceholder: { he: "קישור לאתר (לדוג: https://...)", en: "Website Link (e.g., https://...)" },
+    addImages: { he: "הוספת תמונות", en: "Add Images" },
+    processing: { he: "מעבד...", en: "Processing..." },
+    compressing: { he: "מכווץ תמונות...", en: "Compressing images..." },
+    maxImages: { he: "הגעת למקסימום 3 תמונות", en: "Maximum 3 images reached" },
+    imagesCount: { he: "תמונות נוספו (מקסימום 3)", en: "images added (Max 3)" },
+    upTo3: { he: "עד 3 תמונות בסך הכל", en: "Up to 3 images total" },
+    cancel: { he: "ביטול", en: "Cancel" },
+    create: { he: "צור", en: "Create" },
+    save: { he: "שמור", en: "Save" },
+    saving: { he: "שומר...", en: "Saving..." },
+};
 
 export default function PointForm({
     mode,
@@ -40,6 +60,13 @@ export default function PointForm({
     onSubmit,
     category,
 }: Props) {
+    const [lang, setLang] = useState<"en" | "he">("he");
+
+    useEffect(() => {
+        const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
+        if (savedLang) setLang(savedLang);
+    }, []);
+
     const [form, setForm] = useState<FormState>({
         name: initialData?.name || "",
         description: initialData?.description || "",
@@ -58,11 +85,11 @@ export default function PointForm({
 
     async function handleSubmit() {
         if (!form.category) {
-            alert("Please select a category for the seed.");
+            alert(lang === "he" ? "נא לבחור קטגוריה לגרעין." : "Please select a category for the seed.");
             return;
         }
         if (!form.name) {
-            alert("Please enter a name for the seed.");
+            alert(lang === "he" ? "נא להזין שם לגרעין." : "Please enter a name for the seed.");
             return;
         }
 
@@ -78,20 +105,20 @@ export default function PointForm({
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-            {/* 🌟 הוספנו max-h-[90vh] ו-overflow-y-auto כדי שהטופס ייגלל ולא ייחתך! */}
-            <div className="bg-gray-900 text-white p-6 rounded-2xl w-full max-w-[400px] max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 shadow-2xl border border-gray-700" dir="ltr">
+            <div className="bg-gray-900 text-white p-6 rounded-2xl w-full max-w-[400px] max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 shadow-2xl border border-gray-700" dir={lang === "he" ? "rtl" : "ltr"}>
 
                 <div className="flex justify-between items-center mb-1">
                     <h2 className="text-xl font-bold text-white">
-                        {mode === "create" ? "Create Seed" : "Edit Seed"}
+                        {mode === "create" ? tForm.createTitle[lang] : tForm.editTitle[lang]}
                     </h2>
                 </div>
 
-                {/* 🌟 קטגוריות קטנות ואלגנטיות */}
+                {/* קטגוריות */}
                 <div className="grid grid-cols-4 gap-2 bg-gray-800/50 p-2 rounded-xl border border-gray-700">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat.key}
+                            type="button"
                             onClick={() => setForm({ ...form, category: cat.key })}
                             className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
                                 form.category === cat.key
@@ -102,45 +129,45 @@ export default function PointForm({
                             <img 
                                 src={`/icons/categories/${cat.key}/${form.category === cat.key ? 'active' : 'default'}.png`} 
                                 className="w-6 h-6 object-contain mb-1" 
-                                alt={cat.label}
+                                alt={cat.label[lang]}
                             />
                             <span className={`text-[9px] font-bold ${form.category === cat.key ? "text-yellow-500" : "text-gray-400"}`}>
-                                {cat.label}
+                                {cat.label[lang]}
                             </span>
                         </button>
                     ))}
                 </div>
 
                 <input
-                    placeholder="Seed Name (e.g., Yad Vashem)"
+                    placeholder={tForm.namePlaceholder[lang]}
                     className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
 
                 <textarea
-                    placeholder="Description (e.g., The World Holocaust Remembrance Center)"
+                    placeholder={tForm.descPlaceholder[lang]}
                     className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-20 placeholder-gray-500 text-white transition-colors"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
 
                 <textarea
-                    placeholder="Extra Info (e.g., Opening hours, Heritage site...)"
+                    placeholder={tForm.extraPlaceholder[lang]}
                     className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-16 placeholder-gray-500 text-white transition-colors"
                     value={form.extraInfo}
                     onChange={(e) => setForm({ ...form, extraInfo: e.target.value })}
                 />
 
                 <input
-                    placeholder="Address (Street, number, and city)"
+                    placeholder={tForm.addressPlaceholder[lang]}
                     className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors"
                     value={form.address}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                 />
 
                 <input
-                    placeholder="Website Link (e.g., https://...)"
+                    placeholder={tForm.websitePlaceholder[lang]}
                     className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors"
                     value={form.website}
                     onChange={(e) => setForm({ ...form, website: e.target.value })}
@@ -148,16 +175,16 @@ export default function PointForm({
 
                 <div className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl focus-within:border-yellow-500 transition-colors">
                     <label className={`flex items-center w-full ${isCompressing ? 'cursor-wait opacity-50' : 'cursor-pointer'}`}>
-                        <span className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-600 transition mr-3 shrink-0">
-                            {isCompressing ? "Processing..." : "Add Images"}
+                        <span className="bg-gray-700 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-600 transition ml-3 shrink-0">
+                            {isCompressing ? tForm.processing[lang] : tForm.addImages[lang]}
                         </span>
                         
                         <span className="text-xs truncate text-gray-400">
                             {isCompressing 
-                                ? "Compressing images..." 
+                                ? tForm.compressing[lang] 
                                 : (totalImages > 0 
-                                    ? `${totalImages} images added (Max 3)` 
-                                    : "Up to 3 images total")
+                                    ? `${totalImages} ${tForm.imagesCount[lang]}` 
+                                    : tForm.upTo3[lang])
                             }
                         </span>
 
@@ -172,13 +199,12 @@ export default function PointForm({
                                 const availableSlots = 3 - totalImages;
 
                                 if (availableSlots <= 0) {
-                                    alert("Maximum 3 images reached. Delete existing ones to add more.");
+                                    alert(tForm.maxImages[lang]);
                                     return;
                                 }
 
                                 let filesToAdd = newFiles;
                                 if (newFiles.length > availableSlots) {
-                                    alert(`You can only add ${availableSlots} more images.`);
                                     filesToAdd = newFiles.slice(0, availableSlots);
                                 }
 
@@ -196,7 +222,6 @@ export default function PointForm({
                                     setForm(prev => ({ ...prev, images: [...prev.images, ...compressedFiles] }));
                                 } catch (error) {
                                     console.error(error);
-                                    alert("Error processing image. Try another one.");
                                 } finally {
                                     setIsCompressing(false); 
                                 }
@@ -210,6 +235,7 @@ export default function PointForm({
                                 <div key={`existing-${i}`} className="relative w-14 h-14 shrink-0">
                                     <img src={url} className="w-full h-full object-cover rounded-lg shadow-sm" />
                                     <button
+                                        type="button"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             const newExisting = [...form.existingImages];
@@ -224,6 +250,7 @@ export default function PointForm({
                                 <div key={`new-${i}`} className="relative w-14 h-14 shrink-0">
                                     <img src={URL.createObjectURL(file)} className="w-full h-full object-cover rounded-lg shadow-sm opacity-90 border border-gray-500" />
                                     <button
+                                        type="button"
                                         onClick={(e) => {
                                             e.preventDefault();
                                             const newImages = [...form.images];
@@ -239,16 +266,17 @@ export default function PointForm({
                 </div>
 
                 <div className="flex justify-between items-center pt-3 pb-2">
-                    <button onClick={onClose} disabled={isCompressing || isSubmitting} className="text-red-400 hover:text-red-300 disabled:opacity-50 text-sm font-bold px-3 py-1.5 transition-colors">
-                        Cancel
+                    <button type="button" onClick={onClose} disabled={isCompressing || isSubmitting} className="text-red-400 hover:text-red-300 disabled:opacity-50 text-sm font-bold px-3 py-1.5 transition-colors">
+                        {tForm.cancel[lang]}
                     </button>
 
                     <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={isCompressing || isSubmitting} 
                         className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isSubmitting ? "Saving..." : mode === "create" ? "Create" : "Save"}
+                        {isSubmitting ? tForm.saving[lang] : mode === "create" ? tForm.create[lang] : tForm.save[lang]}
                     </button>
                 </div>
 
