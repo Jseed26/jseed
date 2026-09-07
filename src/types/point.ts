@@ -16,11 +16,10 @@ export type Point = {
   website: string | null;
   imageUrl: string | null;
   imageUrls?: string[];
-  extraInfo: string | null;
   linkClicks: number;
   name_en?: string | null;
   description_en?: string | null;
-  extraInfo_en?: string | null;
+
 
   _count?: {
     viewedBy: number;
