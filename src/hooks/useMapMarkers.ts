@@ -11,9 +11,10 @@ type Props = {
   activeCategory: Point["category"] | null;
   viewedIds: number[];
   savedIds?: number[];
+  lang?: "he" | "en"; // 🌟 הוספנו את השפה כפרמטר
 };
 
-export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [] }: Props) {
+export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he" }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
   const clickedLocallyRef = useRef<Set<number>>(new Set());
@@ -30,32 +31,60 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const container = document.createElement("div");
     container.style.width = "230px";
     container.style.fontFamily = "sans-serif";
-    container.dir = "rtl";
+    
+    // 🌟 הגדרת כיווניות לפי השפה
+    const isHe = lang === "he";
+    container.dir = isHe ? "rtl" : "ltr";
+
+    // 🌟 שליפת התוכן המתאים - אם אנחנו באנגלית ויש תרגום נציג אותו, אחרת נחזור למקור
+    const displayName = isHe ? point.name : (point.name_en || point.name);
+    const displayDesc = isHe ? point.description : (point.description_en || point.description);
+    const displayExtra = isHe ? point.extraInfo : (point.extraInfo_en || point.extraInfo);
+
+    // 🌟 מילון תרגומים פנימי לחלונית
+    const t = {
+      desc: isHe ? "תיאור:" : "Description:",
+      loc: isHe ? "מיקום:" : "Location:",
+      extra: isHe ? "מידע נוסף:" : "Extra Info:",
+      link: isHe ? "קישור:" : "Website:",
+      visit: isHe ? "למעבר לאתר" : "Visit Website",
+      saves: isHe ? "שמירות" : "Saves",
+      nav: isHe ? "נווט לשם" : "Navigate",
+      shareTip: isHe ? "שתף בוואטסאפ" : "Share on WhatsApp",
+      copyTip: isHe ? "העתק קישור" : "Copy Link",
+      reportTip: isHe ? "דווח על בעיה" : "Report Issue",
+      copiedMsg: isHe ? "הקישור הועתק בהצלחה!" : "Link copied successfully!",
+      reportMsg: isHe ? "מה הבעיה בגרעין זה? (למשל: סגור, מידע שגוי, ספאם)" : "What is the issue? (e.g., Closed, Wrong info, Spam)",
+      reportSuccess: isHe ? "תודה! הדיווח נשלח למנהלי האתר." : "Thank you! The report has been sent.",
+      loginReq: isHe ? "צריך להתחבר כדי לשמור נקודות" : "Please log in to save seeds",
+      waText: isHe ? "תראו איזה Seed מצאתי ב-JSeed! 🌱" : "Check out this Seed I found on JSeed! 🌱",
+      expand: isHe ? "הגדל חלונית" : "Expand",
+      collapse: isHe ? "הקטן חלונית" : "Collapse"
+    };
 
     L.DomEvent.disableClickPropagation(container);
     L.DomEvent.disableScrollPropagation(container);
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
 
-    // 🌟 הקטנו את האייקונים ל-12x12 כדי שיהיו עדינים בדיוק כמו ה-X
     const expandSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
     const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.5 5a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 5.5 6h-4a.5.5 0 0 1 0-1h4zM10.5 5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 0-1 0v4A1.5 1.5 0 0 0 10.5 6h4a.5.5 0 0 0 0-1h-4zM5.5 11a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 1 0v-4A1.5 1.5 0 0 0 5.5 10h-4a.5.5 0 0 0 0 1h4zm5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 10.5 10h4a.5.5 0 0 1 0 1h-4z"/></svg>`;
 
-    const headerHtml = `
+const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         
-        <div style="display: flex; align-items: flex-start; gap: 8px; padding-right: 15px; padding-left: 20px;">
+        <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 20px' : '0 20px 0 15px'};">
           <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
             <img src="/icons/categories/${point.category}/active.png" alt="${point.category}" style="width: 18px; height: 18px; object-fit: contain;" />
           </div>
           
-          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: right; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; margin-top: 5px;">
-            ${display(point.name)}
+          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; margin-top: 5px;">
+            ${display(displayName)}
           </div>
         </div>
         
-        <!-- 🌟 שינינו את ה-top ל--10px בשביל האמצע המושלם -->
-        <button class="expand-point-btn" style="position: absolute; top: -10px; left: -20px; width: 30px; height: 30px; background: transparent; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; z-index: 10;" title="הגדל חלונית">
+        <!-- 🌟 כאן השינוי: קבענו את המיקום תמיד ל- left: -20px -->
+        <button class="expand-point-btn" style="position: absolute; top: -10px; left: -20px; width: 30px; height: 30px; background: transparent; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; z-index: 10;" title="${t.expand}">
           ${expandSvg}
         </button>
       </div>
@@ -77,9 +106,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           ${imagesList.map((src, i) => `
             <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
           `).join('')}
-          <button class="carousel-prev-${point.id}" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">❮</button>
-          <button class="carousel-next-${point.id}" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">❯</button>
-          <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: row-reverse;">
+          <button class="carousel-prev-${point.id}" style="position: absolute; ${isHe ? 'left' : 'right'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❮' : '❯'}</button>
+          <button class="carousel-next-${point.id}" style="position: absolute; ${isHe ? 'right' : 'left'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❯' : '❮'}</button>
+          <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: ${isHe ? 'row-reverse' : 'row'};">
             ${imagesList.map((_, i) => `
               <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
             `).join('')}
@@ -95,19 +124,19 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       ${headerHtml}
       ${imageHtml}
       
-      <div class="point-desc-container" style="max-height: 100px; overflow-y: auto; padding-right: 5px; font-size: 14px; color: #d1d5db;">
-        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">תיאור:</strong> ${display(point.description)}</div>
-        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">מיקום:</strong> ${display(point.address)}</div>
-        ${point.extraInfo ? `<div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">מידע נוסף:</strong> ${point.extraInfo}</div>` : ""}
-        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">קישור:</strong> ${point.website
-        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">למעבר לאתר</a>`
+      <div class="point-desc-container" style="max-height: 100px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
+        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.desc}</strong> ${display(displayDesc)}</div>
+        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> ${display(point.address)}</div>
+        ${displayExtra ? `<div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.extra}</strong> ${displayExtra}</div>` : ""}
+        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
+        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
         : "-"
       }</div>
       </div>
       
       <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
         <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
-          ${currentSavedCount} שמירות
+          ${currentSavedCount} ${t.saves}
         </span>
         <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; justify-content: center;">
           <img src="${plantIconSrc}" alt="Save" style="width: 28px; height: 28px; object-fit: contain; transition: transform 0.2s;" />
@@ -115,12 +144,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
 
       <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #374151;">
-       <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="נווט לשם">
+       <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="${t.nav}">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
         </a>
-        <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 20px;" title="שתף בוואטסאפ">💬</a>
-        <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="העתק קישור">🔗</button>
-        <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="דווח על בעיה">🚩</button>
+        <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 20px;" title="${t.shareTip}">💬</a>
+        <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.copyTip}">🔗</button>
+        <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.reportTip}">🚩</button>
       </div>
     `;
 
@@ -157,7 +186,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         if (descContainer) descContainer.style.maxHeight = isExpanded ? "350px" : "100px";
 
         expandBtn.innerHTML = isExpanded ? collapseSvg : expandSvg;
-        expandBtn.title = isExpanded ? "הקטן חלונית" : "הגדל חלונית";
+        expandBtn.title = isExpanded ? t.collapse : t.expand;
 
         mapInstance.eachLayer((layer: any) => {
           if (layer instanceof L.Marker && layer.getLatLng().lat === point.latitude && layer.getLatLng().lng === point.longitude) {
@@ -226,17 +255,17 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const baseUrl = window.location.origin;
     const shareUrl = `${baseUrl}/?point=${point.id}`;
-    const waText = encodeURIComponent(`תראו איזה Seed מצאתי ב-JSeed! 🌱\n${shareUrl}`);
+    const waTextUrl = encodeURIComponent(`${t.waText}\n${shareUrl}`);
 
     const waBtn = container.querySelector(".wa-share-btn") as HTMLAnchorElement;
-    if (waBtn) waBtn.href = `https://wa.me/?text=${waText}`;
+    if (waBtn) waBtn.href = `https://wa.me/?text=${waTextUrl}`;
 
     const copyBtn = container.querySelector(".copy-link-btn") as HTMLButtonElement;
     if (copyBtn) {
       copyBtn.onclick = (e) => {
         e.preventDefault(); e.stopPropagation();
         navigator.clipboard.writeText(shareUrl);
-        alert("הקישור הועתק בהצלחה!");
+        alert(t.copiedMsg);
       };
     }
 
@@ -244,7 +273,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     if (reportBtn) {
       reportBtn.onclick = async (e) => {
         e.preventDefault(); e.stopPropagation();
-        const reason = prompt("מה הבעיה בגרעין זה? (למשל: סגור, מידע שגוי, ספאם)");
+        const reason = prompt(t.reportMsg);
         if (reason) {
           try {
             await fetch("/api/reports", {
@@ -252,9 +281,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pointId: point.id, reason })
             });
-            alert("תודה! הדיווח נשלח למנהלי האתר.");
+            alert(t.reportSuccess);
           } catch (err) {
-            alert("תודה! הדיווח נרשם.");
+            alert(t.reportSuccess);
           }
         }
       };
@@ -283,11 +312,11 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             if (data.saved) currentSavedCount += 1;
             else currentSavedCount -= 1;
 
-            if (countText) countText.innerText = `${currentSavedCount} שמירות`;
+            if (countText) countText.innerText = `${currentSavedCount} ${t.saves}`;
             window.dispatchEvent(new Event("points-updated"));
           } else {
             if (img) img.style.transform = "scale(1)";
-            alert("צריך להתחבר כדי לשמור נקודות");
+            alert(t.loginReq);
           }
         } catch (err) {
           console.error("Failed to toggle save point:", err);
@@ -396,5 +425,5 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       map.off("zoomend", handleZoomEnd);
     };
 
-  }, [map, points, activeCategory, viewedIds, savedIds]);
+  }, [map, points, activeCategory, viewedIds, savedIds, lang]); // 🌟 הוספנו את lang ל-useEffect כדי שיתרענן בשינוי שפה
 }

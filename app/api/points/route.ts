@@ -3,6 +3,7 @@ import AIEngine from "@/src/lib/ai";
 import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
+import translate from "google-translate-api-x"; 
 
 // פונקציית צלף לבדיקת מילים 
 function containsConcept(text: string, concept: string) {
@@ -11,6 +12,9 @@ function containsConcept(text: string, concept: string) {
     const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
     return regex.test(text);
 }
+
+// 🌟 הפונקציה החדשה שמזהה אם יש אפילו אות אחת בעברית
+const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -30,7 +34,6 @@ export async function GET(req: Request) {
     const cleanUserQuery = cleanTextForMatching(qRaw);
     const bonusConcepts = getDictionaryConcepts(qRaw);
 
-    // תיקון שגיאות כתיב לטובת ה-AI בלבד
     let aiQuery = qRaw.toLowerCase();
     const typos: Record<string, string> = { "כנסט": "כנסת", "כנסות": "כנסת", "מקוה": "מקווה", "חבד": "חב\"ד", "ביט": "בית" };
     for (const [bad, good] of Object.entries(typos)) {
@@ -44,7 +47,7 @@ export async function GET(req: Request) {
 
     let searchResults = await prisma.$queryRawUnsafe<any[]>(`
       SELECT 
-        id, name, description, category, "extraInfo", address, website, latitude, longitude, "imageUrl", "imageUrls",
+        id, name, name_en, description, description_en, category, "extraInfo", "extraInfo_en", address, website, latitude, longitude, "imageUrl", "imageUrls",
         1 - (embedding <=> $1::vector) AS score
       FROM "Point"
       WHERE embedding IS NOT NULL
@@ -53,7 +56,6 @@ export async function GET(req: Request) {
       LIMIT 100; 
     `, embeddingString);
 
-    // 🌟 ארכיטקטורת ניקוד מצטבר (הפתרון הסופי לבעיית המקווה) 🌟
     searchResults = searchResults.map(point => {
         const rawText = `${point.name} ${point.description || ""} ${point.category} ${point.extraInfo || ""}`;
         const cleanPointText = cleanTextForMatching(rawText);
@@ -61,32 +63,27 @@ export async function GET(req: Request) {
         let textBoost = 0;
         let foundSynonym = false;
 
-        // 1. האם המילה הספציפית שהמשתמש חיפש נמצאת?
-        // בונוס קטן בלבד! מקווה שכתוב בו "אין אוכל" יקבל קצת ניקוד ויסונן החוצה.
         if (containsConcept(cleanPointText, cleanUserQuery)) {
             textBoost += 0.15; 
         }
 
-        // 2. האם יש מילים נרדפות מהמילון התרבותי שלנו?
-        // כאן אנחנו מחלקים בונוס שמן. אם חיפשת "אוכל" ובטקסט כתוב "חבד" או "מסעדה" - זה בינגו.
         bonusConcepts.forEach(concept => {
             if (concept.length > 2 && concept !== cleanUserQuery) {
                 if (containsConcept(cleanPointText, concept)) {
                     foundSynonym = true;
-                    textBoost += 0.20; // מצטבר על כל מילה נרדפת שמופיעה בטקסט
+                    textBoost += 0.20; 
                 }
             }
         });
 
         if (foundSynonym) {
-            textBoost += 0.25; // בונוס בוסטר שדוחף את התוצאה בוודאות מעל הרף
+            textBoost += 0.25; 
         }
 
         return { ...point, score: point.score + textBoost };
     });
 
     const finalResults = searchResults
-        // רף אופטימלי 0.65: שפות זרות עוברות בכיף. בעברית, תוצאות לא קשורות (כמו המקווה) נזרקות החוצה.
         .filter(p => p.score >= 0.65) 
         .sort((a, b) => b.score - a.score)
         .map(p => {
@@ -116,6 +113,45 @@ export async function POST(req: Request) {
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
     const extraInfo = formData.get("extraInfo") as string | null;
+
+    // =========================================
+    // 🌟 תרגום חכם דו-כיווני! (מזהה שפה אוטומטית)
+    // =========================================
+    let final_name_he = name;
+    let final_name_en = name;
+    let final_desc_he = description;
+    let final_desc_en = description;
+    let final_extra_he = extraInfo;
+    let final_extra_en = extraInfo;
+
+    try {
+        if (name) {
+            if (hasHebrew(name)) {
+                final_name_en = (await translate(name, { to: 'en' })).text;
+            } else {
+                final_name_he = (await translate(name, { to: 'he' })).text;
+            }
+        }
+        
+        if (description) {
+            if (hasHebrew(description)) {
+                final_desc_en = (await translate(description, { to: 'en' })).text;
+            } else {
+                final_desc_he = (await translate(description, { to: 'he' })).text;
+            }
+        }
+
+        if (extraInfo) {
+            if (hasHebrew(extraInfo)) {
+                final_extra_en = (await translate(extraInfo, { to: 'en' })).text;
+            } else {
+                final_extra_he = (await translate(extraInfo, { to: 'he' })).text;
+            }
+        }
+    } catch (translateError) {
+        console.error("Translation API limit/error, skipping translation:", translateError);
+    }
+    // =========================================
 
     const files = formData.getAll("images") as File[];
     let imageUrls: string[] = [];
@@ -157,9 +193,19 @@ export async function POST(req: Request) {
 
     const newPoint = await prisma.point.create({
       data: {
-        name, category, latitude: finalLatitude, longitude: finalLongitude,
-        description, imageUrls, imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
-        address: hasAddress ? address : null, website, extraInfo: extraInfo || null,
+        name: final_name_he, 
+        name_en: final_name_en, 
+        category, 
+        latitude: finalLatitude, 
+        longitude: finalLongitude,
+        description: final_desc_he, 
+        description_en: final_desc_en, 
+        imageUrls, 
+        imageUrl: imageUrls.length > 0 ? imageUrls[0] : null,
+        address: hasAddress ? address : null, 
+        website, 
+        extraInfo: final_extra_he || null,
+        extraInfo_en: final_extra_en || null, 
         userId: session.user.id,
       },
     });

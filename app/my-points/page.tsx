@@ -7,10 +7,13 @@ import { signOut, useSession } from "next-auth/react";
 import { PointCategory } from "@/src/types/point";
 import ImageGallery from "@/src/components/ImageGallery";
 
+// 🌟 הוספנו לכאן את העמודות באנגלית כדי שהעמוד יכיר אותן!
 type Point = {
     id: number;
     name: string;
+    name_en?: string | null;
     description?: string;
+    description_en?: string | null;
     category: string;
     address?: string;
     website?: string;
@@ -19,6 +22,7 @@ type Point = {
     latitude: number;
     longitude: number;
     extraInfo?: string;
+    extraInfo_en?: string | null;
     linkClicks: number;
     _count?: {
         viewedBy: number;
@@ -56,7 +60,6 @@ const t = {
 export default function MyPointsPage() {
     const { data: session, status } = useSession();
     
-    // 🌟 טעינה אוטומטית של השפה מה-localStorage
     const [lang, setLang] = useState<"en" | "he">("he");
 
     useEffect(() => {
@@ -79,7 +82,7 @@ export default function MyPointsPage() {
         star: "Spirit",
         triangle: "Legacy",
         circle: "Business",
-        Chai: "Chai",
+        chai: "Chai", // אות קטנה
     };
 
     const router = useRouter();
@@ -162,7 +165,7 @@ export default function MyPointsPage() {
 
             {tab === "saved" && (
                 <div className="flex justify-center gap-3 mb-6">
-                    {["leaf", "star", "triangle", "circle", "hai"].map((cat) => (
+                    {["leaf", "star", "triangle", "circle", "chai"].map((cat) => (
                         <button key={cat} onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} className={`p-2 rounded-full border ${savedCategory === cat ? "border-yellow-500 bg-yellow-500/20" : "border-gray-700 bg-gray-800"}`}>
                             <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-8 h-8" />
                         </button>
@@ -184,13 +187,19 @@ export default function MyPointsPage() {
                             ? p.imageUrls 
                             : (p.imageUrl ? [p.imageUrl] : []);
                         
+                        // 🌟 משתנים חכמים ששולפים את הטקסט הנכון לפי השפה!
+                        const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
+                        const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
+                        
                         return (
                         <div key={p.id} className="border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg">
-                            <h2 className="font-bold text-xl">{p.name}</h2>
+                            {/* 🌟 עכשיו זה שואב את השם הנכון */}
+                            <h2 className="font-bold text-xl">{displayName}</h2>
                             
                             <ImageGallery images={pointImages} />
                             
-                            <p className="text-sm text-gray-300 mt-3">{p.description}</p>
+                            {/* 🌟 עכשיו זה שואב את התיאור הנכון */}
+                            <p className="text-sm text-gray-300 mt-3">{displayDesc}</p>
                             
                             <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
                                 <p>📍 {t.category[lang]} {categoryNames[p.category] || p.category}</p>

@@ -114,14 +114,14 @@ export default function PointForm({
                     </h2>
                 </div>
 
-                {/* קטגוריות */}
-                <div className="grid grid-cols-4 gap-2 bg-gray-800/50 p-2 rounded-xl border border-gray-700">
+                {/* קטגוריות - סודרו ב-5 עמודות ורווחים הוקטנו */}
+                <div className="grid grid-cols-5 gap-1 bg-gray-800/50 p-1.5 rounded-xl border border-gray-700">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat.key}
                             type="button"
                             onClick={() => setForm({ ...form, category: cat.key })}
-                            className={`flex flex-col items-center justify-center py-2 rounded-lg transition-all ${
+                            className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg transition-all ${
                                 form.category === cat.key
                                     ? "bg-yellow-500/10 border border-yellow-500/50 scale-105"
                                     : "opacity-50 hover:opacity-100 grayscale hover:grayscale-0 border border-transparent"
@@ -132,7 +132,7 @@ export default function PointForm({
                                 className="w-6 h-6 object-contain mb-1" 
                                 alt={cat.label[lang]}
                             />
-                            <span className={`text-[9px] font-bold ${form.category === cat.key ? "text-yellow-500" : "text-gray-400"}`}>
+                            <span className={`text-[9px] font-bold text-center leading-tight ${form.category === cat.key ? "text-yellow-500" : "text-gray-400"}`}>
                                 {cat.label[lang]}
                             </span>
                         </button>

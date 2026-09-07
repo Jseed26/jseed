@@ -45,6 +45,7 @@ export default function Map({
   searchQuery,
   setCompassMode,
   isLoggedIn,
+  lang, // 👈 מקבל את השפה אך ורק מעמוד הבית!
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
@@ -56,13 +57,7 @@ export default function Map({
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
 
-  // 🌟 קריאת השפה מ-localStorage ישירות במפה כדי שתתעדכן אוטומטית
-  const [lang, setLang] = useState<"en" | "he">("he");
-
-  useEffect(() => {
-    const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
-    if (savedLang) setLang(savedLang);
-  }, []);
+  // 🚨 מחקנו את ה-useState ואת ה-useEffect הכפולים של השפה שהיו פה!
 
   const { status } = useSession();
 
@@ -301,6 +296,7 @@ export default function Map({
     activeCategory,
     viewedIds,
     savedIds,
+    lang, // 👈 מעבירים את השפה אל הסמנים!
   });
 
   return (
@@ -420,28 +416,28 @@ export default function Map({
             });
           }
         }}
-        className={`absolute bottom-6 ${lang === 'he' ? 'left-6' : 'right-6'} z-[400] border p-3 rounded-full shadow-lg transition-colors ${isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"
-          }`}
+        // {/* 🌟 שינוי: הוחלף ל-left-[24px] כדי שהמערכת לא תהפוך אותו בטעות */}
+        className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
         title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
       >
         {isLocating ? (
-          <svg className="animate-spin h-6 w-6 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         ) : isFollowing ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 11l19-9-9 19-2-8-8-2z" />
           </svg>
         )}
       </button>
 
       {/* Radius Menu */}
-      <div className={`absolute bottom-6 ${lang === 'he' ? 'left-20' : 'right-20'} z-[400] flex flex-col-reverse items-end gap-2`}>
+      <div className="absolute bottom-6 left-[68px] z-[400] flex flex-col-reverse items-start gap-2">
         <button
           onClick={() => {
             if (!userLocation && map) {
@@ -454,13 +450,13 @@ export default function Map({
             }
             setShowRadiusMenu(!showRadiusMenu);
           }}
-          className={`p-3 rounded-full shadow-lg transition-colors border ${filterRadius
+          className={`p-2 rounded-full shadow-lg transition-colors border ${filterRadius
             ? "bg-yellow-500 border-yellow-400 text-black"
             : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
             }`}
           title={tMap.filterDist[lang]}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
@@ -486,6 +482,6 @@ export default function Map({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }

@@ -23,16 +23,14 @@ const t = {
   notifications: { he: "התראות", en: "Notifications" },
   myProfile: { he: "הפרופיל שלי", en: "My Profile" },
   logIn: { he: "התחבר", en: "Log In" },
-  language: { he: "שפה", en: "Language" },
   community: { he: "קהילה", en: "Community" },
   spirit: { he: "רוח", en: "Spirit" },
   legacy: { he: "מורשת", en: "Legacy" },
   business: { he: "עסקים", en: "Business" },
-  hai: {he: "חי", en: "Chai"},
+  chai: { he: "חי", en: "Chai" },
 };
 
 export default function Home() {
-  // 🌟 טעינת השפה השמורה מהדפדפן, ברירת מחדל עברית
   const [lang, setLang] = useState<"en" | "he">("he");
   const [isLangOpen, setIsLangOpen] = useState(false);
 
@@ -63,7 +61,7 @@ export default function Home() {
     { key: "star", label: t.spirit[lang] },
     { key: "triangle", label: t.legacy[lang] },
     { key: "circle", label: t.business[lang] },
-    { key: "hai", label: t.hai[lang]},
+    { key: "chai", label: t.chai[lang] },
   ];
 
   const userFirstName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "User";
@@ -72,9 +70,9 @@ export default function Home() {
     <main className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden fixed inset-0">
 
       {/* ================= HEADER ================= */}
-      <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative z-50">
+      <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative z-[9999]">
 
-        <div className="absolute top-3 w-full flex justify-between px-6 z-50 pointer-events-none" style={{ direction: lang === "he" ? "rtl" : "ltr" }}>
+        <div className="absolute top-3 w-full flex justify-between px-6 z-[9999] pointer-events-none" dir="ltr">
 
           <button
             className="pointer-events-auto flex items-center justify-center p-2 rounded-full transition-all"
@@ -115,39 +113,11 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-3 pointer-events-auto">
-            
-            {/* כפתור שפה */}
-            <div className="relative">
-                <button 
-                    onClick={() => setIsLangOpen(!isLangOpen)}
-                    className="flex items-center gap-1.5 border border-yellow-500/50 text-yellow-500 px-3 py-1 rounded-full hover:bg-yellow-500/10 transition text-xs font-bold bg-black/60 backdrop-blur-sm"
-                >
-                    🌐 {t.language[lang]}
-                </button>
-                
-                {isLangOpen && (
-                    <div className={`absolute top-full mt-2 w-28 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden ${lang === "he" ? "left-0" : "right-0"}`}>
-                        <button 
-                            onClick={() => changeLanguage("he")}
-                            className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
-                        >
-                            עברית
-                        </button>
-                        <button 
-                            onClick={() => changeLanguage("en")}
-                            className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
-                        >
-                            English
-                        </button>
-                    </div>
-                )}
-            </div>
-
             <div title={t.notifications[lang]} className="flex items-center">
               <NotificationBell />
             </div>
 
-            <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm" style={{ direction: "ltr" }}>
+            <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm">
               {isLoggedIn && (
                 <span className="text-xs text-gray-300 font-medium hidden sm:block">
                   Hi, {userFirstName}
@@ -183,31 +153,17 @@ export default function Home() {
           className="relative z-40"
         />
 
-        <div className="relative w-52 mx-auto z-40" dir={lang === "he" ? "rtl" : "ltr"}>
+        {/* 🌟 שינוי: ה-dir קבוע ל-ltr כדי שזכוכית המגדלת תמיד תישאר בצד שמאל */}
+        <div className="relative w-52 mx-auto z-40" dir="ltr">
           <Search
             size={14}
-            className={`absolute ${lang === "he" ? "right-3" : "left-3"} top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none`}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
           />
 
           <input
             type="text"
             placeholder={t.search[lang]}
-            className={`
-              w-full
-              py-1.5
-              ${lang === "he" ? "pr-8 pl-3" : "pl-8 pr-3"}
-              text-center
-              text-sm
-              rounded-lg
-              bg-black
-              text-white
-              border
-              border-gray-600
-              placeholder-gray-500
-              focus:outline-none
-              focus:border-gray-400
-              focus:ring-0
-            `}
+            className="w-full py-1.5 pl-8 pr-3 text-center text-sm rounded-lg bg-black text-white border border-gray-600 placeholder-gray-500 focus:outline-none focus:border-gray-400 focus:ring-0"
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
@@ -228,6 +184,35 @@ export default function Home() {
           isLoggedIn={isLoggedIn}
           lang={lang}
         />
+
+        {/* ================= כפתור השפה צף קבוע משמאל ================= */}
+        <div className="absolute bottom-6 left-[125px] z-[400]">
+            <div className="relative pointer-events-auto">
+              <button
+                onClick={() => setIsLangOpen(!isLangOpen)}
+                className="flex items-center justify-center gap-1.5 border border-gray-600 text-yellow-500 px-3 py-2 rounded-full hover:bg-gray-800 transition text-xs font-bold bg-gray-900 shadow-lg"
+              >
+                🌐 {lang === "he" ? "עברית" : "English"}
+              </button>
+
+              {isLangOpen && (
+                <div className="absolute bottom-full mb-2 w-24 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden left-0">
+                  <button
+                    onClick={() => changeLanguage("he")}
+                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "he" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                  >
+                    עברית
+                  </button>
+                  <button
+                    onClick={() => changeLanguage("en")}
+                    className={`px-4 py-2 text-sm text-center hover:bg-gray-800 transition ${lang === "en" ? "text-yellow-500 font-bold bg-gray-800" : "text-gray-300"}`}
+                  >
+                    English
+                  </button>
+                </div>
+              )}
+            </div>
+        </div>
       </div>
 
       <div className="shrink-0 w-full flex justify-center gap-4 sm:gap-6 pt-3 pb-5 sm:pb-3 relative z-40 bg-black safe-area-bottom">
@@ -242,7 +227,7 @@ export default function Home() {
             >
               <img
                 src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+                className="w-10 h-10 sm:w-12 sm:h-12 object-contain transition-transform hover:scale-105"
                 alt={cat.label}
               />
 

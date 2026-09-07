@@ -68,25 +68,28 @@ model VerificationToken {
 }
 
 model Point {
-  id          Int      @id @default(autoincrement())
-  name        String
-  category    String
-  latitude    Float
-  longitude   Float
-  createdAt   DateTime @default(now())
-  description String?
-  address     String?
-  website     String?
-  imageUrl    String?
-  imageUrls   String[] @default([])
-  extraInfo   String?
-  userId      String?
-  linkClicks  Int      @default(0)
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  viewedBy    ViewedPoint[]
-  savedBy     SavedPoint[]
+  id             Int      @id @default(autoincrement())
+  name           String
+  name_en        String?  // 🌟 חדש: שם הגרעין באנגלית
+  category       String
+  latitude       Float
+  longitude      Float
+  createdAt      DateTime @default(now())
+  description    String?
+  description_en String?  // 🌟 חדש: תיאור הגרעין באנגלית
+  address        String?
+  website        String?
+  imageUrl       String?
+  imageUrls      String[] @default([])
+  extraInfo      String?
+  extraInfo_en   String?  // 🌟 חדש: מידע נוסף באנגלית
+  userId         String?
+  linkClicks     Int      @default(0)
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedBy       ViewedPoint[]
+  savedBy        SavedPoint[]
   // 🌟 העמודה החדשה: שומרת את 384 המספרים של ה-AI
-  embedding   Unsupported("vector(384)")?
+  embedding      Unsupported("vector(384)")?
 }
 
 model ViewedPoint {

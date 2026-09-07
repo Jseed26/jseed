@@ -3,7 +3,7 @@ export type PointCategory =
   | "triangle"
   | "star"
   | "leaf"
-  | "hai";
+  | "chai";
 
 export type Point = {
   id: number;
@@ -18,6 +18,9 @@ export type Point = {
   imageUrls?: string[];
   extraInfo: string | null;
   linkClicks: number;
+  name_en?: string | null;
+  description_en?: string | null;
+  extraInfo_en?: string | null;
 
   _count?: {
     viewedBy: number;
