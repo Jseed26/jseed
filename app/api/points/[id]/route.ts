@@ -54,7 +54,6 @@ export async function PUT(req: Request, context: any) {
         const category = (formData.get("category") as string) || "";
         const address = (formData.get("address") as string) || "";
         const website = (formData.get("website") as string) || "";
-        const extraInfo = formData.get("extraInfo") as string | null;
 
         const existing = await prisma.point.findFirst({
             where: {
@@ -127,7 +126,6 @@ export async function PUT(req: Request, context: any) {
                 category,
                 address,
                 website,
-                extraInfo,
                 latitude,
                 longitude,
                 
