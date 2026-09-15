@@ -156,18 +156,19 @@ export default function Map({
     loadSaved();
   }, [isLoggedIn]);
 
-  useEffect(() => {
+useEffect(() => {
     async function search() {
       const params = new URLSearchParams();
-      if (searchQuery.trim()) params.append("q", searchQuery);
+      // אנחנו תמיד נביא את *כל* הנקודות מהשרת כדי שלא נפספס כלום, 
+      // וניתן לסינון המקומי החכם שלנו במפה לעשות את העבודה!
       if (activeCategory) params.append("category", activeCategory);
 
       const res = await fetch(`/api/points?${params.toString()}`);
       const data = await res.json();
-      setPoints(data);
+      setPoints(Array.isArray(data) ? data : []);
     }
     search();
-  }, [searchQuery, activeCategory]);
+  }, [activeCategory]);
 
   useEffect(() => {
     const refresh = async () => {
