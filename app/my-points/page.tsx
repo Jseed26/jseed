@@ -53,6 +53,7 @@ const t = {
     yesDelete: { he: "כן, מחק", en: "Yes, delete" },
     cancel: { he: "ביטול", en: "Cancel" },
     logout: { he: "התנתק", en: "Log Out" },
+    participants: { he: "משתתפים ביוזמה", en: "Initiative Participants" }, // 🌟 התרגום החדש
 };
 
 export default function MyPointsPage() {
@@ -70,6 +71,9 @@ export default function MyPointsPage() {
     const [points, setPoints] = useState<Point[]>([]);
     const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
     const [savedPoints, setSavedPoints] = useState<Point[]>([]);
+    
+    // 🌟 סטייט חדש ששומר את כל יוזמות החי הקיימות במערכת לצורך ספירה
+    const [allChaiPoints, setAllChaiPoints] = useState<Point[]>([]);
     
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
@@ -96,6 +100,10 @@ export default function MyPointsPage() {
 
             const resSaved = await fetch("/api/saved");
             if (resSaved.ok) setSavedPoints(await resSaved.json());
+
+            // 🌟 שואב את כל נקודות החי כדי שנוכל לספור אותן
+            const resChai = await fetch("/api/points?category=chai");
+            if (resChai.ok) setAllChaiPoints(await resChai.json());
         }
         loadData();
     }, [router]);
@@ -188,6 +196,10 @@ export default function MyPointsPage() {
                         const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
                         const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
 
+                        // 🌟 מחשב את המשתתפים (לפחות 1 שזה אתה עצמך, במקרה שזה עתה יצרת ועדיין לא רעננת)
+                        const isChai = p.category === "chai";
+                        const participantsCount = isChai ? Math.max(1, allChaiPoints.filter(cp => cp.name === p.name).length) : 0;
+
                         return (
                         <div key={p.id} className="relative border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg overflow-hidden">
                             <h2 className="font-bold text-xl">{displayName}</h2>
@@ -210,6 +222,13 @@ export default function MyPointsPage() {
                                         {p._count?.savedBy || 0} {t.saves[lang]}
                                     </span>
                                     {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} {t.clicks[lang]}</span>}
+                                    
+                                    {/* 🌟 מוסיף את שורת המשתתפים רק אם זו יוזמה */}
+                                    {isChai && (
+                                        <span className="flex items-center gap-1 text-yellow-500 font-bold">
+                                            🤝 {participantsCount} {t.participants[lang]}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                             

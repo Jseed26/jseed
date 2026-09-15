@@ -139,11 +139,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm">
-              {isLoggedIn && (
-                <span className="text-xs text-gray-300 font-medium hidden sm:block">
-                  Hi, {userFirstName}
-                </span>
-              )}
+          
               <button
                 title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
                 onClick={() => {

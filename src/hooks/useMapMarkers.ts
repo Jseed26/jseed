@@ -54,7 +54,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       loginReq: isHe ? "צריך להתחבר כדי לשמור נקודות" : "Please log in to save seeds",
       waText: isHe ? "תראו איזה Seed מצאתי ב-JSeed! 🌱" : "Check out this Seed I found on JSeed! 🌱",
       expand: isHe ? "הגדל חלונית" : "Expand",
-      collapse: isHe ? "הקטן חלונית" : "Collapse"
+      collapse: isHe ? "הקטן חלונית" : "Collapse",
+      participants: isHe ? "משתתפים" : "Participants" // 🌟 תרגום משתתפים
     };
 
     L.DomEvent.disableClickPropagation(container);
@@ -114,6 +115,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const plantIconSrc = isSaved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
 
+    // 🌟 חישוב משתתפים בזמן אמת ע"י ספירת כל הנקודות במפה שיש להן את אותו שם ואותה קטגוריה!
+    const isChai = point.category === "chai";
+    const participantsCount = isChai ? points.filter(p => p.category === "chai" && p.name === point.name).length : 0;
+
     container.innerHTML = `
       ${headerHtml}
       ${imageHtml}
@@ -128,9 +133,16 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
       
       <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
-        <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
-          ${currentSavedCount} ${t.saves}
-        </span>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
+            ${currentSavedCount} ${t.saves}
+          </span>
+          ${isChai ? `
+          <span style="font-size: 12px; color: #fbbf24; font-weight: bold;">
+            🤝 ${participantsCount} ${t.participants}
+          </span>
+          ` : ''}
+        </div>
         <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; justify-content: center;">
           <img src="${plantIconSrc}" alt="Save" style="width: 28px; height: 28px; object-fit: contain; transition: transform 0.2s;" />
         </button>
