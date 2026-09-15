@@ -257,19 +257,19 @@ export default function Home() {
                     }}
                   />
 
-                  <div className="absolute bottom-[110%] left-1/2 -translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>
-                    <button
-                      onClick={() => {
-                        setActiveCategory("chai");
-                        setCompassMode(true);
-                        setIsChaiMenuOpen(false);
-                        setToast(t.selectPoint[lang]);
-                        setTimeout(() => setToast(null), 2000);
-                      }}
-                      className={`p-3 text-sm font-bold text-yellow-500 border-b border-gray-700 hover:bg-gray-800 transition text-${lang === "he" ? "right" : "left"}`}
-                    >
-                      ➕ {t.addNewInitiative[lang]}
-                    </button>
+                  {/* התפריט עצמו */}
+                  <div className="absolute bottom-[110%] -right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>                    <button
+                    onClick={() => {
+                      setActiveCategory("chai");
+                      setCompassMode(true);
+                      setIsChaiMenuOpen(false);
+                      setToast(t.selectPoint[lang]);
+                      setTimeout(() => setToast(null), 2000);
+                    }}
+                    className={`p-3 text-sm font-bold text-yellow-500 border-b border-gray-700 hover:bg-gray-800 transition text-${lang === "he" ? "right" : "left"}`}
+                  >
+                    ➕ {t.addNewInitiative[lang]}
+                  </button>
 
                     <button
                       onClick={() => {
@@ -336,8 +336,8 @@ export default function Home() {
                 <img
                   src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
                   className={`shrink-0 object-contain transition-transform ${isChai
-                      ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.1] hover:scale-[1.2] origin-bottom" // 🌟 טריק הקסם: זום של 40% שצומח כלפי מעלה!
-                      : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"
+                    ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.1] hover:scale-[1.2] origin-bottom" // 🌟 טריק הקסם: זום של 40% שצומח כלפי מעלה!
+                    : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"
                     }`}
                   alt={cat.label}
                 />
