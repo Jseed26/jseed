@@ -331,10 +331,11 @@ export default function Home() {
               >
                 <img
                   src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                  className={`shrink-0 object-contain transition-transform ${isChai
-                    ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.1] hover:scale-[1.2] origin-bottom" // 🌟 טריק הקסם: זום של 40% שצומח כלפי מעלה!
-                    : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"
-                    }`}
+                  className={`shrink-0 object-contain transition-transform ${
+                    isChai 
+                        ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.1] hover:scale-[1.2] origin-bottom relative right-1.5 sm:right-2" // 🌟 ההזזה המדויקת שמאלה!
+                        : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"         
+                  }`}
                   alt={cat.label}
                 />
 
