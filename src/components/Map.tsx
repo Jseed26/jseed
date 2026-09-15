@@ -45,7 +45,7 @@ export default function Map({
   searchQuery,
   setCompassMode,
   isLoggedIn,
-  lang, // 👈 מקבל את השפה אך ורק מעמוד הבית!
+  lang,
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
@@ -56,8 +56,6 @@ export default function Map({
 
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
-
-  // 🚨 מחקנו את ה-useState ואת ה-useEffect הכפולים של השפה שהיו פה!
 
   const { status } = useSession();
 
@@ -296,7 +294,8 @@ export default function Map({
     activeCategory,
     viewedIds,
     savedIds,
-    lang, // 👈 מעבירים את השפה אל הסמנים!
+    lang,
+    searchQuery, // 🌟 הנה החוליה החסרה! עכשיו הוא מעביר את החיפוש לסמנים
   });
 
   return (
@@ -412,7 +411,6 @@ export default function Map({
             });
           }
         }}
-        // {/* 🌟 שינוי: הוחלף ל-left-[24px] כדי שהמערכת לא תהפוך אותו בטעות */}
         className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
         title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
       >

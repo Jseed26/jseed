@@ -12,9 +12,10 @@ type Props = {
   viewedIds: number[];
   savedIds?: number[];
   lang?: "he" | "en"; 
+  searchQuery?: string; // 🌟 הוספנו את החיפוש לכאן
 };
 
-export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he" }: Props) {
+export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he", searchQuery = "" }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
   const clickedLocallyRef = useRef<Set<number>>(new Set());
@@ -55,7 +56,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       waText: isHe ? "תראו איזה Seed מצאתי ב-JSeed! 🌱" : "Check out this Seed I found on JSeed! 🌱",
       expand: isHe ? "הגדל חלונית" : "Expand",
       collapse: isHe ? "הקטן חלונית" : "Collapse",
-      participants: isHe ? "משתתפים" : "Participants" // 🌟 תרגום משתתפים
+      participants: isHe ? "משתתפים" : "Participants"
     };
 
     L.DomEvent.disableClickPropagation(container);
@@ -115,7 +116,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const plantIconSrc = isSaved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
 
-    // 🌟 חישוב משתתפים בזמן אמת ע"י ספירת כל הנקודות במפה שיש להן את אותו שם ואותה קטגוריה!
     const isChai = point.category === "chai";
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && p.name === point.name).length : 0;
 
@@ -346,9 +346,29 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     layerRef.current.clearLayers();
     markersRef.current = {};
 
-    const filtered = activeCategory
-      ? points.filter((p) => p.category === activeCategory)
-      : points;
+    // 🌟 הוספנו את החיפוש לתוך לוגיקת הסינון!
+    const query = searchQuery.trim().toLowerCase();
+
+    const filtered = points.filter((p) => {
+      // 1. סינון לפי קטגוריה
+      const matchCat = activeCategory ? p.category === activeCategory : true;
+      
+      // 2. סינון לפי שורת חיפוש
+      const nameHe = p.name?.toLowerCase() || "";
+      const nameEn = p.name_en?.toLowerCase() || "";
+      const descHe = p.description?.toLowerCase() || "";
+      const descEn = p.description_en?.toLowerCase() || "";
+      
+      const matchSearch = query === "" ? true : (
+        nameHe.includes(query) || 
+        nameEn.includes(query) || 
+        descHe.includes(query) || 
+        descEn.includes(query)
+      );
+
+      // מחזיר רק נקודות שמתאימות גם לקטגוריה וגם לחיפוש
+      return matchCat && matchSearch;
+    });
 
     filtered.forEach((point) => {
       const isViewed = viewedIds.includes(point.id) || clickedLocallyRef.current.has(point.id);
@@ -430,5 +450,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       map.off("zoomend", handleZoomEnd);
     };
 
-  }, [map, points, activeCategory, viewedIds, savedIds, lang]); 
+  // 🌟 חשוב: הוספנו את searchQuery למערך התלויות כדי שהמפה תתרענן כשהחיפוש משתנה
+  }, [map, points, activeCategory, viewedIds, savedIds, lang, searchQuery]); 
 }
