@@ -28,6 +28,9 @@ const t = {
   legacy: { he: "מורשת", en: "Legacy" },
   business: { he: "עסקים", en: "Business" },
   chai: { he: "יוזמות", en: "Initiatives" },
+  addNewInitiative: { he: "הוסף יוזמה חדשה", en: "Add a new initiative" },
+  allChai: { he: "כל היוזמות", en: "All Initiatives" },
+  noInitiatives: { he: "אין יוזמות כרגע", en: "No initiatives yet" },
 };
 
 export default function Home() {
@@ -55,6 +58,24 @@ export default function Home() {
   const { data: session, status } = useSession();
 
   const isLoggedIn = status === "authenticated";
+
+  // סטייטים לתפריט הנגלל של "חי"
+  const [isChaiMenuOpen, setIsChaiMenuOpen] = useState(false);
+  const [chaiInitiatives, setChaiInitiatives] = useState<string[]>([]);
+
+  // שאיבת היוזמות מהשרת
+  const fetchChaiInitiatives = async () => {
+    try {
+      const res = await fetch("/api/points?category=chai");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const uniqueNames = Array.from(new Set(data.map((p: any) => p.name)));
+        setChaiInitiatives(uniqueNames as string[]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch initiatives", err);
+    }
+  };
 
   const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: t.community[lang] },
@@ -153,7 +174,6 @@ export default function Home() {
           className="relative z-40"
         />
 
-        {/* 🌟 שינוי: ה-dir קבוע ל-ltr כדי שזכוכית המגדלת תמיד תישאר בצד שמאל */}
         <div className="relative w-52 mx-auto z-40" dir="ltr">
           <Search
             size={14}
@@ -162,6 +182,7 @@ export default function Home() {
 
           <input
             type="text"
+            value={searchQuery}
             placeholder={t.search[lang]}
             className="w-full py-1.5 pl-8 pr-3 text-center text-sm rounded-lg bg-black text-white border border-gray-600 placeholder-gray-500 focus:outline-none focus:border-gray-400 focus:ring-0"
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -185,7 +206,7 @@ export default function Home() {
           lang={lang}
         />
 
-        {/* ================= כפתור השפה צף קבוע משמאל ================= */}
+        {/* ================= כפתור השפה ================= */}
         <div className="absolute bottom-6 left-[125px] z-[400]">
           <div className="relative pointer-events-auto">
             <button
@@ -215,26 +236,117 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="shrink-0 w-full flex justify-center gap-4 sm:gap-6 pt-3 pb-5 sm:pb-3 relative z-40 bg-black safe-area-bottom">
+      {/* 🌟 עטפנו את אזור הקטגוריות בשכבת הגנה + הגדרת גודל אחיד! */}
+      <div className="shrink-0 w-full flex justify-center items-start gap-2 sm:gap-4 pt-3 pb-5 sm:pb-3 relative z-[1000] bg-black safe-area-bottom">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
+          const isChai = cat.key === "chai";
 
           return (
-            <button
-              key={cat.key}
-              onClick={() => setActiveCategory(isActive ? null : cat.key)}
-              className="flex flex-col items-center"
-            >
-              <img
-                src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                className="w-10 h-10 sm:w-12 sm:h-12 object-contain transition-transform hover:scale-105"
-                alt={cat.label}
-              />
+            // 🌟 הוספנו רוחב גדול יותר ל"חי" כדי לא למעוך את התמונה!
+            <div key={cat.key} className={`relative flex flex-col items-center ${isChai ? 'w-[75px] sm:w-[90px]' : 'w-[68px] sm:w-[76px]'} shrink-0`}>
 
-              <span className="text-[10px] sm:text-xs mt-1 text-yellow-500">
-                {cat.label}
-              </span>
-            </button>
+              {/* התפריט הנגלל עבור קטגוריית חי (יוזמות) */}
+              {isChai && isChaiMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 w-full h-full z-[1100]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsChaiMenuOpen(false);
+                    }}
+                  />
+
+                  <div className="absolute bottom-[110%] left-1/2 -translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>
+                    <button
+                      onClick={() => {
+                        setActiveCategory("chai");
+                        setCompassMode(true);
+                        setIsChaiMenuOpen(false);
+                        setToast(t.selectPoint[lang]);
+                        setTimeout(() => setToast(null), 2000);
+                      }}
+                      className={`p-3 text-sm font-bold text-yellow-500 border-b border-gray-700 hover:bg-gray-800 transition text-${lang === "he" ? "right" : "left"}`}
+                    >
+                      ➕ {t.addNewInitiative[lang]}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveCategory("chai");
+                        setSearchQuery("");
+                        setIsChaiMenuOpen(false);
+                      }}
+                      className={`p-3 text-sm font-bold text-white border-b border-gray-700 hover:bg-gray-800 transition flex justify-between items-center text-${lang === "he" ? "right" : "left"}`}
+                    >
+                      <span>🌍 {t.allChai[lang]}</span>
+                      {!searchQuery && isActive && <span className="text-yellow-500 text-xs">✓</span>}
+                    </button>
+
+                    <div className="overflow-y-auto custom-scrollbar flex-1">
+                      {chaiInitiatives.map((init, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setActiveCategory("chai");
+                            setSearchQuery(init);
+                            setIsChaiMenuOpen(false);
+                          }}
+                          className={`w-full p-3 text-sm text-gray-300 hover:text-white hover:bg-gray-800 border-b border-gray-800/50 transition truncate flex justify-between items-center text-${lang === "he" ? "right" : "left"}`}
+                        >
+                          <span className="truncate">{init}</span>
+                          {searchQuery === init && <span className="text-yellow-500 text-xs mx-2">✓</span>}
+                        </button>
+                      ))}
+                      {chaiInitiatives.length === 0 && (
+                        <div className="p-4 text-xs text-gray-400 text-center bg-gray-800/30">
+                          {t.noInitiatives[lang]}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 🌟 הלוגיקה החדשה של הכפתורים */}
+              <button
+                onClick={() => {
+                  if (isChai) {
+                    if (isActive) {
+                      if (isChaiMenuOpen) {
+                        setActiveCategory(null);
+                        setSearchQuery("");
+                        setIsChaiMenuOpen(false);
+                      } else {
+                        if (chaiInitiatives.length === 0) fetchChaiInitiatives();
+                        setIsChaiMenuOpen(true);
+                      }
+                    } else {
+                      if (chaiInitiatives.length === 0) fetchChaiInitiatives();
+                      setActiveCategory("chai");
+                      setIsChaiMenuOpen(true);
+                    }
+                  } else {
+                    setActiveCategory(isActive ? null : cat.key);
+                    setIsChaiMenuOpen(false);
+                  }
+                }}
+                className="flex flex-col items-center justify-start w-full relative z-[1300]"
+              >
+                <img
+                  src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
+                  className={`shrink-0 object-contain transition-transform ${isChai
+                      ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.1] hover:scale-[1.2] origin-bottom" // 🌟 טריק הקסם: זום של 40% שצומח כלפי מעלה!
+                      : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"
+                    }`}
+                  alt={cat.label}
+                />
+
+                <span className="text-[10px] sm:text-xs mt-1 text-yellow-500 text-center leading-tight break-words w-full">
+                  {cat.label}
+                </span>
+              </button>
+            </div>
           );
         })}
       </div>

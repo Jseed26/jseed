@@ -28,18 +28,41 @@ const tAuth = {
     sending: { he: "שולח בקשה...", en: "Sending request..." },
     sendReset: { he: "שלח קישור לאיפוס", en: "Send reset link" },
     close: { he: "סגירה", en: "Close" },
-    
-    // Checkboxes
-    box1Before: { he: "אני מאשר/ת שקראתי והבנתי את ", en: "I confirm that I have read and understood the " },
-    box1Link: { he: "תקנון האתר", en: "Terms of Service" },
-    box1After: { he: " ומסכים/ה לתנאיו במלואם.", en: " and fully agree to its conditions." },
-    box2Before: { he: "אני מסכים/ה ל", en: "I agree to the " },
-    box2Link: { he: "מדיניות הפרטיות", en: "Privacy Policy" },
-    box2After: { he: " של האפליקציה.", en: " of the application." },
-    box3Before: { he: "אני מאשר/ת שאני מעל גיל 18.", en: "I confirm that I am over 18 years old." },
-    box4Before: { he: "אני מאשר/ת קבלת עדכונים וחדשות למייל.", en: "I agree to receive updates and news via email." },
-    
-    // Errors & Messages
+
+    // תקנון וכללים חדשים
+    rulesIntro: {
+        he: "הפלטפורמה שלנו מבוססת על חיבור, כבוד ותחושת שייכות. כדי לשמור על ערכים אלו, כל משתמש מתבקש לקרוא ולאשר את כללי הפרסום הבאים לפני העלאת תוכן:",
+        en: "Our platform is built on connection, respect, and a sense of belonging. To maintain these values, every user is requested to read and approve the following publishing guidelines:"
+    },
+    box1Full: {
+        he: "אני מאשר/ת כי ידוע לי שחל איסור לפרסם בפלטפורמה תוכן פוליטי, מפלגתי או תעמולתי.",
+        en: "I confirm that I am aware it is strictly prohibited to publish political, partisan, or propagandist content."
+    },
+    box2Full: {
+        he: "אני מאשר/ת כי לא אפרסם תוכן אנטישמי, גזעני, מסית, מאיים, משפיל, מפלה או פוגעני כלפי אדם או קבוצה.",
+        en: "I confirm that I will not publish antisemitic, racist, inciting, threatening, degrading, discriminatory, or offensive content against any individual or group."
+    },
+    box3Full: {
+        he: "אני מתחייב/ת לשמור על תוכן מכבד ולהימנע מדברי שנאה או תוכן המעודד אלימות.",
+        en: "I commit to maintaining respectful content and avoiding hate speech or content that encourages violence."
+    },
+    box4Full: {
+        he: "אני מאשר/ת כי אני אחראי/ת לתוכן שאעלה לפלטפורמה וכי לא אפרסם תוכן המפר חוק, זכויות יוצרים, פרטיות או זכויות של צד שלישי.",
+        en: "I confirm that I am responsible for the content I upload and that I will not publish content that violates laws, copyrights, privacy, or third-party rights."
+    },
+    box5Full: {
+        he: "אני מאשר/ת כי ידוע לי שמנהלי הפלטפורמה רשאים לבדוק, להסתיר, להגביל או להסיר תוכן שאינו עומד בנהלים או שאינו תואם את מטרות וערכי הפלטפורמה.",
+        en: "I confirm that I am aware platform administrators reserve the right to review, hide, limit, or remove content that does not comply with the guidelines or align with the platform's goals and values."
+    },
+    box6Full: {
+        he: "אני מאשר/ת כי ידוע לי שהפרה של הנהלים, ובפרט הפרות חוזרות או חמורות, עשויה להביא להגבלת אפשרות הפרסום, להשעיית החשבון או לחסימתו.",
+        en: "I confirm that I am aware that violating the guidelines, especially repeated or severe violations, may result in restricted publishing privileges, account suspension, or banning."
+    },
+    box7Before: { he: "אישור סופי: אני מאשר/ת שקראתי והבנתי את הנהלים ואת ", en: "Final Confirmation: I confirm that I have read and understood the guidelines and the " },
+    box7Link: { he: "תקנון האתר", en: "Terms of Service" },
+    box7After: { he: ", ואני מסכים/ה לפעול בהתאם להם.", en: ", and I agree to comply with them." },
+
+    // שגיאות
     errName: { he: "יש להזין שם (לפחות 2 אותיות)", en: "Name must be at least 2 characters" },
     errEmail: { he: "האימייל שהוזן לא תקין", en: "Invalid email address" },
     errPass: { he: "סיסמה חייבת להיות לפחות 6 תווים", en: "Password must be at least 6 characters" },
@@ -77,14 +100,21 @@ export default function AuthPage() {
     const [forgotMessage, setForgotMessage] = useState("");
     const [forgotError, setForgotError] = useState("");
 
+    // 🌟 7 סטייטים לאישורים
     const [agreements, setAgreements] = useState({
         box1: false,
         box2: false,
         box3: false,
         box4: false,
+        box5: false,
+        box6: false,
+        box7: false,
     });
 
-    const isTermsMissing = !(agreements.box1 && agreements.box2 && agreements.box3 && agreements.box4);
+    const isTermsMissing = !(
+        agreements.box1 && agreements.box2 && agreements.box3 &&
+        agreements.box4 && agreements.box5 && agreements.box6 && agreements.box7
+    );
 
     const handleCheckboxChange = (boxId: keyof typeof agreements) => {
         setAgreements((prev) => {
@@ -94,36 +124,22 @@ export default function AuthPage() {
         });
     };
 
-    // מערך דינמי שמקבל את השפה
+    // המערך של תיבות הסימון
     const checkboxesData = [
+        { id: "box1", textBefore: tAuth.box1Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
+        { id: "box2", textBefore: tAuth.box2Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
+        { id: "box3", textBefore: tAuth.box3Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
+        { id: "box4", textBefore: tAuth.box4Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
+        { id: "box5", textBefore: tAuth.box5Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
+        { id: "box6", textBefore: tAuth.box6Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
         {
-            id: "box1",
-            textBefore: tAuth.box1Before[lang],
-            linkText: tAuth.box1Link[lang],
-            textAfter: tAuth.box1After[lang],
-            onClick: () => setShowTermsModal(true)
+            id: "box7",
+            textBefore: tAuth.box7Before[lang],
+            linkText: tAuth.box7Link[lang],
+            textAfter: tAuth.box7After[lang],
+            onClick: () => setShowTermsModal(true),
+            isBold: true // סימון כדי להדגיש את התיבה האחרונה
         },
-        {
-            id: "box2",
-            textBefore: tAuth.box2Before[lang],
-            linkText: tAuth.box2Link[lang],
-            textAfter: tAuth.box2After[lang],
-            onClick: () => alert("כאן נפתח מודאל פרטיות") 
-        },
-        {
-            id: "box3",
-            textBefore: tAuth.box3Before[lang],
-            linkText: "",
-            textAfter: "",
-            onClick: null
-        },
-        {
-            id: "box4",
-            textBefore: tAuth.box4Before[lang],
-            linkText: "",
-            textAfter: "",
-            onClick: null
-        }
     ] as const;
 
     async function handleRegister() {
@@ -156,7 +172,7 @@ export default function AuthPage() {
         if (res.ok) {
             setError(tAuth.successReg[lang]);
             setMode("login");
-            setAgreements({ box1: false, box2: false, box3: false, box4: false }); 
+            setAgreements({ box1: false, box2: false, box3: false, box4: false, box5: false, box6: false, box7: false });
             setPassword("");
         } else {
             const data = await res.json();
@@ -240,11 +256,11 @@ export default function AuthPage() {
                 </svg>
             </button>
 
-            <div className="flex flex-col gap-6 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden">
+            <div className="flex flex-col gap-5 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden">
 
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-yellow-500 opacity-50 blur-[10px]"></div>
 
-                <div className="text-center space-y-2">
+                <div className="text-center space-y-1">
                     <h1 className="text-2xl font-bold tracking-wide">
                         {mode === "login" ? tAuth.welcome[lang] : tAuth.createAccount[lang]}
                     </h1>
@@ -259,13 +275,13 @@ export default function AuthPage() {
                     </div>
                 )}
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                     {mode === "register" && (
                         <input
                             placeholder={tAuth.namePlaceholder[lang]}
                             type="text"
                             value={name}
-                            className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                            className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all text-sm"
                             onChange={(e) => setName(e.target.value)}
                         />
                     )}
@@ -274,7 +290,7 @@ export default function AuthPage() {
                         placeholder={tAuth.emailPlaceholder[lang]}
                         type="email"
                         value={email}
-                        className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                        className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all text-sm"
                         onChange={(e) => setEmail(e.target.value)}
                     />
 
@@ -283,7 +299,7 @@ export default function AuthPage() {
                             placeholder={tAuth.passPlaceholder[lang]}
                             type="password"
                             value={password}
-                            className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                            className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all text-sm"
                             onChange={(e) => setPassword(e.target.value)}
                         />
 
@@ -304,37 +320,48 @@ export default function AuthPage() {
                     </div>
                 </div>
 
-                <div className={`p-4 rounded-xl border flex flex-col gap-4 transition-colors duration-300 ${isTermsMissing
+                {/* 🌟 אזור הנהלים הנגלל (מכיל את הטקסט המקדים ואת 7 התיבות) */}
+                <div className={`p-4 rounded-xl border transition-colors duration-300 ${isTermsMissing
                     ? "border-red-900/50 bg-red-950/20"
                     : "border-green-900/50 bg-green-950/20"
                     }`}>
-                    {checkboxesData.map((box) => (
-                        <div key={box.id} className="flex items-start gap-3">
-                            <input
-                                type="checkbox"
-                                id={box.id}
-                                checked={agreements[box.id as keyof typeof agreements]}
-                                onChange={() => handleCheckboxChange(box.id as keyof typeof agreements)}
-                                className="w-5 h-5 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
-                            />
-                            <label htmlFor={box.id} className="text-sm text-gray-300 cursor-pointer leading-relaxed">
-                                {box.textBefore}
-                                {box.linkText && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            box.onClick?.();
-                                        }}
-                                        className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 mx-1 transition-colors"
-                                    >
-                                        {box.linkText}
-                                    </button>
-                                )}
-                                {box.textAfter}
-                            </label>
-                        </div>
-                    ))}
+
+                    <p className="text-[11px] text-gray-400 leading-relaxed mb-3 text-justify">
+                        {tAuth.rulesIntro[lang]}
+                    </p>
+
+                    <div className="flex flex-col gap-4 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                        {checkboxesData.map((box) => (
+                            <div key={box.id} className="flex items-start gap-3">
+                                <input
+                                    type="checkbox"
+                                    id={box.id}
+                                    checked={agreements[box.id as keyof typeof agreements]}
+                                    onChange={() => handleCheckboxChange(box.id as keyof typeof agreements)}
+                                    className="w-4 h-4 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
+                                />
+                                <label
+                                    htmlFor={box.id}
+                                    className={`text-xs cursor-pointer leading-relaxed ${box.isBold ? "text-white font-bold" : "text-gray-300"}`}
+                                >
+                                    {box.textBefore}
+                                    {box.linkText && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                box.onClick?.();
+                                            }}
+                                            className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 transition-colors mx-1"
+                                        >
+                                            {box.linkText}
+                                        </button>
+                                    )}
+                                    {box.textAfter}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <button
@@ -345,17 +372,17 @@ export default function AuthPage() {
                     {loading ? tAuth.loading[lang] : mode === "login" ? tAuth.loginBtn[lang] : tAuth.registerBtn[lang]}
                 </button>
 
-                <div className="relative flex items-center py-2">
+                <div className="relative flex items-center py-1">
                     <div className="flex-grow border-t border-gray-800"></div>
                     <span className="flex-shrink-0 mx-4 text-gray-600 text-sm">{tAuth.or[lang]}</span>
                     <div className="flex-grow border-t border-gray-800"></div>
                 </div>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2.5">
                     <button
                         onClick={() => handleSocialLogin("github")}
                         disabled={isTermsMissing}
-                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${isTermsMissing
+                        className={`flex items-center justify-center gap-3 border p-2.5 rounded-lg transition-all duration-300 ${isTermsMissing
                             ? "border-gray-800 bg-[#111] text-gray-600 opacity-50 cursor-not-allowed grayscale"
                             : "border-gray-700 bg-[#111] text-white hover:bg-gray-800"
                             }`}
@@ -371,7 +398,7 @@ export default function AuthPage() {
                     <button
                         onClick={() => handleSocialLogin("google")}
                         disabled={isTermsMissing}
-                        className={`flex items-center justify-center gap-3 border p-3 rounded-lg transition-all duration-300 ${isTermsMissing
+                        className={`flex items-center justify-center gap-3 border p-2.5 rounded-lg transition-all duration-300 ${isTermsMissing
                             ? "border-gray-600 bg-gray-300 text-gray-500 opacity-50 cursor-not-allowed grayscale"
                             : "border-gray-300 bg-white text-black hover:bg-gray-100"
                             }`}
@@ -385,7 +412,7 @@ export default function AuthPage() {
                     </button>
                 </div>
 
-                <div className="text-center mt-2">
+                <div className="text-center mt-1">
                     <button
                         onClick={() => {
                             setMode(mode === "login" ? "register" : "login");
@@ -428,7 +455,7 @@ export default function AuthPage() {
                                     placeholder={tAuth.emailPlaceholder[lang]}
                                     type="email"
                                     value={forgotEmail}
-                                    className="p-3 w-full bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
+                                    className="p-3 w-full bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all text-sm"
                                     onChange={(e) => setForgotEmail(e.target.value)}
                                 />
                                 {forgotError && <p className="text-red-500 text-xs px-1">{forgotError}</p>}
