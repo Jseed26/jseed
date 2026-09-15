@@ -1,44 +1,146 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+// מילון תרגומים מלא למסך ההתחברות
+const tAuth = {
+    backToMap: { he: "חזרה למפה", en: "Back to Map" },
+    welcome: { he: "ברוכים השבים", en: "Welcome Back" },
+    createAccount: { he: "יצירת משתמש", en: "Create Account" },
+    loginDesc: { he: "התחברו כדי להמשיך ל-JSeed", en: "Log in to continue to JSeed" },
+    registerDesc: { he: "הצטרפו לקהילת JSeed", en: "Join the JSeed community" },
+    namePlaceholder: { he: "שם מלא / כינוי", en: "Full Name / Nickname" },
+    emailPlaceholder: { he: "אימייל", en: "Email" },
+    passPlaceholder: { he: "סיסמה", en: "Password" },
+    forgotPass: { he: "שכחתי סיסמה", en: "Forgot Password" },
+    loading: { he: "טוען...", en: "Loading..." },
+    loginBtn: { he: "התחברות באמצעות אימייל", en: "Log in with Email" },
+    registerBtn: { he: "הרשמה באמצעות אימייל", en: "Sign up with Email" },
+    or: { he: "או", en: "or" },
+    continueGithub: { he: "המשך עם GitHub", en: "Continue with GitHub" },
+    continueGoogle: { he: "המשך עם Google", en: "Continue with Google" },
+    noAccount: { he: "אין לך חשבון? צור חשבון חדש", en: "Don't have an account? Create one" },
+    haveAccount: { he: "כבר יש לך חשבון? התחבר כאן", en: "Already have an account? Log in here" },
+    resetTitle: { he: "איפוס סיסמה", en: "Reset Password" },
+    resetDesc: { he: "הכנס את כתובת האימייל איתה נרשמת, ואנחנו נשלח לך קישור מאובטח לבחירת סיסמה חדשה.", en: "Enter your registered email address, and we will send you a secure link to choose a new password." },
+    sending: { he: "שולח בקשה...", en: "Sending request..." },
+    sendReset: { he: "שלח קישור לאיפוס", en: "Send reset link" },
+    close: { he: "סגירה", en: "Close" },
+    
+    // Checkboxes
+    box1Before: { he: "אני מאשר/ת שקראתי והבנתי את ", en: "I confirm that I have read and understood the " },
+    box1Link: { he: "תקנון האתר", en: "Terms of Service" },
+    box1After: { he: " ומסכים/ה לתנאיו במלואם.", en: " and fully agree to its conditions." },
+    box2Before: { he: "אני מסכים/ה ל", en: "I agree to the " },
+    box2Link: { he: "מדיניות הפרטיות", en: "Privacy Policy" },
+    box2After: { he: " של האפליקציה.", en: " of the application." },
+    box3Before: { he: "אני מאשר/ת שאני מעל גיל 18.", en: "I confirm that I am over 18 years old." },
+    box4Before: { he: "אני מאשר/ת קבלת עדכונים וחדשות למייל.", en: "I agree to receive updates and news via email." },
+    
+    // Errors & Messages
+    errName: { he: "יש להזין שם (לפחות 2 אותיות)", en: "Name must be at least 2 characters" },
+    errEmail: { he: "האימייל שהוזן לא תקין", en: "Invalid email address" },
+    errPass: { he: "סיסמה חייבת להיות לפחות 6 תווים", en: "Password must be at least 6 characters" },
+    successReg: { he: "נרשמת בהצלחה! עכשיו אפשר להתחבר", en: "Successfully registered! You can now log in" },
+    errUserExists: { he: "כתובת האימייל הזו כבר רשומה במערכת. אנא עבור למסך ההתחברות כדי להיכנס.", en: "This email is already registered. Please go to the login screen to sign in." },
+    errRegDetails: { he: "אירעה שגיאה בהרשמה. אנא נסה שוב מאוחר יותר.", en: "An error occurred during registration. Please try again later." },
+    errLogin: { he: "אימייל או סיסמה לא נכונים", en: "Incorrect email or password" },
+    msgResetSent: { he: "אם האימייל קיים במערכת, נשלח אליו כעת קישור לאיפוס סיסמה.", en: "If the email exists in the system, a password reset link has been sent." },
+    errGen: { he: "אירעה שגיאה. אנא נסה שוב מאוחר יותר.", en: "An error occurred. Please try again later." },
+    errComm: { he: "אירעה שגיאה בתקשורת. אנא נסה שוב.", en: "Communication error. Please try again." },
+};
+
 export default function AuthPage() {
+    const [lang, setLang] = useState<"en" | "he">("he");
+
+    useEffect(() => {
+        const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
+        if (savedLang) setLang(savedLang);
+    }, []);
+
     const [mode, setMode] = useState<"login" | "register">("login");
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [name, setName] = useState("");
 
-    const [termsAccepted, setTermsAccepted] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // 🌟 סטייטים חדשים עבור חלון איפוס הסיסמה
     const [showForgotModal, setShowForgotModal] = useState(false);
     const [forgotEmail, setForgotEmail] = useState("");
     const [forgotLoading, setForgotLoading] = useState(false);
     const [forgotMessage, setForgotMessage] = useState("");
     const [forgotError, setForgotError] = useState("");
 
+    const [agreements, setAgreements] = useState({
+        box1: false,
+        box2: false,
+        box3: false,
+        box4: false,
+    });
+
+    const isTermsMissing = !(agreements.box1 && agreements.box2 && agreements.box3 && agreements.box4);
+
+    const handleCheckboxChange = (boxId: keyof typeof agreements) => {
+        setAgreements((prev) => {
+            const newState = { ...prev, [boxId]: !prev[boxId] };
+            if (Object.values(newState).every(Boolean)) setError(null);
+            return newState;
+        });
+    };
+
+    // מערך דינמי שמקבל את השפה
+    const checkboxesData = [
+        {
+            id: "box1",
+            textBefore: tAuth.box1Before[lang],
+            linkText: tAuth.box1Link[lang],
+            textAfter: tAuth.box1After[lang],
+            onClick: () => setShowTermsModal(true)
+        },
+        {
+            id: "box2",
+            textBefore: tAuth.box2Before[lang],
+            linkText: tAuth.box2Link[lang],
+            textAfter: tAuth.box2After[lang],
+            onClick: () => alert("כאן נפתח מודאל פרטיות") 
+        },
+        {
+            id: "box3",
+            textBefore: tAuth.box3Before[lang],
+            linkText: "",
+            textAfter: "",
+            onClick: null
+        },
+        {
+            id: "box4",
+            textBefore: tAuth.box4Before[lang],
+            linkText: "",
+            textAfter: "",
+            onClick: null
+        }
+    ] as const;
+
     async function handleRegister() {
         setError(null);
 
         if (name.trim().length < 2) {
-            setError("יש להזין שם (לפחות 2 אותיות)");
+            setError(tAuth.errName[lang]);
             return;
         }
 
         if (!isValidEmail(email)) {
-            setError("האימייל שהוזן לא תקין");
+            setError(tAuth.errEmail[lang]);
             return;
         }
 
         if (password.length < 6) {
-            setError("סיסמה חייבת להיות לפחות 6 תווים");
+            setError(tAuth.errPass[lang]);
             return;
         }
 
@@ -52,16 +154,16 @@ export default function AuthPage() {
         setLoading(false);
 
         if (res.ok) {
-            setError("נרשמת בהצלחה! עכשיו אפשר להתחבר");
+            setError(tAuth.successReg[lang]);
             setMode("login");
-            setTermsAccepted(false);
+            setAgreements({ box1: false, box2: false, box3: false, box4: false }); 
             setPassword("");
         } else {
             const data = await res.json();
             if (data.error === "user exists") {
-                setError("כתובת האימייל הזו כבר רשומה במערכת. אנא עבור למסך ההתחברות כדי להיכנס.");
+                setError(tAuth.errUserExists[lang]);
             } else {
-                setError("אירעה שגיאה בהרשמה. אנא נסה שוב מאוחר יותר.");
+                setError(tAuth.errRegDetails[lang]);
             }
         }
     }
@@ -79,7 +181,7 @@ export default function AuthPage() {
         setLoading(false);
 
         if (!res || res.error) {
-            setError("אימייל או סיסמה לא נכונים");
+            setError(tAuth.errLogin[lang]);
             return;
         }
 
@@ -94,52 +196,46 @@ export default function AuthPage() {
         return /\S+@\S+\.\S+/.test(email);
     }
 
-    // 🌟 הפונקציה ששולחת את בקשת שחזור הסיסמה לשרת
     async function handleForgotPassword() {
         setForgotError("");
         setForgotMessage("");
 
         if (!isValidEmail(forgotEmail)) {
-            setForgotError("אנא הזן כתובת אימייל תקינה");
+            setForgotError(tAuth.errEmail[lang]);
             return;
         }
 
         setForgotLoading(true);
         try {
-            // 👇 כאן התיקון! הורדנו את המילה auth מהנתיב
             const res = await fetch("/api/forgot-password", {
                 method: "POST",
                 body: JSON.stringify({ email: forgotEmail })
             });
 
             if (res.ok) {
-                setForgotMessage("אם האימייל קיים במערכת, נשלח אליו כעת קישור לאיפוס סיסמה.");
+                setForgotMessage(tAuth.msgResetSent[lang]);
             } else {
-                setForgotError("אירעה שגיאה. אנא נסה שוב מאוחר יותר.");
+                setForgotError(tAuth.errGen[lang]);
             }
         } catch (err) {
-            setForgotError("אירעה שגיאה בתקשורת. אנא נסה שוב.");
+            setForgotError(tAuth.errComm[lang]);
         } finally {
             setForgotLoading(false);
         }
     }
 
-    const isTermsMissing = !termsAccepted;
-
     const router = useRouter();
 
     return (
+        <div className="min-h-screen flex items-center justify-center bg-black text-white p-4 relative" dir={lang === "he" ? "rtl" : "ltr"}>
 
-        <div className="min-h-screen flex items-center justify-center bg-black text-white p-4 relative" dir="rtl">
-
-            {/* 🌟 הכפתור החדש: בולט, באנגלית, ממוקם למעלה בצד ימין של המסך */}
             <button
                 onClick={() => router.push("/")}
-                className="absolute top-6 right-6 flex items-center gap-2 text-sm font-bold text-gray-300 hover:text-yellow-500 bg-gray-900 border border-gray-700 hover:border-yellow-500 px-5 py-2 rounded-full transition-all z-50 shadow-lg"
+                className={`absolute top-6 ${lang === "he" ? "right-6" : "left-6"} flex items-center gap-2 text-sm font-bold text-gray-300 hover:text-yellow-500 bg-gray-900 border border-gray-700 hover:border-yellow-500 px-5 py-2 rounded-full transition-all z-50 shadow-lg`}
                 dir="ltr"
             >
-                Back to Map
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {lang === "he" ? tAuth.backToMap.he : tAuth.backToMap.en}
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${lang === "en" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
             </button>
@@ -150,10 +246,10 @@ export default function AuthPage() {
 
                 <div className="text-center space-y-2">
                     <h1 className="text-2xl font-bold tracking-wide">
-                        {mode === "login" ? "ברוכים השבים" : "יצירת משתמש"}
+                        {mode === "login" ? tAuth.welcome[lang] : tAuth.createAccount[lang]}
                     </h1>
                     <p className="text-sm text-gray-500">
-                        {mode === "login" ? "התחברו כדי להמשיך ל-JSeed" : "הצטרפו לקהילת JSeed"}
+                        {mode === "login" ? tAuth.loginDesc[lang] : tAuth.registerDesc[lang]}
                     </p>
                 </div>
 
@@ -166,7 +262,7 @@ export default function AuthPage() {
                 <div className="flex flex-col gap-4">
                     {mode === "register" && (
                         <input
-                            placeholder="שם מלא / כינוי"
+                            placeholder={tAuth.namePlaceholder[lang]}
                             type="text"
                             value={name}
                             className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
@@ -175,7 +271,7 @@ export default function AuthPage() {
                     )}
 
                     <input
-                        placeholder="אימייל"
+                        placeholder={tAuth.emailPlaceholder[lang]}
                         type="email"
                         value={email}
                         className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
@@ -184,61 +280,61 @@ export default function AuthPage() {
 
                     <div className="flex flex-col gap-1.5">
                         <input
-                            placeholder="סיסמה"
+                            placeholder={tAuth.passPlaceholder[lang]}
                             type="password"
                             value={password}
                             className="p-3 w-full bg-[#111] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
                             onChange={(e) => setPassword(e.target.value)}
                         />
 
-                        {/* 🌟 קישור שכחתי סיסמה (מופיע רק במצב התחברות) */}
                         {mode === "login" && (
                             <div className="flex justify-start px-1">
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        setForgotEmail(email); // מעתיק את האימייל אם הוא כבר הקליד
+                                        setForgotEmail(email);
                                         setShowForgotModal(true);
                                     }}
                                     className="text-xs text-yellow-500 hover:text-yellow-400 transition"
                                 >
-                                    שכחתי סיסמה
+                                    {tAuth.forgotPass[lang]}
                                 </button>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className={`p-4 rounded-xl border transition-colors duration-300 ${isTermsMissing
+                <div className={`p-4 rounded-xl border flex flex-col gap-4 transition-colors duration-300 ${isTermsMissing
                     ? "border-red-900/50 bg-red-950/20"
                     : "border-green-900/50 bg-green-950/20"
                     }`}>
-                    <div className="flex items-start gap-3">
-                        <input
-                            type="checkbox"
-                            id="terms"
-                            checked={termsAccepted}
-                            onChange={(e) => {
-                                setTermsAccepted(e.target.checked);
-                                if (e.target.checked) setError(null);
-                            }}
-                            className="w-5 h-5 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
-                        />
-                        <label htmlFor="terms" className="text-sm text-gray-300 cursor-pointer leading-relaxed">
-                            אני מאשר/ת שקראתי והבנתי את
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    setShowTermsModal(true);
-                                }}
-                                className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 mx-1 transition-colors"
-                            >
-                                תקנון האתר
-                            </button>
-                            ומסכים/ה לתנאיו במלואם.
-                        </label>
-                    </div>
+                    {checkboxesData.map((box) => (
+                        <div key={box.id} className="flex items-start gap-3">
+                            <input
+                                type="checkbox"
+                                id={box.id}
+                                checked={agreements[box.id as keyof typeof agreements]}
+                                onChange={() => handleCheckboxChange(box.id as keyof typeof agreements)}
+                                className="w-5 h-5 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
+                            />
+                            <label htmlFor={box.id} className="text-sm text-gray-300 cursor-pointer leading-relaxed">
+                                {box.textBefore}
+                                {box.linkText && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            box.onClick?.();
+                                        }}
+                                        className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 mx-1 transition-colors"
+                                    >
+                                        {box.linkText}
+                                    </button>
+                                )}
+                                {box.textAfter}
+                            </label>
+                        </div>
+                    ))}
                 </div>
 
                 <button
@@ -246,12 +342,12 @@ export default function AuthPage() {
                     disabled={loading || isTermsMissing}
                     className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold p-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_10px_rgba(255,215,0,0.2)]"
                 >
-                    {loading ? "טוען..." : mode === "login" ? "התחברות באמצעות אימייל" : "הרשמה באמצעות אימייל"}
+                    {loading ? tAuth.loading[lang] : mode === "login" ? tAuth.loginBtn[lang] : tAuth.registerBtn[lang]}
                 </button>
 
                 <div className="relative flex items-center py-2">
                     <div className="flex-grow border-t border-gray-800"></div>
-                    <span className="flex-shrink-0 mx-4 text-gray-600 text-sm">או</span>
+                    <span className="flex-shrink-0 mx-4 text-gray-600 text-sm">{tAuth.or[lang]}</span>
                     <div className="flex-grow border-t border-gray-800"></div>
                 </div>
 
@@ -269,7 +365,7 @@ export default function AuthPage() {
                             className={`w-5 h-5 ${isTermsMissing ? "opacity-50" : "invert"}`}
                             alt="GitHub"
                         />
-                        <span className="text-sm">המשך עם GitHub</span>
+                        <span className="text-sm">{tAuth.continueGithub[lang]}</span>
                     </button>
 
                     <button
@@ -285,7 +381,7 @@ export default function AuthPage() {
                             className={`w-5 h-5 ${isTermsMissing ? "opacity-50 grayscale" : ""}`}
                             alt="Google"
                         />
-                        <span className="text-sm font-medium">המשך עם Google</span>
+                        <span className="text-sm font-medium">{tAuth.continueGoogle[lang]}</span>
                     </button>
                 </div>
 
@@ -297,12 +393,12 @@ export default function AuthPage() {
                         }}
                         className="text-sm text-gray-400 hover:text-white transition-colors"
                     >
-                        {mode === "login" ? "אין לך חשבון? צור חשבון חדש" : "כבר יש לך חשבון? התחבר כאן"}
+                        {mode === "login" ? tAuth.noAccount[lang] : tAuth.haveAccount[lang]}
                     </button>
                 </div>
             </div>
 
-            {/* 🌟 חלון מודאל: שכחתי סיסמה */}
+            {/* חלון מודאל: שכחתי סיסמה */}
             {showForgotModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
                     <div className="bg-[#111] border border-gray-800 p-8 rounded-2xl w-full max-w-sm shadow-2xl relative">
@@ -312,14 +408,14 @@ export default function AuthPage() {
                                 setForgotMessage("");
                                 setForgotError("");
                             }}
-                            className="absolute top-4 right-4 text-gray-500 hover:text-white text-xl"
+                            className={`absolute top-4 ${lang === "he" ? "left-4" : "right-4"} text-gray-500 hover:text-white text-xl`}
                         >
                             ✕
                         </button>
 
-                        <h2 className="text-2xl font-bold text-yellow-500 mb-2">איפוס סיסמה</h2>
+                        <h2 className="text-2xl font-bold text-yellow-500 mb-2">{tAuth.resetTitle[lang]}</h2>
                         <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-                            הכנס את כתובת האימייל איתה נרשמת, ואנחנו נשלח לך קישור מאובטח לבחירת סיסמה חדשה.
+                            {tAuth.resetDesc[lang]}
                         </p>
 
                         {forgotMessage ? (
@@ -329,7 +425,7 @@ export default function AuthPage() {
                         ) : (
                             <div className="flex flex-col gap-4">
                                 <input
-                                    placeholder="אימייל"
+                                    placeholder={tAuth.emailPlaceholder[lang]}
                                     type="email"
                                     value={forgotEmail}
                                     className="p-3 w-full bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all"
@@ -342,7 +438,7 @@ export default function AuthPage() {
                                     disabled={forgotLoading}
                                     className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold p-3 rounded-lg disabled:opacity-50 transition-all shadow-md mt-2"
                                 >
-                                    {forgotLoading ? "שולח בקשה..." : "שלח קישור לאיפוס"}
+                                    {forgotLoading ? tAuth.sending[lang] : tAuth.sendReset[lang]}
                                 </button>
                             </div>
                         )}
@@ -350,11 +446,10 @@ export default function AuthPage() {
                 </div>
             )}
 
-            {/* מודאל תקנון דו-לשוני עברית ואנגלית */}
+            {/* מודאל תקנון */}
             {showTermsModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
                     <div className="bg-[#111] border border-gray-800 p-6 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
-                        {/* השארתי את תוכן התקנון כרגיל... */}
                         <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2 shrink-0">
                             <h2 className="text-xl font-bold text-yellow-500">תקנון האתר / Terms of Service</h2>
                         </div>
@@ -369,7 +464,7 @@ export default function AuthPage() {
                             onClick={() => setShowTermsModal(false)}
                             className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium p-3 rounded-lg transition-colors mt-auto shrink-0"
                         >
-                            סגירה
+                            {tAuth.close[lang]}
                         </button>
                     </div>
                 </div>

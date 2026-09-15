@@ -27,7 +27,7 @@ const t = {
   spirit: { he: "רוח", en: "Spirit" },
   legacy: { he: "מורשת", en: "Legacy" },
   business: { he: "עסקים", en: "Business" },
-  chai: { he: "חי", en: "Chai" },
+  chai: { he: "יוזמות", en: "Initiatives" },
 };
 
 export default function Home() {

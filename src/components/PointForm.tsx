@@ -30,7 +30,7 @@ const CATEGORIES = [
     { key: "star", label: { he: "רוח", en: "Spirit" } },
     { key: "triangle", label: { he: "מורשת", en: "Legacy" } },
     { key: "circle", label: { he: "עסקים", en: "Business" } },
-    { key: "chai", label: { he: "חי", en: "Chai" } },
+    { key: "chai", label: { he: "יוזמות", en: "Initiatives" } },
 ];
 
 const tForm = {
