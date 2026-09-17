@@ -12,7 +12,7 @@ type Props = {
   viewedIds: number[];
   savedIds?: number[];
   lang?: "he" | "en"; 
-  searchQuery?: string; // 🌟 הוספנו את החיפוש לכאן
+  searchQuery?: string;
 };
 
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he", searchQuery = "" }: Props) {
@@ -346,28 +346,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     layerRef.current.clearLayers();
     markersRef.current = {};
 
-    // 🌟 הוספנו את החיפוש לתוך לוגיקת הסינון!
-    const query = searchQuery.trim().toLowerCase();
-
+    // 🌟 הנה השינוי הגדול: השרת כבר סינן לפי מילים, אז אנחנו מסננים פה *רק* לפי קטגוריה!
     const filtered = points.filter((p) => {
-      // 1. סינון לפי קטגוריה
-      const matchCat = activeCategory ? p.category === activeCategory : true;
-      
-      // 2. סינון לפי שורת חיפוש
-      const nameHe = p.name?.toLowerCase() || "";
-      const nameEn = p.name_en?.toLowerCase() || "";
-      const descHe = p.description?.toLowerCase() || "";
-      const descEn = p.description_en?.toLowerCase() || "";
-      
-      const matchSearch = query === "" ? true : (
-        nameHe.includes(query) || 
-        nameEn.includes(query) || 
-        descHe.includes(query) || 
-        descEn.includes(query)
-      );
-
-      // מחזיר רק נקודות שמתאימות גם לקטגוריה וגם לחיפוש
-      return matchCat && matchSearch;
+      return activeCategory ? p.category === activeCategory : true;
     });
 
     filtered.forEach((point) => {
@@ -450,6 +431,5 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       map.off("zoomend", handleZoomEnd);
     };
 
-  // 🌟 חשוב: הוספנו את searchQuery למערך התלויות כדי שהמפה תתרענן כשהחיפוש משתנה
   }, [map, points, activeCategory, viewedIds, savedIds, lang, searchQuery]); 
 }

@@ -159,8 +159,8 @@ export default function Map({
 useEffect(() => {
     async function search() {
       const params = new URLSearchParams();
-      // אנחנו תמיד נביא את *כל* הנקודות מהשרת כדי שלא נפספס כלום, 
-      // וניתן לסינון המקומי החכם שלנו במפה לעשות את העבודה!
+      // 🌟 החזרנו את שורת החיפוש! עכשיו הטקסט נשלח למנוע ה-AI בשרת
+      if (searchQuery.trim()) params.append("q", searchQuery);
       if (activeCategory) params.append("category", activeCategory);
 
       const res = await fetch(`/api/points?${params.toString()}`);
@@ -168,7 +168,7 @@ useEffect(() => {
       setPoints(Array.isArray(data) ? data : []);
     }
     search();
-  }, [activeCategory]);
+  }, [searchQuery, activeCategory]); // 🌟 הוספנו את searchQuery לכאן כדי שיחפש בכל הקלדה
 
   useEffect(() => {
     const refresh = async () => {

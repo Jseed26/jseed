@@ -56,23 +56,29 @@ const BILINGUAL_DICT: Record<string, string[]> = {
   "תורה": ["תורה", "שיעור", "torah"],
   "אומנות": ["אומנות", "גלריה", "art", "gallery", "גלריות"],
   "אירוע": ["אירוע", "מפגש", "event", "gathering", "אירועים"],
-  "אירועים": ["אירוע", "מפגש", "event", "gathering", "אירועים"],
+  "אירועים": ["אירוע", "מפפגש", "event", "gathering", "אירועים"],
   "חב\"ד": ["חב\"ד", "חבד", "כשר", "אוכל", "תפילה", "שבת", "chabad", "kosher", "restaurant", "בית כנסת"],
   "חבד": ["חב\"ד", "חבד", "כשר", "אוכל", "תפילה", "שבת", "chabad", "kosher", "restaurant", "בית כנסת"],
   "מקווה": ["מקווה", "טהרה", "mikvah", "mikveh"],
   "טהרה": ["מקווה", "טהרה", "mikvah", "mikveh"],
   "שבת": ["שבת", "קידוש", "אירוח", "חב\"ד", "חבד", "קהילה", "shabbat", "shabbos"],
   "קבר": ["קבר", "צדיק", "רב", "מורשת", "בית עלמין", "tzadik", "grave", "cemetery"],
-  "צדיק": ["קבר", "צדיק", "רב", "מורשת", "בית עלמין", "tzadik", "grave"]
+  "צדיק": ["קבר", "צדיק", "רב", "מורשת", "בית עלמין", "tzadik", "grave"],
+  
+  // 🌟 משפחת הזיכרון נוספה! עכשיו "זכר" יוביל ל"לזכרם" ב-100% ודאות!
+  "זיכרון": ["זכר", "לזכרם", "נזכור", "נר", "memory", "remember", "הנצחה"],
+  "זכרון": ["זכר", "לזכרם", "נזכור", "נר", "memory", "remember", "הנצחה"],
+  "זכר": ["זכר", "לזכרם", "נזכור", "נר", "memory", "remember", "הנצחה"],
+  "הנצחה": ["זכר", "לזכרם", "נזכור", "נר", "memory", "remember", "זיכרון"],
+  "memory": ["זכר", "לזכרם", "נזכור", "נר", "זיכרון", "זכרון", "remember", "הנצחה"],
+  "remember": ["זכר", "לזכרם", "נזכור", "נר", "זיכרון", "זכרון", "memory", "הנצחה"]
 };
 
-// 🌟 פונקציה חדשה: מנקה כל סוג של מרכאות, פסיקים וצ'ופצ'יקים כדי לעשות השוואה חלקה!
 export function cleanTextForMatching(text: string): string {
   if (!text) return "";
   return text.toLowerCase().replace(/["'״׳`]/g, "");
 }
 
-// 🌟 פונקציה חדשה: מחזירה מערך של מושגים שלמים (ולא חותכת אותם למילים!)
 export function getDictionaryConcepts(query: string): string[] {
   let normalizedQuery = query.toLowerCase();
   for (const [bad, good] of Object.entries(TYPOS_DICT)) {
@@ -81,14 +87,12 @@ export function getDictionaryConcepts(query: string): string[] {
 
   let concepts: string[] = [];
 
-  // 1. קודם בודקים אם יש התאמה לביטוי המלא
   for (const [key, values] of Object.entries(BILINGUAL_DICT)) {
     if (normalizedQuery.includes(key)) {
         concepts.push(...values);
     }
   }
 
-  // 2. מוסיפים גם וריאציות של מילים בודדות
   const words = normalizedQuery.split(/\s+/);
   words.forEach(word => {
     if (BILINGUAL_DICT[word]) concepts.push(...BILINGUAL_DICT[word]);
@@ -99,6 +103,5 @@ export function getDictionaryConcepts(query: string): string[] {
     }
   });
 
-  // מחזירים רשימה נקייה לחלוטין מגרשיים
   return Array.from(new Set(concepts)).map(cleanTextForMatching);
 }

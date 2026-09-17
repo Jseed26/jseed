@@ -1,109 +1,107 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import AIEngine from "@/src/lib/ai"; 
-import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
 import translate from "google-translate-api-x"; 
+import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 
-function containsConcept(text: string, concept: string) {
-    if (!concept || concept.length < 2) return false;
-    const escaped = concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|[\\s,.\\-!?])([בלוהמכש]{0,3})${escaped}([\\s,.\\-!?]|$)`, 'i');
-    return regex.test(text);
-}
+// 🌟 קילר לקאש! מכריח את Next.js לחפש באמת ולא להחזיר תשובות מהעבר
+export const dynamic = 'force-dynamic'; 
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const qRaw = searchParams.get("q")?.trim();
+  const qRaw = searchParams.get("q")?.trim() || "";
   const category = searchParams.get("category");
 
   try {
     if (!qRaw) {
       const results = await prisma.point.findMany({
         where: { ...(category ? { category } : {}) },
-        include: { _count: { select: { savedBy: true } } },
+        include: { _count: { select: { savedBy: true, viewedBy: true } } },
         orderBy: { createdAt: "desc" },
       });
-      return Response.json(results);
-    }
-
-    const cleanUserQuery = cleanTextForMatching(qRaw);
-    const bonusConcepts = getDictionaryConcepts(qRaw);
-
-    let aiQuery = qRaw.toLowerCase();
-    const typos: Record<string, string> = { "כנסט": "כנסת", "כנסות": "כנסת", "מקוה": "מקווה", "חבד": "חב\"ד", "ביט": "בית" };
-    for (const [bad, good] of Object.entries(typos)) {
-        aiQuery = aiQuery.replace(new RegExp(bad, 'g'), good);
+      return NextResponse.json(results);
     }
 
     const extractor = await AIEngine.getInstance();
-    const output = await extractor(aiQuery, { pooling: 'mean', normalize: true });
+    const output = await extractor(qRaw.toLowerCase(), { pooling: 'mean', normalize: true });
     const queryEmbeddingArray = Array.from(output.data);
     const embeddingString = `[${queryEmbeddingArray.join(',')}]`;
 
-    let searchResults = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
-        id, name, name_en, description, description_en, category, address, website, latitude, longitude, "imageUrl", "imageUrls", "createdAt",
-        1 - (embedding <=> $1::vector) AS score
+    const rawPoints = await prisma.$queryRawUnsafe<{ id: number, score: number }[]>(`
+      SELECT id, 
+             CASE WHEN embedding IS NULL THEN 0 ELSE 1 - (embedding <=> $1::vector) END AS score
       FROM "Point"
-      WHERE embedding IS NOT NULL
+      WHERE 1=1
       ${category ? `AND category = '${category}'` : ""}
-      ORDER BY embedding <=> $1::vector
-      LIMIT 100; 
     `, embeddingString);
 
-    searchResults = searchResults.map(point => {
+    if (rawPoints.length === 0) {
+        return NextResponse.json([]);
+    }
+
+    const pointIds = rawPoints.map(p => p.id);
+    const fullPoints = await prisma.point.findMany({
+        where: { id: { in: pointIds } },
+        include: { _count: { select: { savedBy: true, viewedBy: true } } }
+    });
+
+    const cleanUserQuery = cleanTextForMatching(qRaw);
+    let dictionaryConcepts = getDictionaryConcepts(qRaw);
+
+    // 🌟 חגורת בטיחות למילון: אם חיפשו זיכרון, אנחנו דוחפים את הכל בכוח לרשימה!
+    if (qRaw.includes("זכר") || qRaw.includes("זיכרו") || qRaw === "remember" || qRaw === "memory") {
+        dictionaryConcepts.push("זכר", "לזכרם", "נר", "נזכור");
+    }
+
+    // אוספים את כל המילים שצריך לחפש (המילה המקורית + המילון)
+    const allTermsToSearch = Array.from(new Set([cleanUserQuery, ...dictionaryConcepts]));
+
+    const searchResults = fullPoints.map(point => {
+        let aiScore = rawPoints.find(rp => rp.id === point.id)?.score || 0;
         const rawText = `${point.name} ${point.description || ""} ${point.category}`;
         const cleanPointText = cleanTextForMatching(rawText);
 
-        let textBoost = 0;
-        let foundSynonym = false;
+        let isTextMatch = false;
 
-        if (containsConcept(cleanPointText, cleanUserQuery)) {
-            textBoost += 0.15; 
-        }
-
-        bonusConcepts.forEach(concept => {
-            if (concept.length > 2 && concept !== cleanUserQuery) {
-                if (containsConcept(cleanPointText, concept)) {
-                    foundSynonym = true;
-                    textBoost += 0.20; 
+        // עוברים מילה מילה ובודקים אם היא בתוך הטקסט של הנקודה
+        for (const term of allTermsToSearch) {
+            if (term && term.length > 1) {
+                if (cleanPointText.includes(term)) {
+                    isTextMatch = true;
+                    break;
                 }
             }
-        });
-
-        if (foundSynonym) {
-            textBoost += 0.25; 
         }
 
-        return { ...point, score: point.score + textBoost };
+        // אם יש התאמה במילים, זה מקבל 100 ומנצח. אם לא, ה-AI קובע.
+        const finalScore = isTextMatch ? 100 : aiScore;
+
+        return { ...point, totalScore: finalScore };
     });
 
+    // מחזירים למפה כל מה שקיבל 100 מילולי, או מעל 0.55 ב-AI
     const finalResults = searchResults
-        .filter(p => p.score >= 0.65) 
-        .sort((a, b) => b.score - a.score)
-        .map(p => {
-            const { score, ...pointData } = p;
-            return pointData;
-        });
+        .filter(p => p.totalScore >= 0.55) 
+        .sort((a, b) => b.totalScore - a.totalScore)
+        .map(({ totalScore, ...pointData }) => pointData);
     
-    return Response.json(finalResults);
+    return NextResponse.json(finalResults);
 
   } catch (error) {
     console.error("GET Points Error:", error);
-    return Response.json([]);
+    return NextResponse.json([]);
   }
 }
-
-
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const session = await auth();
-    if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
@@ -113,14 +111,10 @@ export async function POST(req: Request) {
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
 
-    // =========================================
-    // 🌟 תרגום חכם דו-כיווני! (מזהה שפה אוטומטית)
-    // =========================================
     let final_name_he = name;
     let final_name_en = name;
     let final_desc_he = description;
     let final_desc_en = description;
-
 
     try {
       if (name) {
@@ -138,12 +132,9 @@ export async function POST(req: Request) {
           final_desc_he = (await translate(description, { to: 'he' })).text;
         }
       }
-
-    
     } catch (translateError) {
       console.error("Translation API limit/error, skipping translation:", translateError);
     }
-    // =========================================
 
     const files = formData.getAll("images") as File[];
     let imageUrls: string[] = [];
@@ -201,7 +192,7 @@ export async function POST(req: Request) {
     });
 
     try {
-      const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category} || ""} ${newPoint.address || ""}`;
+      const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category || ""} ${newPoint.address || ""}`;
       const extractor = await AIEngine.getInstance();
       const output = await extractor(textToAnalyze, { pooling: 'mean', normalize: true });
       const embeddingArray = Array.from(output.data);
@@ -215,9 +206,9 @@ export async function POST(req: Request) {
       console.error("AI Embedding Error:", aiError);
     }
 
-    return Response.json(newPoint);
+    return NextResponse.json(newPoint);
   } catch (error) {
     console.error(error);
-    return Response.json({ error: "Failed to create point" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create point" }, { status: 500 });
   }
 }
