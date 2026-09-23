@@ -33,6 +33,12 @@ const t = {
   noInitiatives: { he: "אין יוזמות כרגע", en: "No initiatives yet" },
 };
 
+// 🌟 הגדרנו טיפוס חדש כדי לשמור גם את השם וגם את כמות המשתתפים!
+type InitiativeWithCount = {
+  name: string;
+  count: number;
+};
+
 export default function Home() {
   const [lang, setLang] = useState<"en" | "he">("he");
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -61,16 +67,31 @@ export default function Home() {
 
   // סטייטים לתפריט הנגלל של "חי"
   const [isChaiMenuOpen, setIsChaiMenuOpen] = useState(false);
-  const [chaiInitiatives, setChaiInitiatives] = useState<string[]>([]);
 
-  // שאיבת היוזמות מהשרת
+  // 🌟 מעכשיו שומרים פה אובייקטים עם כמות, ולא רק מחרוזות טיפשות
+  const [chaiInitiatives, setChaiInitiatives] = useState<InitiativeWithCount[]>([]);
+
+  // 🌟 הלוגיקה החדשה של הספירה!
   const fetchChaiInitiatives = async () => {
     try {
       const res = await fetch("/api/points?category=chai");
       const data = await res.json();
       if (Array.isArray(data)) {
-        const uniqueNames = Array.from(new Set(data.map((p: any) => p.name)));
-        setChaiInitiatives(uniqueNames as string[]);
+        // סופרים כמה פעמים כל יוזמה מופיעה
+        const counts: Record<string, number> = {};
+        data.forEach((p: any) => {
+          if (p.name) {
+            counts[p.name] = (counts[p.name] || 0) + 1;
+          }
+        });
+
+        // ממירים למערך של אובייקטים
+        const mappedInitiatives = Object.keys(counts).map(name => ({
+          name,
+          count: counts[name]
+        }));
+
+        setChaiInitiatives(mappedInitiatives);
       }
     } catch (err) {
       console.error("Failed to fetch initiatives", err);
@@ -79,10 +100,11 @@ export default function Home() {
 
   const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: t.community[lang] },
-    { key: "star", label: t.spirit[lang] },
     { key: "triangle", label: t.legacy[lang] },
-    { key: "circle", label: t.business[lang] },
     { key: "chai", label: t.chai[lang] },
+    { key: "star", label: t.spirit[lang] },
+    { key: "circle", label: t.business[lang] },
+
   ];
 
   const userFirstName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "User";
@@ -139,7 +161,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm">
-          
+
               <button
                 title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
                 onClick={() => {
@@ -232,15 +254,16 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 🌟 עטפנו את אזור הקטגוריות בשכבת הגנה + הגדרת גודל אחיד! */}
-      <div className="shrink-0 w-full flex justify-center items-start gap-2 sm:gap-4 pt-3 pb-5 sm:pb-3 relative z-[1000] bg-black safe-area-bottom">
+      {/* 🌟 שינינו את הקונטיינר: הוספנו justify-between כדי שהם יתפרסו שווה, הוספנו px-4 לשוליים, וגלילה נסתרת למסכים ממש קטנים */}
+      <div className="shrink-0 w-full flex justify-between sm:justify-center items-start px-4 sm:px-0 gap-2 sm:gap-8 pt-3 pb-5 sm:pb-3 relative z-[1000] bg-black safe-area-bottom overflow-x-auto [&::-webkit-scrollbar]:hidden">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
           const isChai = cat.key === "chai";
 
           return (
-            // 🌟 הוספנו רוחב גדול יותר ל"חי" כדי לא למעוך את התמונה!
-            <div key={cat.key} className={`relative flex flex-col items-center ${isChai ? 'w-[75px] sm:w-[90px]' : 'w-[68px] sm:w-[76px]'} shrink-0`}>
+            // 🌟 כאן הסוד לרווחים השווים: כל הקופסאות באותו רוחב בדיוק (w-[64px])! 
+            // ה-scale יגדיל את התמונה של חי רק ויזואלית בלי לפגוע ברווחים.
+            <div key={cat.key} className="relative flex flex-col items-center w-[64px] sm:w-[76px] shrink-0">
 
               {/* התפריט הנגלל עבור קטגוריית חי (יוזמות) */}
               {isChai && isChaiMenuOpen && (
@@ -254,18 +277,19 @@ export default function Home() {
                   />
 
                   {/* התפריט עצמו */}
-                  <div className="absolute bottom-[110%] -right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>                    <button
-                    onClick={() => {
-                      setActiveCategory("chai");
-                      setCompassMode(true);
-                      setIsChaiMenuOpen(false);
-                      setToast(t.selectPoint[lang]);
-                      setTimeout(() => setToast(null), 2000);
-                    }}
-                    className={`p-3 text-sm font-bold text-yellow-500 border-b border-gray-700 hover:bg-gray-800 transition text-${lang === "he" ? "right" : "left"}`}
-                  >
-                    ➕ {t.addNewInitiative[lang]}
-                  </button>
+                  <div className="absolute bottom-[110%] -right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>                    
+                    <button
+                      onClick={() => {
+                        setActiveCategory("chai");
+                        setCompassMode(true);
+                        setIsChaiMenuOpen(false);
+                        setToast(t.selectPoint[lang]);
+                        setTimeout(() => setToast(null), 2000);
+                      }}
+                      className={`p-3 text-sm font-bold text-yellow-500 border-b border-gray-700 hover:bg-gray-800 transition text-${lang === "he" ? "right" : "left"}`}
+                    >
+                      ➕ {t.addNewInitiative[lang]}
+                    </button>
 
                     <button
                       onClick={() => {
@@ -285,13 +309,18 @@ export default function Home() {
                           key={idx}
                           onClick={() => {
                             setActiveCategory("chai");
-                            setSearchQuery(init);
+                            setSearchQuery(init.name);
                             setIsChaiMenuOpen(false);
                           }}
-                          className={`w-full p-3 text-sm text-gray-300 hover:text-white hover:bg-gray-800 border-b border-gray-800/50 transition truncate flex justify-between items-center text-${lang === "he" ? "right" : "left"}`}
+                          className={`w-full p-3 text-sm text-gray-300 hover:text-white hover:bg-gray-800 border-b border-gray-800/50 transition flex justify-between items-center text-${lang === "he" ? "right" : "left"}`}
                         >
-                          <span className="truncate">{init}</span>
-                          {searchQuery === init && <span className="text-yellow-500 text-xs mx-2">✓</span>}
+                          <div className="flex items-center gap-2 overflow-hidden w-full">
+                            <span className="truncate">{init.name}</span>
+                            <span className="text-[10px] font-bold text-gray-300 bg-gray-800 px-2 py-0.5 rounded-full shrink-0">
+                              {init.count}
+                            </span>
+                          </div>
+                          {searchQuery === init.name && <span className="text-yellow-500 text-xs mx-2 shrink-0">✓</span>}
                         </button>
                       ))}
                       {chaiInitiatives.length === 0 && (
@@ -304,7 +333,6 @@ export default function Home() {
                 </>
               )}
 
-              {/* 🌟 הלוגיקה החדשה של הכפתורים */}
               <button
                 onClick={() => {
                   if (isChai) {
@@ -329,12 +357,13 @@ export default function Home() {
                 }}
                 className="flex flex-col items-center justify-start w-full relative z-[1300]"
               >
+                {/* 🌟 מחקנו את ה- relative right-1.5 שעשה את ההזזה העקומה הצידה! */}
                 <img
                   src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
                   className={`shrink-0 object-contain transition-transform ${
                     isChai 
-                        ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.1] hover:scale-[1.2] origin-bottom relative right-1.5 sm:right-2" // 🌟 ההזזה המדויקת שמאלה!
-                        : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"         
+                        ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.2] hover:scale-[1.3] origin-bottom"
+                        : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"        
                   }`}
                   alt={cat.label}
                 />

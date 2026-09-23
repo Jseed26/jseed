@@ -6,7 +6,6 @@ import { auth } from "@/src/lib/auth/auth";
 import translate from "google-translate-api-x"; 
 import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 
-// 🌟 קילר לקאש! מכריח את Next.js לחפש באמת ולא להחזיר תשובות מהעבר
 export const dynamic = 'force-dynamic'; 
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
@@ -17,15 +16,37 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
 
   try {
+    const baseWhere: any = category ? { category } : {};
+
+    // 1. אם אין חיפוש, מחזירים הכל רגיל
     if (!qRaw) {
       const results = await prisma.point.findMany({
-        where: { ...(category ? { category } : {}) },
+        where: baseWhere,
         include: { _count: { select: { savedBy: true, viewedBy: true } } },
         orderBy: { createdAt: "desc" },
       });
       return NextResponse.json(results);
     }
 
+    // 🌟 התיקון שלנו: חסימת AI ליוזמות (קליק מהתפריט הנגלל)
+    // קודם כל בודקים אם השם שהוקלד זהה *בדיוק* לאחת היוזמות בדאטה-בייס
+    const exactNameMatches = await prisma.point.findMany({
+      where: {
+        ...baseWhere,
+        name: qRaw
+      },
+      include: { _count: { select: { savedBy: true, viewedBy: true } } }
+    });
+
+    // אם אנחנו בקטגוריית 'חי' (יוזמות) ויש התאמה מדויקת לשם:
+    // אנחנו מחזירים *רק* אותה ויוצאים החוצה מיד! ה-AI לא ירוץ בכלל.
+    if (category === 'chai' && exactNameMatches.length > 0) {
+        return NextResponse.json(exactNameMatches);
+    }
+
+
+    // ====== מכאן והלאה: חיפוש טקסט חופשי (לא לחיצה מהתפריט) ======
+    // (פה ה-AI והמילונים ממשיכים לעבוד כרגיל בשביל המשתמשים שמקלידים)
     const extractor = await AIEngine.getInstance();
     const output = await extractor(qRaw.toLowerCase(), { pooling: 'mean', normalize: true });
     const queryEmbeddingArray = Array.from(output.data);
@@ -52,12 +73,11 @@ export async function GET(req: Request) {
     const cleanUserQuery = cleanTextForMatching(qRaw);
     let dictionaryConcepts = getDictionaryConcepts(qRaw);
 
-    // 🌟 חגורת בטיחות למילון: אם חיפשו זיכרון, אנחנו דוחפים את הכל בכוח לרשימה!
+    // חגורת בטיחות למילון זיכרון
     if (qRaw.includes("זכר") || qRaw.includes("זיכרו") || qRaw === "remember" || qRaw === "memory") {
         dictionaryConcepts.push("זכר", "לזכרם", "נר", "נזכור");
     }
 
-    // אוספים את כל המילים שצריך לחפש (המילה המקורית + המילון)
     const allTermsToSearch = Array.from(new Set([cleanUserQuery, ...dictionaryConcepts]));
 
     const searchResults = fullPoints.map(point => {
@@ -67,7 +87,6 @@ export async function GET(req: Request) {
 
         let isTextMatch = false;
 
-        // עוברים מילה מילה ובודקים אם היא בתוך הטקסט של הנקודה
         for (const term of allTermsToSearch) {
             if (term && term.length > 1) {
                 if (cleanPointText.includes(term)) {
@@ -77,13 +96,10 @@ export async function GET(req: Request) {
             }
         }
 
-        // אם יש התאמה במילים, זה מקבל 100 ומנצח. אם לא, ה-AI קובע.
         const finalScore = isTextMatch ? 100 : aiScore;
-
         return { ...point, totalScore: finalScore };
     });
 
-    // מחזירים למפה כל מה שקיבל 100 מילולי, או מעל 0.55 ב-AI
     const finalResults = searchResults
         .filter(p => p.totalScore >= 0.55) 
         .sort((a, b) => b.totalScore - a.totalScore)
