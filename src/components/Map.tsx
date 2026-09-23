@@ -21,6 +21,8 @@ type MapProps = {
 type ModalState = {
   lat: number;
   lng: number;
+  prefilledName?: string; // הוספנו את זה
+  prefilledCategory?: string; // הוספנו את זה
 } | null;
 
 const tMap = {
@@ -156,7 +158,7 @@ export default function Map({
     loadSaved();
   }, [isLoggedIn]);
 
-useEffect(() => {
+  useEffect(() => {
     async function search() {
       const params = new URLSearchParams();
       // 🌟 החזרנו את שורת החיפוש! עכשיו הטקסט נשלח למנוע ה-AI בשרת
@@ -243,6 +245,29 @@ useEffect(() => {
       map.off("movestart", onMove);
     };
   }, [map, isCompassMode, activeCategory, isLoggedIn, lang]);
+  // ======= ה-useEffect של הוספת יוזמה (בחוץ, עומד לבד!) =======
+  useEffect(() => {
+    const handleDirectAdd = (e: any) => {
+      if (!isLoggedIn) {
+        alert(tMap.loginRequired[lang]);
+        return;
+      }
+
+      // ניקח את מרכז המפה רק בתור גיבוי אחרון
+      const center = mapInstanceRef.current?.getCenter() || { lat: 31.768, lng: 35.213 };
+
+      setModal({
+        // 🌟 אנחנו משתמשים קודם כל במיקום המדויק שהגיע מהנקודה!
+        lat: e.detail.lat || center.lat,
+        lng: e.detail.lng || center.lng,
+        prefilledName: e.detail.name,
+        prefilledCategory: e.detail.category
+      });
+    };
+
+    window.addEventListener("open-direct-add-form", handleDirectAdd);
+    return () => window.removeEventListener("open-direct-add-form", handleDirectAdd);
+  }, [isLoggedIn, lang]);
 
   const filteredPoints = useMemo(() => {
     if (!filterRadius || !userLocation || !map) return points;
@@ -318,10 +343,13 @@ useEffect(() => {
       {modal && (
         <PointForm
           mode="create"
-          category={activeCategory}
+          // 🌟 אם עברנו מהכפתור של הפלוס, נשתמש בקטגוריה שהגיעה משם. אחרת נשתמש בקטגוריה הפעילה מהתפריט
+          category={modal.prefilledCategory || activeCategory}
           initialData={{
             lat: modal.lat,
             lng: modal.lng,
+            // 🌟 הנה מה שחסר! מעבירים את השם לתוך הטופס
+            name: modal.prefilledName,
           }}
           onClose={() => setModal(null)}
           onSubmit={async ({ form }) => {
@@ -393,6 +421,7 @@ useEffect(() => {
           }}
         />
       )}
+
 
       {/* GPS Button */}
       <button

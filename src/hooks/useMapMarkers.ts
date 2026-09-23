@@ -11,7 +11,7 @@ type Props = {
   activeCategory: Point["category"] | null;
   viewedIds: number[];
   savedIds?: number[];
-  lang?: "he" | "en"; 
+  lang?: "he" | "en";
   searchQuery?: string;
 };
 
@@ -32,7 +32,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const container = document.createElement("div");
     container.style.width = "230px";
     container.style.fontFamily = "sans-serif";
-    
+
     const isHe = lang === "he";
     container.dir = isHe ? "rtl" : "ltr";
 
@@ -67,6 +67,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const expandSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
     const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.5 5a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 5.5 6h-4a.5.5 0 0 1 0-1h4zM10.5 5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 0-1 0v4A1.5 1.5 0 0 0 10.5 6h4a.5.5 0 0 0 0-1h-4zM5.5 11a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 1 0v-4A1.5 1.5 0 0 0 5.5 10h-4a.5.5 0 0 0 0 1h4zm5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 10.5 10h4a.5.5 0 0 1 0 1h-4z"/></svg>`;
 
+    const isChai = point.category === "chai";
+
     const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         
@@ -78,6 +80,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; margin-top: 5px;">
             ${display(displayName)}
           </div>
+
+          ${isChai ? `
+          <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 3px; flex-shrink: 0; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
+          </button>
+          ` : ''}
         </div>
         
         <button class="expand-point-btn" style="position: absolute; top: -10px; left: -20px; width: 30px; height: 30px; background: transparent; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; z-index: 10;" title="${t.expand}">
@@ -116,7 +124,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const plantIconSrc = isSaved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
 
-    const isChai = point.category === "chai";
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && p.name === point.name).length : 0;
 
     container.innerHTML = `
@@ -337,6 +344,22 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
     }
 
+    const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
+    if (addChaiBtn) {
+      addChaiBtn.onclick = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        // 🌟 עכשיו אנחנו שולחים גם את הקואורדינטות המדויקות של הנקודה!
+        window.dispatchEvent(new CustomEvent("open-direct-add-form", {
+          detail: {
+            name: point.name,
+            category: "chai",
+            lat: point.latitude,
+            lng: point.longitude
+          }
+        }));
+      };
+    }
+
     return container;
   }
 
@@ -431,5 +454,5 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       map.off("zoomend", handleZoomEnd);
     };
 
-  }, [map, points, activeCategory, viewedIds, savedIds, lang, searchQuery]); 
+  }, [map, points, activeCategory, viewedIds, savedIds, lang, searchQuery]);
 }

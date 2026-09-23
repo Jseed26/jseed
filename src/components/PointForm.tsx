@@ -52,7 +52,9 @@ const tForm = {
     saving: { he: "שומר...", en: "Saving..." },
     chaiNamePlaceholder: { he: "הצטרף ליוזמה או צור חדשה", en: "Join an initiative or create a new one" },
     addNewInitiative: { he: "הוסף יוזמה חדשה", en: "Add a new initiative" },
-    noMatches: { he: "לא נמצאו יוזמות תואמות", en: "No matching initiatives" }
+    noMatches: { he: "לא נמצאו יוזמות תואמות", en: "No matching initiatives" },
+    nameTakenTitle: { he: "השם כבר תפוס!", en: "Name is taken!" },
+    nameTakenMsg: { he: "בחר ביוזמה מהרשימה כדי להצטרף אליה", en: "Select the initiative from the list to join it" }
 };
 
 export default function PointForm({ mode, initialData, onClose, onSubmit, category }: Props) {
@@ -76,14 +78,12 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
     const [isCompressing, setIsCompressing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // משתנים לניהול החיפוש הדינמי בגרעין חי
     const [chaiInitiatives, setChaiInitiatives] = useState<string[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     const totalImages = form.existingImages.length + form.images.length;
 
-    // משיכת היוזמות הקיימות מהשרת
     useEffect(() => {
         if (form.category === "chai" && chaiInitiatives.length === 0) {
             fetch("/api/points?category=chai")
@@ -98,10 +98,12 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
         }
     }, [form.category]);
 
-    // סינון דינמי לפי מה שהוקלד בשדה
     const filteredInitiatives = chaiInitiatives.filter(init => 
         init.toLowerCase().includes(form.name.toLowerCase())
     );
+
+    // בדיקה האם השם שהוקלד קיים בדיוק באותה צורה ברשימה
+    const isNameTaken = chaiInitiatives.some(init => init.trim().toLowerCase() === form.name.trim().toLowerCase());
 
     async function handleSubmit() {
         if (!form.category) {
@@ -140,7 +142,7 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
                             type="button"
                             onClick={() => {
                                 setForm({ ...form, category: cat.key, name: "" });
-                                setIsDropdownOpen(false); // סוגר את התפריט כשמחליפים קטגוריה
+                                setIsDropdownOpen(false); 
                             }}
                             className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg transition-all ${
                                 form.category === cat.key
@@ -185,27 +187,36 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
                             </button>
                         </div>
 
-                        {/* תפריט היוזמות */}
                         {isDropdownOpen && (
                             <>
-                                {/* שכבה בלתי נראית לסגירת התפריט בלחיצה מחוץ לאזור */}
                                 <div 
                                     className="fixed inset-0 z-10" 
                                     onClick={() => setIsDropdownOpen(false)}
                                 />
                                 
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-20 max-h-48 overflow-y-auto custom-scrollbar">
-                                    <button
-                                        type="button"
-                                        className={`w-full text-${lang === "he" ? "right" : "left"} p-3 text-sm text-yellow-500 font-bold border-b border-gray-700 hover:bg-gray-700 transition-colors truncate`}
-                                        onClick={() => {
-                                            // רק סוגר את התפריט, לא מוחק את מה שכתבנו!
-                                            setIsDropdownOpen(false);
-                                            nameInputRef.current?.focus();
-                                        }}
-                                    >
-                                        ➕ {form.name.trim() !== "" ? `${tForm.addNewInitiative[lang]}: "${form.name}"` : tForm.addNewInitiative[lang]}
-                                    </button>
+                                    
+                                    {!isNameTaken ? (
+                                        <button
+                                            type="button"
+                                            className={`w-full text-${lang === "he" ? "right" : "left"} p-3 text-sm text-yellow-500 font-bold border-b border-gray-700 hover:bg-gray-700 transition-colors truncate`}
+                                            onClick={() => {
+                                                setIsDropdownOpen(false);
+                                                nameInputRef.current?.focus();
+                                            }}
+                                        >
+                                            ➕ {form.name.trim() !== "" ? `${tForm.addNewInitiative[lang]}: "${form.name}"` : tForm.addNewInitiative[lang]}
+                                        </button>
+                                    ) : (
+                                        <div className={`w-full text-${lang === "he" ? "right" : "left"} p-3 border-b border-gray-700 bg-red-500/10`}>
+                                            <div className="text-sm text-red-400 font-bold flex items-center gap-2">
+                                                <span>⚠️ {tForm.nameTakenTitle[lang]}</span>
+                                            </div>
+                                            <div className="text-xs text-red-300 mt-1">
+                                                {tForm.nameTakenMsg[lang]}
+                                            </div>
+                                        </div>
+                                    )}
                                     
                                     {filteredInitiatives.length > 0 ? (
                                         filteredInitiatives.map((initName, idx) => (

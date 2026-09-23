@@ -254,15 +254,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 🌟 שינינו את הקונטיינר: הוספנו justify-between כדי שהם יתפרסו שווה, הוספנו px-4 לשוליים, וגלילה נסתרת למסכים ממש קטנים */}
-      <div className="shrink-0 w-full flex justify-between sm:justify-center items-start px-4 sm:px-0 gap-2 sm:gap-8 pt-3 pb-5 sm:pb-3 relative z-[1000] bg-black safe-area-bottom overflow-x-auto [&::-webkit-scrollbar]:hidden">
+{/* ================= תפריט קטגוריות תחתון ================= */}
+      <div className="shrink-0 w-full flex justify-evenly sm:justify-center items-end px-1 sm:px-0 sm:gap-8 pt-3 pb-5 sm:pb-3 relative z-[1000] bg-black safe-area-bottom">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
           const isChai = cat.key === "chai";
 
           return (
-            // 🌟 כאן הסוד לרווחים השווים: כל הקופסאות באותו רוחב בדיוק (w-[64px])! 
-            // ה-scale יגדיל את התמונה של חי רק ויזואלית בלי לפגוע ברווחים.
             <div key={cat.key} className="relative flex flex-col items-center w-[64px] sm:w-[76px] shrink-0">
 
               {/* התפריט הנגלל עבור קטגוריית חי (יוזמות) */}
@@ -355,18 +353,20 @@ export default function Home() {
                     setIsChaiMenuOpen(false);
                   }
                 }}
-                className="flex flex-col items-center justify-start w-full relative z-[1300]"
+                className="flex flex-col items-center justify-end w-full relative z-[1300]"
               >
-                {/* 🌟 מחקנו את ה- relative right-1.5 שעשה את ההזזה העקומה הצידה! */}
-                <img
-                  src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                  className={`shrink-0 object-contain transition-transform ${
-                    isChai 
-                        ? "w-14 h-10 sm:w-16 sm:h-12 scale-[1.2] hover:scale-[1.3] origin-bottom"
-                        : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105 origin-bottom"        
-                  }`}
-                  alt={cat.label}
-                />
+                {/* מעטפת בגובה קבוע שמבטיחה שהאייקונים תמיד יושבים בבסיס וממורכבים בדיוק מעל הטקסט */}
+                <div className="h-12 sm:h-14 flex items-end justify-center w-full">
+                  <img
+                    src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
+                    className={`shrink-0 object-contain transition-transform origin-bottom ${
+                      isChai 
+                          ? "w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4]"
+                          : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"        
+                    }`}
+                    alt={cat.label}
+                  />
+                </div>
 
                 <span className="text-[10px] sm:text-xs mt-1 text-yellow-500 text-center leading-tight break-words w-full">
                   {cat.label}
