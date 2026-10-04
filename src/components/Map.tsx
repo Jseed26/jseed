@@ -84,9 +84,9 @@ export default function Map({
      // 🌟 שינינו את המרכז שיהיה באזור המזרח התיכון / אירופה
       center: [31.5, 34.8], 
       // 🌟 הגדלנו את הזום ההתחלתי: 3.5 לטלפון ו-4.5 למחשב (שתי יבשות פחות או יותר)
-      zoom: isMobile ? 1.5 : 3,
+      zoom: isMobile ? 1.5 : 2.5,
       // 🌟 הגדלנו גם את הזום המינימלי, כדי שלא יוכלו להתרחק בטעות חזרה למצב של "ריבוע"
-      minZoom: isMobile ? 0.8 : 2.3,
+      minZoom: isMobile ? 1.5 : 2.5,
       maxZoom: 18,
       maxBounds: worldBounds,
       maxBoundsViscosity: 1.0,

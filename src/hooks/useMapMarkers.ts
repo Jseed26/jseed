@@ -20,10 +20,10 @@ const globalClickedPoints = new Set<number>();
 // 🌟 פונקציית עזר ליצירת האייקון עם הגדלים המשתנים
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
-  
+
   // 🌟 מנגנון גדלים מאוזן ("שביל הזהב") 🌟
   let baseSize = 22; // זום אאוט מלא (רמת עולם) - מספיק ברור כדי לזהות את הצורה
-  
+
   if (zoom >= 15) {
     baseSize = 44; // רמת רחוב (גדול ונוח ללחיצה)
   } else if (zoom >= 11) {
@@ -48,7 +48,7 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
         ${badgeHtml}
       </div>
     `,
-    className: "", 
+    className: "",
     iconSize: [baseSize, baseSize],
     iconAnchor: [baseSize / 2, baseSize],
     popupAnchor: [0, -baseSize + 5]
@@ -69,7 +69,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
   function createPopupNode(point: Point, isSaved: boolean, mapInstance: L.Map) {
     const container = document.createElement("div");
-    container.style.width = "230px";
+    const expandedWidth = window.innerWidth < 450 ? "320px" : "400px";
+    container.style.width = expandedWidth;
     container.style.fontFamily = "sans-serif";
 
     const isHe = lang === "he";
@@ -127,9 +128,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           ` : ''}
         </div>
         
-        <button class="expand-point-btn" style="position: absolute; top: -10px; left: -20px; width: 30px; height: 30px; background: transparent; border: none; color: #9ca3af; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s; z-index: 10;" title="${t.expand}">
-          ${expandSvg}
-        </button>
       </div>
     `;
 
@@ -142,10 +140,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let imageHtml = "";
 
     if (imagesList.length === 1) {
-      imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" title="לחץ להגדלה" />`;
+      imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="width: 100%; height: 240px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" title="לחץ להגדלה" />`;
     } else if (imagesList.length > 1) {
       imageHtml = `
-        <div class="point-image-container" style="position: relative; width: 100%; height: 120px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
+        <div class="point-image-container" style="position: relative; width: 100%; height: 240px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
           ${imagesList.map((src, i) => `
             <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100\%; height: 100\%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
           `).join('')}
@@ -169,7 +167,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       ${headerHtml}
       ${imageHtml}
       
-      <div class="point-desc-container" style="max-height: 100px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
+      <div class="point-desc-container" style="max-height: 350px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.desc}</strong> ${display(displayDesc)}</div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> ${display(point.address)}</div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
@@ -204,55 +202,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    let isExpanded = false;
-    const expandBtn = container.querySelector(".expand-point-btn") as HTMLButtonElement;
-
-    if (expandBtn) {
-      expandBtn.onmouseover = () => expandBtn.style.color = "#FFD700";
-      expandBtn.onmouseout = () => expandBtn.style.color = "#9ca3af";
-
-      expandBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        isExpanded = !isExpanded;
-
-        const expandedWidth = window.innerWidth < 450 ? "320px" : "400px";
-        const newWidth = isExpanded ? expandedWidth : "230px";
-
-        container.style.width = newWidth;
-
-        const leafletContent = container.closest('.leaflet-popup-content') as HTMLElement;
-        if (leafletContent) {
-          leafletContent.style.width = newWidth;
-        }
-
-        const title = container.querySelector(".point-title") as HTMLElement;
-        if (title) title.style.whiteSpace = isExpanded ? "normal" : "nowrap";
-
-        const imgContainer = container.querySelector(".point-image-container") as HTMLElement;
-        if (imgContainer) imgContainer.style.height = isExpanded ? "240px" : "120px";
-
-        const descContainer = container.querySelector(".point-desc-container") as HTMLElement;
-        if (descContainer) descContainer.style.maxHeight = isExpanded ? "350px" : "100px";
-
-        expandBtn.innerHTML = isExpanded ? collapseSvg : expandSvg;
-        expandBtn.title = isExpanded ? t.collapse : t.expand;
-
-        mapInstance.eachLayer((layer: any) => {
-          if (layer instanceof L.Marker && layer.getLatLng().lat === point.latitude && layer.getLatLng().lng === point.longitude) {
-            const popup = layer.getPopup();
-            if (popup) {
-              popup.update();
-              const targetLatLng = layer.getLatLng();
-              const px = mapInstance.project(targetLatLng);
-              px.y -= isExpanded ? 220 : 100;
-              mapInstance.panTo(mapInstance.unproject(px), { animate: true });
-            }
-          }
-        });
-      };
-    }
 
     const lightBoxTriggers = container.querySelectorAll(".map-lightbox-trigger");
     lightBoxTriggers.forEach((trigger) => {
@@ -444,12 +393,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
         if (numCategories > 1) {
           const angle = (index * 2 * Math.PI) / numCategories;
-          const radius = 0.00015; 
+          const radius = 0.00015;
           finalLat += radius * Math.cos(angle);
           finalLng += radius * Math.sin(angle);
         }
 
-        const isAnyViewed = pointsInCat.some(p => 
+        const isAnyViewed = pointsInCat.some(p =>
           viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
         );
 
@@ -469,7 +418,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           let currentIndex = 0;
 
           const renderCurrentPoint = () => {
-            popupContent.innerHTML = ""; 
+            popupContent.innerHTML = "";
 
             const currentPoint = pointsInCat[currentIndex];
             const pId = Number(currentPoint.id);
@@ -477,15 +426,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
             // 🌟 דיווח שקט! הנקודה המוצגת נשמרת אוטומטית כ"נצפתה"
             if (!globalClickedPoints.has(pId)) {
-                globalClickedPoints.add(pId);
-                fetch("/api/history", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ pointId: pId }),
-                }).catch(console.error);
+              globalClickedPoints.add(pId);
+              fetch("/api/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pointId: pId }),
+              }).catch(console.error);
 
-                // הופכים את האייקון לכתום באופן מקומי מבלי לרענן
-                marker.setIcon(createGroupedIcon(category, true, map.getZoom(), count));
+              // הופכים את האייקון לכתום באופן מקומי מבלי לרענן
+              marker.setIcon(createGroupedIcon(category, true, map.getZoom(), count));
             }
 
             // יצירת סרגל הניווט העליון (חצים)
@@ -548,12 +497,14 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           renderCurrentPoint();
         }
 
+        const popupWidth = window.innerWidth < 450 ? 320 : 400;
+
         marker.bindPopup(popupContent, {
           closeButton: true,
           className: "custom-popup",
           autoPan: true,
           maxWidth: 500,
-          minWidth: 230,
+          minWidth: popupWidth,
           autoPanPaddingTopLeft: [0, 150],
           autoPanPaddingBottomRight: [0, 20]
         });
@@ -565,12 +516,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           if (count === 1) {
             const pId = Number(pointsInCat[0].id);
             if (!globalClickedPoints.has(pId)) {
-                globalClickedPoints.add(pId);
-                fetch("/api/history", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ pointId: pId }),
-                }).catch(console.error);
+              globalClickedPoints.add(pId);
+              fetch("/api/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pointId: pId }),
+              }).catch(console.error);
             }
             marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
           } else {
@@ -619,7 +570,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const firstId = pointsInCat[0].id;
           const marker = markersRef.current[firstId];
           if (marker) {
-            const isAnyViewed = pointsInCat.some(p => 
+            const isAnyViewed = pointsInCat.some(p =>
               viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
             );
             marker.setIcon(createGroupedIcon(category, isAnyViewed, currentZoom, count));
