@@ -497,7 +497,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           renderCurrentPoint();
         }
 
+        // 🌟 התאמנו את הגדלים והמרווחים כדי שלא יברח למטה במובייל!
         const popupWidth = window.innerWidth < 450 ? 320 : 400;
+        const topPadding = window.innerWidth < 450 ? 60 : 120; // מרווח קטן יותר בטלפון
 
         marker.bindPopup(popupContent, {
           closeButton: true,
@@ -505,7 +507,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           autoPan: true,
           maxWidth: 500,
           minWidth: popupWidth,
-          autoPanPaddingTopLeft: [0, 150],
+          autoPanPaddingTopLeft: [0, topPadding], // 🌟 משתמשים במרווח הדינמי החדש
           autoPanPaddingBottomRight: [0, 20]
         });
 
