@@ -14,12 +14,20 @@ type Props = {
   searchQuery?: string;
 };
 
-// 🌟 זיכרון גלובלי מחוץ לריאקט! ככה אף רינדור מחדש של המפה לא יאפס לנו את הכתום
+// 🌟 זיכרון גלובלי מחוץ לריאקט! שומר על הצבע הכתום תמיד
 const globalClickedPoints = new Set<number>();
 
+// 🌟 פונקציית עזר ליצירת האייקון עם הגדלים המשתנים
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
-  const baseSize = zoom > 12 ? 42 : 32;
+  
+  // 🌟 מנגנון גדלים חכם לפי רמות זום! 
+  let baseSize = 24; 
+  if (zoom >= 15) {
+    baseSize = 46; 
+  } else if (zoom >= 11) {
+    baseSize = 34; 
+  }
 
   const badgeHtml = count > 1
     ? `<div style="position: absolute; top: -8px; right: -8px; background: #fbbf24; color: #000; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; border: 2px solid #111827; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10;">${count}</div>`
@@ -27,7 +35,7 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
 
   return L.divIcon({
     html: `
-      <div style="position: relative; width: ${baseSize}px; height: ${baseSize}px; transition: all 0.2s;">
+      <div style="position: relative; width: ${baseSize}px; height: ${baseSize}px; transition: all 0.3s ease-out;">
         <img src="${iconUrl}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.6));" />
         ${badgeHtml}
       </div>
@@ -348,7 +356,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             else currentSavedCount -= 1;
 
             if (countText) countText.innerText = `${currentSavedCount} ${t.saves}`;
-            window.dispatchEvent(new Event("points-updated"));
+            // 🌟 שקט כאן! לא עושים רענון כדי לא לסגור את החלונית 🌟
           } else {
             if (img) img.style.transform = "scale(1)";
             alert(t.loginReq);
@@ -433,7 +441,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           finalLng += radius * Math.sin(angle);
         }
 
-        // 🌟 בדיקה האם לנקודה יש 'נצפה' מתוך המערך או מהזיכרון
         const isAnyViewed = pointsInCat.some(p => 
           viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
         );
@@ -450,122 +457,87 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const isSaved = savedIds.includes(singlePoint.id);
           popupContent.appendChild(createPopupNode(singlePoint, isSaved, map));
         } else {
-          let viewState: 'list' | 'detail' = 'list';
-          let selectedPointIndex = 0;
+          // 🌟 חזרנו למצב ה"קרוסלה" המקורי (חצים לדפדוף ימינה/שמאלה) 🌟
+          let currentIndex = 0;
 
-          const renderPopupState = () => {
+          const renderCurrentPoint = () => {
             popupContent.innerHTML = ""; 
 
-            if (viewState === 'list') {
-              const header = document.createElement("div");
-              header.innerHTML = `
-                <div style="font-weight: bold; padding-bottom: 8px; border-bottom: 1px solid #374151; margin-bottom: 8px; color: #fbbf24; text-align: center;">
-                  ${count} ${lang === "he" ? "נקודות במיקום זה" : "Points at this location"}
-                </div>
-              `;
-              popupContent.appendChild(header);
+            const currentPoint = pointsInCat[currentIndex];
+            const pId = Number(currentPoint.id);
+            const isSaved = savedIds.includes(currentPoint.id);
 
-              const listContainer = document.createElement("div");
-              listContainer.style.maxHeight = "250px";
-              listContainer.style.overflowY = "auto";
-              listContainer.style.paddingRight = "5px";
-              listContainer.className = "custom-scrollbar";
-              listContainer.dir = lang === "he" ? "rtl" : "ltr";
+            // 🌟 דיווח שקט! הנקודה המוצגת נשמרת אוטומטית כ"נצפתה"
+            if (!globalClickedPoints.has(pId)) {
+                globalClickedPoints.add(pId);
+                fetch("/api/history", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pointId: pId }),
+                }).catch(console.error);
 
-              pointsInCat.forEach((p, idx) => {
-                const row = document.createElement("div");
-                row.style.padding = "8px 0";
-                row.style.borderBottom = "1px solid #374151";
-                row.style.cursor = "pointer";
-                row.style.display = "flex";
-                row.style.alignItems = "center";
-                row.style.gap = "10px";
-                row.style.transition = "background 0.2s";
-                row.onmouseover = () => row.style.backgroundColor = "rgba(255,255,255,0.05)";
-                row.onmouseout = () => row.style.backgroundColor = "transparent";
-
-                // 🌟 בדיקה פרטנית על כל יוזמה - האם היא נצפתה או לא?
-                const isPointViewed = viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id));
-                
-                row.onclick = (e) => {
-                  e.stopPropagation();
-                  viewState = 'detail';
-                  selectedPointIndex = idx;
-                  
-                  const currentPoint = pointsInCat[idx];
-                  const pId = Number(currentPoint.id);
-                  
-                  globalClickedPoints.add(pId);
-                  
-                  fetch("/api/history", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ pointId: pId }),
-                  })
-                  .then(() => {
-                      window.dispatchEvent(new Event("points-updated"));
-                  })
-                  .catch(console.error);
-
-                  marker.setIcon(createGroupedIcon(category, true, map.getZoom(), count));
-
-                  renderPopupState();
-                };
-
-                const imgUrl = (p.imageUrls && p.imageUrls.length > 0) ? p.imageUrls[0] : (p.imageUrl || `/icons/categories/${category}/default.png`);
-                const pName = lang === "he" ? p.name : (p.name_en || p.name);
-                const arrowIcon = lang === "he" ? "❮" : "❯";
-                const viewedText = lang === "he" ? "✓ נצפה" : "✓ Viewed";
-
-                // 🌟 פה אנחנו שמים את החיווי הוויזואלי (צבע כתום + המילה "נצפה")
-                row.innerHTML = `
-                  <img src="${imgUrl}" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: rgba(255,255,255,0.1); flex-shrink: 0; opacity: ${isPointViewed ? '0.7' : '1'};" />
-                  <div style="flex: 1; overflow: hidden;">
-                    <div style="font-weight: bold; font-size: 13px; color: ${isPointViewed ? '#fbbf24' : '#fff'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pName}</div>
-                    <div style="font-size: 11px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.address || ''}</div>
-                  </div>
-                  <div style="color: ${isPointViewed ? '#fbbf24' : '#9ca3af'}; font-size: 11px; margin-left: 5px; margin-right: 5px; display: flex; align-items: center; gap: 6px;">
-                    ${isPointViewed ? `<span style="font-weight: bold;">${viewedText}</span>` : ''}
-                    <span style="font-size: 14px;">${arrowIcon}</span>
-                  </div>
-                `;
-                listContainer.appendChild(row);
-              });
-              
-              popupContent.appendChild(listContainer);
-
-            } else {
-              const currentPoint = pointsInCat[selectedPointIndex];
-              const isSaved = savedIds.includes(currentPoint.id);
-
-              const backNav = document.createElement("div");
-              backNav.style.paddingBottom = "10px";
-              backNav.style.marginBottom = "5px";
-              backNav.dir = lang === "he" ? "rtl" : "ltr";
-
-              const backBtn = document.createElement("button");
-              backBtn.innerHTML = lang === "he" ? "➔ חזרה לרשימה" : "Back to list ➔";
-              backBtn.style.background = "transparent";
-              backBtn.style.border = "none";
-              backBtn.style.color = "#fbbf24";
-              backBtn.style.fontWeight = "bold";
-              backBtn.style.fontSize = "13px";
-              backBtn.style.cursor = "pointer";
-              backBtn.style.display = "flex";
-              backBtn.style.alignItems = "center";
-              backBtn.onclick = (e) => {
-                e.stopPropagation();
-                viewState = 'list';
-                renderPopupState();
-              };
-              
-              backNav.appendChild(backBtn);
-              popupContent.appendChild(backNav);
-              popupContent.appendChild(createPopupNode(currentPoint, isSaved, map));
+                // הופכים את האייקון לכתום באופן מקומי מבלי לרענן
+                marker.setIcon(createGroupedIcon(category, true, map.getZoom(), count));
             }
+
+            // יצירת סרגל הניווט העליון (חצים)
+            const navBar = document.createElement("div");
+            navBar.style.display = "flex";
+            navBar.style.justifyContent = "space-between";
+            navBar.style.alignItems = "center";
+            navBar.style.backgroundColor = "rgba(251, 191, 36, 0.15)";
+            navBar.style.border = "1px solid rgba(251, 191, 36, 0.4)";
+            navBar.style.borderRadius = "12px";
+            navBar.style.padding = "6px 10px";
+            navBar.style.marginBottom = "10px";
+            navBar.dir = lang === "he" ? "rtl" : "ltr";
+
+            const createBtn = (html: string, onClick: () => void) => {
+              const btn = document.createElement("button");
+              btn.innerHTML = html;
+              btn.style.background = "rgba(251, 191, 36, 0.2)";
+              btn.style.border = "1px solid #fbbf24";
+              btn.style.color = "#fbbf24";
+              btn.style.borderRadius = "50%";
+              btn.style.width = "26px";
+              btn.style.height = "26px";
+              btn.style.display = "flex";
+              btn.style.alignItems = "center";
+              btn.style.justifyContent = "center";
+              btn.style.cursor = "pointer";
+              btn.style.transition = "background 0.2s";
+              btn.onmouseover = () => btn.style.background = "rgba(251, 191, 36, 0.4)";
+              btn.onmouseout = () => btn.style.background = "rgba(251, 191, 36, 0.2)";
+              btn.onclick = (e) => { e.stopPropagation(); onClick(); };
+              return btn;
+            };
+
+            const prevBtn = createBtn(lang === "he" ? "❯" : "❮", () => {
+              currentIndex = (currentIndex > 0) ? currentIndex - 1 : count - 1;
+              renderCurrentPoint();
+            });
+
+            const nextBtn = createBtn(lang === "he" ? "❮" : "❯", () => {
+              currentIndex = (currentIndex < count - 1) ? currentIndex + 1 : 0;
+              renderCurrentPoint();
+            });
+
+            const label = document.createElement("span");
+            label.innerText = lang === "he" ? `נקודה ${currentIndex + 1} מתוך ${count}` : `Point ${currentIndex + 1} of ${count}`;
+            label.style.fontSize = "12px";
+            label.style.fontWeight = "bold";
+            label.style.color = "#fbbf24";
+
+            navBar.appendChild(prevBtn);
+            navBar.appendChild(label);
+            navBar.appendChild(nextBtn);
+
+            popupContent.appendChild(navBar);
+            popupContent.appendChild(createPopupNode(currentPoint, isSaved, map));
           };
 
-          renderPopupState();
+          // ציור ראשוני
+          renderCurrentPoint();
         }
 
         marker.bindPopup(popupContent, {
@@ -584,24 +556,18 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
           if (count === 1) {
             const pId = Number(pointsInCat[0].id);
-            globalClickedPoints.add(pId);
-            
-            fetch("/api/history", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pointId: pId }),
-            })
-            .then(() => {
-                window.dispatchEvent(new Event("points-updated"));
-            })
-            .catch(console.error);
-            
+            if (!globalClickedPoints.has(pId)) {
+                globalClickedPoints.add(pId);
+                fetch("/api/history", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pointId: pId }),
+                }).catch(console.error);
+            }
             marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
           } else {
-            const anyViewed = pointsInCat.some(p => 
-              viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
-            );
-            marker.setIcon(createGroupedIcon(category, anyViewed, currentZoom, count));
+            // בקבוצה - לחיצה שמה את האייקון ככתום (הנקודה הראשונה כבר מטופלת בתוך ה-renderCurrentPoint)
+            marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
           }
 
           marker.openPopup();
