@@ -38,7 +38,7 @@ const tForm = {
     editTitle: { he: "עריכת גרעין", en: "Edit Seed" },
     namePlaceholder: { he: "שם הגרעין (לדוג: יד ושם...)", en: "Seed Name (e.g., Yad Vashem)" },
     descPlaceholder: { he: "תיאור (לדוג: רשות הזיכרון לשואה ולגבורה)", en: "Description (e.g., The World Holocaust Remembrance Center)" },
-    addressPlaceholder: { he: "כתובת (רחוב, מספר ועיר)", en: "Address (Street, number, and city)" },
+    addressPlaceholder: { he: "כתובת (כתובת מדוייקת/ כללית)", en: "Address (Exact/general address)" },
     websitePlaceholder: { he: "קישור לאתר (לדוג: https://...)", en: "Website Link (e.g., https://...)" },
     addImages: { he: "הוספת תמונות", en: "Add Images" },
     processing: { he: "מעבד...", en: "Processing..." },

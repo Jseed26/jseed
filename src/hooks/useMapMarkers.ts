@@ -51,13 +51,37 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
     className: "",
     iconSize: [baseSize, baseSize],
     iconAnchor: [baseSize / 2, baseSize],
-    popupAnchor: [0, -baseSize + 5]
+    // 🌟 שינוי חשוב: החלונית תמיד תעגון לחלק התחתון של האייקון!
+    popupAnchor: [0, 5]
   });
 }
 
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he", searchQuery = "" }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
+
+  // 🌟 הזרקת CSS שהופך את כל החלוניות להיפתח תמיד כלפי מטה 🌟
+  useEffect(() => {
+    const styleId = "jseed-popup-styles-down";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.innerHTML = `
+        .custom-popup-down {
+          bottom: auto !important;
+          top: 0 !important;
+          margin-bottom: 0 !important;
+          margin-top: 10px !important;
+        }
+        .custom-popup-down .leaflet-popup-tip-container {
+          top: -19px !important;
+          bottom: auto !important;
+          transform: rotate(180deg) !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -69,7 +93,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
   function createPopupNode(point: Point, isSaved: boolean, mapInstance: L.Map) {
     const container = document.createElement("div");
-    const expandedWidth = window.innerWidth < 450 ? "320px" : "400px";
+
+    // 🌟 המידות החכמות: מזהות אם זה טלפון ומתאימות את הכל!
+    const isMobile = window.innerWidth < 450;
+    const expandedWidth = isMobile ? "320px" : "400px";
+    const imgHeight = isMobile ? "180px" : "240px"; // תמונה נמוכה יותר בטלפון
+    const textMaxHeight = isMobile ? "200px" : "350px"; // פחות גלילה ריקה בטלפון
+
     container.style.width = expandedWidth;
     container.style.fontFamily = "sans-serif";
 
@@ -94,8 +124,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       reportSuccess: isHe ? "תודה! הדיווח נשלח למנהלי האתר." : "Thank you! The report has been sent.",
       loginReq: isHe ? "צריך להתחבר כדי לשמור נקודות" : "Please log in to save seeds",
       waText: isHe ? "תראו איזה Seed מצאתי ב-JSeed! 🌱" : "Check out this Seed I found on JSeed! 🌱",
-      expand: isHe ? "הגדל חלונית" : "Expand",
-      collapse: isHe ? "הקטן חלונית" : "Collapse",
       participants: isHe ? "משתתפים" : "Participants"
     };
 
@@ -103,9 +131,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     L.DomEvent.disableScrollPropagation(container);
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
-
-    const expandSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
-    const collapseSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.5 5a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 5.5 6h-4a.5.5 0 0 1 0-1h4zM10.5 5a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 0-1 0v4A1.5 1.5 0 0 0 10.5 6h4a.5.5 0 0 0 0-1h-4zM5.5 11a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 1 0v-4A1.5 1.5 0 0 0 5.5 10h-4a.5.5 0 0 0 0 1h4zm5 0a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 10.5 10h4a.5.5 0 0 1 0 1h-4z"/></svg>`;
 
     const isChai = point.category === "chai";
 
@@ -117,7 +142,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             <img src="/icons/categories/${point.category}/active.png" alt="${point.category}" style="width: 18px; height: 18px; object-fit: contain;" />
           </div>
           
-          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; margin-top: 5px;">
+          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.3; margin-top: 5px;">
             ${display(displayName)}
           </div>
 
@@ -127,7 +152,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           </button>
           ` : ''}
         </div>
-        
       </div>
     `;
 
@@ -140,18 +164,18 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let imageHtml = "";
 
     if (imagesList.length === 1) {
-      imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="width: 100%; height: 240px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" title="לחץ להגדלה" />`;
+      imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="width: 100%; height: ${imgHeight}; object-fit: cover; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" title="לחץ להגדלה" />`;
     } else if (imagesList.length > 1) {
       imageHtml = `
-        <div class="point-image-container" style="position: relative; width: 100%; height: 240px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
+        <div class="point-image-container" style="position: relative; width: 100%; height: ${imgHeight}; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
           ${imagesList.map((src, i) => `
-            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100\%; height: 100\%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
+            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="position: relative; width: 100%; height: ${imgHeight}; border-radius: 8px; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
           `).join('')}
           <button class="carousel-prev-${point.id}" style="position: absolute; ${isHe ? 'left' : 'right'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❮' : '❯'}</button>
           <button class="carousel-next-${point.id}" style="position: absolute; ${isHe ? 'right' : 'left'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❯' : '❮'}</button>
           <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: ${isHe ? 'row-reverse' : 'row'};">
             ${imagesList.map((_, i) => `
-              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50\%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
+              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
             `).join('')}
           </div>
         </div>
@@ -167,7 +191,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       ${headerHtml}
       ${imageHtml}
       
-      <div class="point-desc-container" style="max-height: 350px; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
+      <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.desc}</strong> ${display(displayDesc)}</div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> ${display(point.address)}</div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
@@ -183,7 +207,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           </span>
           ${isChai ? `
           <span style="font-size: 12px; color: #fbbf24; font-weight: bold;">
-            🤝 ${participantsCount}${t.participants}
+            🤝 ${participantsCount} ${t.participants}
           </span>
           ` : ''}
         </div>
@@ -232,20 +256,23 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
 
       if (btnPrev) btnPrev.onclick = (e) => {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         currentIndex = (currentIndex > 0) ? currentIndex - 1 : imagesList.length - 1;
         showSlide(currentIndex);
       };
 
       if (btnNext) btnNext.onclick = (e) => {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         currentIndex = (currentIndex < imagesList.length - 1) ? currentIndex + 1 : 0;
         showSlide(currentIndex);
       };
 
       dots.forEach(dot => {
         dot.onclick = (e) => {
-          e.preventDefault(); e.stopPropagation();
+          e.preventDefault();
+          e.stopPropagation();
           const target = e.target as HTMLElement;
           currentIndex = parseInt(target.getAttribute("data-index") || "0");
           showSlide(currentIndex);
@@ -263,7 +290,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const copyBtn = container.querySelector(".copy-link-btn") as HTMLButtonElement;
     if (copyBtn) {
       copyBtn.onclick = (e) => {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         navigator.clipboard.writeText(shareUrl);
         alert(t.copiedMsg);
       };
@@ -272,7 +300,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const reportBtn = container.querySelector(".report-btn") as HTMLButtonElement;
     if (reportBtn) {
       reportBtn.onclick = async (e) => {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         const reason = prompt(t.reportMsg);
         if (reason) {
           try {
@@ -294,7 +323,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     if (btn) {
       btn.onclick = async (e) => {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         const img = btn.querySelector("img");
         if (img) img.style.transform = "scale(0.8)";
         try {
@@ -313,7 +343,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             else currentSavedCount -= 1;
 
             if (countText) countText.innerText = `${currentSavedCount} ${t.saves}`;
-            // 🌟 שקט כאן! לא עושים רענון כדי לא לסגור את החלונית 🌟
           } else {
             if (img) img.style.transform = "scale(1)";
             alert(t.loginReq);
@@ -335,7 +364,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
-        e.preventDefault(); e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
         window.dispatchEvent(new CustomEvent("open-direct-add-form", {
           detail: {
             name: point.name,
@@ -414,7 +444,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const isSaved = savedIds.includes(singlePoint.id);
           popupContent.appendChild(createPopupNode(singlePoint, isSaved, map));
         } else {
-          // 🌟 חזרנו למצב ה"קרוסלה" המקורי (חצים לדפדוף ימינה/שמאלה) 🌟
           let currentIndex = 0;
 
           const renderCurrentPoint = () => {
@@ -424,7 +453,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             const pId = Number(currentPoint.id);
             const isSaved = savedIds.includes(currentPoint.id);
 
-            // 🌟 דיווח שקט! הנקודה המוצגת נשמרת אוטומטית כ"נצפתה"
             if (!globalClickedPoints.has(pId)) {
               globalClickedPoints.add(pId);
               fetch("/api/history", {
@@ -433,11 +461,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
                 body: JSON.stringify({ pointId: pId }),
               }).catch(console.error);
 
-              // הופכים את האייקון לכתום באופן מקומי מבלי לרענן
               marker.setIcon(createGroupedIcon(category, true, map.getZoom(), count));
             }
 
-            // יצירת סרגל הניווט העליון (חצים)
             const navBar = document.createElement("div");
             navBar.style.display = "flex";
             navBar.style.justifyContent = "space-between";
@@ -493,26 +519,23 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             popupContent.appendChild(createPopupNode(currentPoint, isSaved, map));
           };
 
-          // ציור ראשוני
           renderCurrentPoint();
         }
 
-        // 🌟 התאמנו את הגדלים והמרווחים כדי שלא יברח למטה במובייל!
-        const popupWidth = window.innerWidth < 450 ? 320 : 400;
-        const topPadding = window.innerWidth < 450 ? 60 : 120; // מרווח קטן יותר בטלפון
+        const isMobile = window.innerWidth < 450;
+        const popupWidth = isMobile ? 320 : 400;
 
+        // 🌟 החלונית תמיד מקבלת את הקלאס שיפתח אותה למטה, ו-autoPan מכובה
         marker.bindPopup(popupContent, {
           closeButton: true,
-          className: "custom-popup",
-          autoPan: true,
+          className: "custom-popup custom-popup-down",
+          autoPan: false,
           maxWidth: 500,
-          minWidth: popupWidth,
-          autoPanPaddingTopLeft: [0, topPadding], // 🌟 משתמשים במרווח הדינמי החדש
-          autoPanPaddingBottomRight: [0, 20]
+          minWidth: popupWidth
         });
 
         marker.on("click", () => {
-          map.setMaxBounds(null as any);
+          // 🌟 מחקנו את setMaxBounds(null)! המפה נשארת תמיד בתוך הגבולות שלה.
           const currentZoom = map.getZoom();
 
           if (count === 1) {
@@ -527,17 +550,21 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             }
             marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
           } else {
-            // בקבוצה - לחיצה שמה את האייקון ככתום (הנקודה הראשונה כבר מטופלת בתוך ה-renderCurrentPoint)
             marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
           }
 
           marker.openPopup();
+
+          // 🌟 מירכוז חכם: מזיזים את המפה כלפי מטה, כדי שהגרעין יעלה למעלה והחלונית תהיה במרכז!
+          setTimeout(() => {
+            const px = map.project(marker.getLatLng());
+            const shiftY = window.innerWidth < 450 ? 150 : 180;
+            px.y += shiftY;
+            map.panTo(map.unproject(px), { animate: true });
+          }, 50);
         });
 
-        marker.on("popupclose", () => {
-          const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
-          map.setMaxBounds(worldBounds);
-        });
+        // 🌟 מחקנו לגמרי את האירוע popupclose שעשה בעיות עם הגבולות
 
         layerRef.current?.addLayer(marker);
 
@@ -558,6 +585,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         map.setView([targetPoint.latitude, targetPoint.longitude], 16);
         setTimeout(() => {
           targetMarker.openPopup();
+          
+          // 🌟 מירכוז חכם גם כשהמשתמש מגיע מקישור
+          const px = map.project(targetMarker.getLatLng());
+          const shiftY = window.innerWidth < 450 ? 150 : 180;
+          px.y += shiftY;
+          map.panTo(map.unproject(px), { animate: true });
         }, 500);
         window.history.replaceState({}, '', window.location.pathname);
       }

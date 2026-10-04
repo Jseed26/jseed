@@ -58,9 +58,13 @@ const tAuth = {
         he: "אני מאשר/ת כי ידוע לי שהפרה של הנהלים, ובפרט הפרות חוזרות או חמורות, עשויה להביא להגבלת אפשרות הפרסום, להשעיית החשבון או לחסימתו.",
         en: "I confirm that I am aware that violating the guidelines, especially repeated or severe violations, may result in restricted publishing privileges, account suspension, or banning."
     },
-    box7Before: { he: "אישור סופי: אני מאשר/ת שקראתי והבנתי את הנהלים ואת ", en: "Final Confirmation: I confirm that I have read and understood the guidelines and the " },
-    box7Link: { he: "תקנון האתר", en: "Terms of Service" },
-    box7After: { he: ", ואני מסכים/ה לפעול בהתאם להם.", en: ", and I agree to comply with them." },
+    boxMissionaryFull: {
+        he: "איסור מוחלט: חל איסור מוחלט על פרסום, העלאה או שיתוף של תוכן בעל אופי מיסיונרי (לרבות חומרי הסברה, הזמנות לכנסים, קישורים לאתרים או סרטונים המעודדים המרת דת או פעילות מיסיונרית מכל סוג שהוא).",
+        en: "Strict Prohibition: It is strictly forbidden to publish, upload, or share content of a missionary nature (including promotional materials, event invitations, links, or videos encouraging religious conversion or missionary activity of any kind)."
+    },
+    box8Before: { he: "אישור סופי: אני מאשר/ת שקראתי והבנתי את הנהלים ואת ", en: "Final Confirmation: I confirm that I have read and understood the guidelines and the " },
+    box8Link: { he: "תקנון האתר", en: "Terms of Service" },
+    box8After: { he: ", ואני מסכים/ה לפעול בהתאם להם.", en: ", and I agree to comply with them." },
 
     // שגיאות
     errName: { he: "יש להזין שם (לפחות 2 אותיות)", en: "Name must be at least 2 characters" },
@@ -77,20 +81,11 @@ const tAuth = {
 
 export default function AuthPage() {
     const [lang, setLang] = useState<"en" | "he">("he");
-
-    useEffect(() => {
-        const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
-        if (savedLang) setLang(savedLang);
-    }, []);
-
     const [mode, setMode] = useState<"login" | "register">("login");
-
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [name, setName] = useState("");
-
     const [showTermsModal, setShowTermsModal] = useState(false);
-
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -100,7 +95,28 @@ export default function AuthPage() {
     const [forgotMessage, setForgotMessage] = useState("");
     const [forgotError, setForgotError] = useState("");
 
-    // 🌟 7 סטייטים לאישורים
+    // 🌟 תפיסת השגיאה מהשרת במקרה של ניסיון עקיפת תקנון
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search);
+            const err = urlParams.get("error");
+            if (err === "OAuthNotRegistered") {
+                setMode("register"); // מעבירים אותו אוטומטית למסך הרשמה!
+                setError(lang === "he" 
+                    ? "החשבון לא קיים. אנא אשרו את התקנון כדי להירשם עם גוגל/גיטהאב." 
+                    : "Account does not exist. Please accept the terms to register.");
+                
+                // מנקים את שורת הכתובת כדי שהשגיאה לא תישאר תקועה ברענון
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+    }, [lang]);
+
+    useEffect(() => {
+        const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
+        if (savedLang) setLang(savedLang);
+    }, []);
+
     const [agreements, setAgreements] = useState({
         box1: false,
         box2: false,
@@ -109,12 +125,14 @@ export default function AuthPage() {
         box5: false,
         box6: false,
         box7: false,
+        box8: false,
     });
 
-    const isTermsMissing = !(
+    const isTermsMissing = mode === "register" ? !(
         agreements.box1 && agreements.box2 && agreements.box3 &&
-        agreements.box4 && agreements.box5 && agreements.box6 && agreements.box7
-    );
+        agreements.box4 && agreements.box5 && agreements.box6 && 
+        agreements.box7 && agreements.box8
+    ) : false;
 
     const handleCheckboxChange = (boxId: keyof typeof agreements) => {
         setAgreements((prev) => {
@@ -124,7 +142,6 @@ export default function AuthPage() {
         });
     };
 
-    // המערך של תיבות הסימון
     const checkboxesData = [
         { id: "box1", textBefore: tAuth.box1Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
         { id: "box2", textBefore: tAuth.box2Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
@@ -132,13 +149,14 @@ export default function AuthPage() {
         { id: "box4", textBefore: tAuth.box4Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
         { id: "box5", textBefore: tAuth.box5Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
         { id: "box6", textBefore: tAuth.box6Full[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
+        { id: "box7", textBefore: tAuth.boxMissionaryFull[lang], linkText: "", textAfter: "", onClick: null, isBold: false },
         {
-            id: "box7",
-            textBefore: tAuth.box7Before[lang],
-            linkText: tAuth.box7Link[lang],
-            textAfter: tAuth.box7After[lang],
+            id: "box8",
+            textBefore: tAuth.box8Before[lang],
+            linkText: tAuth.box8Link[lang],
+            textAfter: tAuth.box8After[lang],
             onClick: () => setShowTermsModal(true),
-            isBold: true // סימון כדי להדגיש את התיבה האחרונה
+            isBold: true
         },
     ] as const;
 
@@ -172,7 +190,7 @@ export default function AuthPage() {
         if (res.ok) {
             setError(tAuth.successReg[lang]);
             setMode("login");
-            setAgreements({ box1: false, box2: false, box3: false, box4: false, box5: false, box6: false, box7: false });
+            setAgreements({ box1: false, box2: false, box3: false, box4: false, box5: false, box6: false, box7: false, box8: false });
             setPassword("");
         } else {
             const data = await res.json();
@@ -204,7 +222,16 @@ export default function AuthPage() {
         window.location.href = "/";
     }
 
+    // 🌟 פונקציית ההתחברות החברתית החכמה
     function handleSocialLogin(provider: string) {
+        if (mode === "register" && !isTermsMissing) {
+            // אם הוא מסך הרשמה וסימן את כל התיבות - נשתול עוגיית אישור ל-5 דקות
+            document.cookie = "jseed_terms_accepted=true; path=/; max-age=300";
+        } else {
+            // אם הוא במסך התחברות - מנקים את העוגייה ליתר ביטחון
+            document.cookie = "jseed_terms_accepted=; path=/; max-age=0";
+        }
+        
         signIn(provider, { callbackUrl: "/" });
     }
 
@@ -320,49 +347,50 @@ export default function AuthPage() {
                     </div>
                 </div>
 
-                {/* 🌟 אזור הנהלים הנגלל (מכיל את הטקסט המקדים ואת 7 התיבות) */}
-                <div className={`p-4 rounded-xl border transition-colors duration-300 ${isTermsMissing
-                    ? "border-red-900/50 bg-red-950/20"
-                    : "border-green-900/50 bg-green-950/20"
-                    }`}>
+                {mode === "register" && (
+                    <div className={`p-4 rounded-xl border transition-colors duration-300 ${isTermsMissing
+                        ? "border-red-900/50 bg-red-950/20"
+                        : "border-green-900/50 bg-green-950/20"
+                        }`}>
 
-                    <p className="text-[11px] text-gray-400 leading-relaxed mb-3 text-justify">
-                        {tAuth.rulesIntro[lang]}
-                    </p>
+                        <p className="text-[11px] text-gray-400 leading-relaxed mb-3 text-justify">
+                            {tAuth.rulesIntro[lang]}
+                        </p>
 
-                    <div className="flex flex-col gap-4 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-                        {checkboxesData.map((box) => (
-                            <div key={box.id} className="flex items-start gap-3">
-                                <input
-                                    type="checkbox"
-                                    id={box.id}
-                                    checked={agreements[box.id as keyof typeof agreements]}
-                                    onChange={() => handleCheckboxChange(box.id as keyof typeof agreements)}
-                                    className="w-4 h-4 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
-                                />
-                                <label
-                                    htmlFor={box.id}
-                                    className={`text-xs cursor-pointer leading-relaxed ${box.isBold ? "text-white font-bold" : "text-gray-300"}`}
-                                >
-                                    {box.textBefore}
-                                    {box.linkText && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                box.onClick?.();
-                                            }}
-                                            className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 transition-colors mx-1"
-                                        >
-                                            {box.linkText}
-                                        </button>
-                                    )}
-                                    {box.textAfter}
-                                </label>
-                            </div>
-                        ))}
+                        <div className="flex flex-col gap-4 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                            {checkboxesData.map((box) => (
+                                <div key={box.id} className="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id={box.id}
+                                        checked={agreements[box.id as keyof typeof agreements]}
+                                        onChange={() => handleCheckboxChange(box.id as keyof typeof agreements)}
+                                        className="w-4 h-4 mt-0.5 accent-yellow-500 cursor-pointer rounded shrink-0"
+                                    />
+                                    <label
+                                        htmlFor={box.id}
+                                        className={`text-xs cursor-pointer leading-relaxed ${box.isBold ? "text-white font-bold" : "text-gray-300"}`}
+                                    >
+                                        {box.textBefore}
+                                        {box.linkText && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    box.onClick?.();
+                                                }}
+                                                className="text-yellow-500 hover:text-yellow-400 font-bold underline underline-offset-2 transition-colors mx-1"
+                                            >
+                                                {box.linkText}
+                                            </button>
+                                        )}
+                                        {box.textAfter}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <button
                     onClick={mode === "login" ? handleLogin : handleRegister}
@@ -425,7 +453,6 @@ export default function AuthPage() {
                 </div>
             </div>
 
-            {/* חלון מודאל: שכחתי סיסמה */}
             {showForgotModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
                     <div className="bg-[#111] border border-gray-800 p-8 rounded-2xl w-full max-w-sm shadow-2xl relative">
@@ -473,7 +500,6 @@ export default function AuthPage() {
                 </div>
             )}
 
-{/* מודאל תקנון */}
             {showTermsModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm">
                     <div className="bg-[#111] border border-gray-800 p-6 rounded-xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
@@ -484,7 +510,6 @@ export default function AuthPage() {
                             </h2>
                         </div>
                         
-                        {/* אזור נגלל של התקנון מותאם לשפה */}
                         <div className="text-gray-300 text-sm leading-relaxed mb-6 overflow-y-auto custom-scrollbar flex-grow px-2">
                             {lang === "he" ? (
                                 <div dir="rtl" className="text-right space-y-5">
@@ -505,6 +530,7 @@ export default function AuthPage() {
                                         <h3 className="font-bold text-yellow-500 text-base mb-2">2. התנהלות הקהילה ושימוש בטוח</h3>
                                         <ul className="list-disc list-inside space-y-2 pr-2">
                                             <li><strong className="text-white">איסור פגיעה:</strong> אין להעלות תכנים פוגעניים, מסיתים, גזעניים, פורנוגרפיים, אלימים או כל תוכן העלול לפגוע בכבודו או בפרטיותו של אדם אחר.</li>
+                                            <li><strong className="text-white">איסור מיסיונריות:</strong> חל איסור מוחלט על פרסום, העלאה או שיתוף של תוכן בעל אופי מיסיונרי (לרבות חומרי הסברה, הזמנות לכנסים, קישורים לאתרים או סרטונים המעודדים המרת דת או פעילות מיסיונרית מכל סוג שהוא).</li>
                                             <li><strong className="text-white">שימוש הוגן:</strong> אין להשתמש באפליקציה לצרכים מסחריים שאינם מאושרים, אין לבצע סריקת נתונים (Scraping) או כל פעולה העלולה להכביד או לפגוע בתקינות הפעולה של שרתי האפליקציה.</li>
                                             <li><strong className="text-white">קטינים:</strong> השימוש באפליקציה מותר למשתמשים העומדים בתנאי הגיל המוגדרים בחוק.</li>
                                         </ul>
@@ -557,6 +583,7 @@ export default function AuthPage() {
                                         <h3 className="font-bold text-yellow-500 text-base mb-2">2. Community Conduct and Safe Use</h3>
                                         <ul className="list-disc list-inside space-y-2 pl-2">
                                             <li><strong className="text-white">No Harmful Content:</strong> Do not upload offensive, inciting, racist, pornographic, violent content, or any content that may harm the dignity or privacy of another person.</li>
+                                            <li><strong className="text-white">Strict Prohibition on Missionary Content:</strong> It is strictly forbidden to publish, upload, or share content of a missionary nature (including promotional materials, event invitations, website links, or videos encouraging religious conversion or missionary activity of any kind).</li>
                                             <li><strong className="text-white">Fair Use:</strong> Do not use the app for unapproved commercial purposes, do not perform data scraping, or any action that may burden or disrupt the proper operation of the app's servers.</li>
                                             <li><strong className="text-white">Minors:</strong> Use of the app is permitted for users meeting the legally defined age requirements.</li>
                                         </ul>
@@ -601,7 +628,6 @@ export default function AuthPage() {
                         </button>
                     </div>
                 </div>
-            
             )}
         </div>
     );
