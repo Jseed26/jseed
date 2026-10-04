@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { Point } from "@/src/types/point";
-import { createCategoryIcon } from "@/src/lib/map/icons";
 
 type Props = {
   map: L.Map | null;
@@ -15,10 +14,34 @@ type Props = {
   searchQuery?: string;
 };
 
+// 🌟 זיכרון גלובלי מחוץ לריאקט! ככה אף רינדור מחדש של המפה לא יאפס לנו את הכתום
+const globalClickedPoints = new Set<number>();
+
+function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
+  const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
+  const baseSize = zoom > 12 ? 42 : 32;
+
+  const badgeHtml = count > 1
+    ? `<div style="position: absolute; top: -8px; right: -8px; background: #fbbf24; color: #000; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; border: 2px solid #111827; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10;">${count}</div>`
+    : '';
+
+  return L.divIcon({
+    html: `
+      <div style="position: relative; width: ${baseSize}px; height: ${baseSize}px; transition: all 0.2s;">
+        <img src="${iconUrl}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.6));" />
+        ${badgeHtml}
+      </div>
+    `,
+    className: "", 
+    iconSize: [baseSize, baseSize],
+    iconAnchor: [baseSize / 2, baseSize],
+    popupAnchor: [0, -baseSize + 5]
+  });
+}
+
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he", searchQuery = "" }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
-  const clickedLocallyRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     if (!map) return;
@@ -108,13 +131,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       imageHtml = `
         <div class="point-image-container" style="position: relative; width: 100%; height: 120px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
           ${imagesList.map((src, i) => `
-            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
+            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100\%; height: 100\%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
           `).join('')}
           <button class="carousel-prev-${point.id}" style="position: absolute; ${isHe ? 'left' : 'right'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❮' : '❯'}</button>
           <button class="carousel-next-${point.id}" style="position: absolute; ${isHe ? 'right' : 'left'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❯' : '❮'}</button>
           <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: ${isHe ? 'row-reverse' : 'row'};">
             ${imagesList.map((_, i) => `
-              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
+              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50\%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
             `).join('')}
           </div>
         </div>
@@ -146,7 +169,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           </span>
           ${isChai ? `
           <span style="font-size: 12px; color: #fbbf24; font-weight: bold;">
-            🤝 ${participantsCount} ${t.participants}
+            🤝 ${participantsCount}${t.participants}
           </span>
           ` : ''}
         </div>
@@ -348,7 +371,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
         e.preventDefault(); e.stopPropagation();
-        // 🌟 עכשיו אנחנו שולחים גם את הקואורדינטות המדויקות של הנקודה!
         window.dispatchEvent(new CustomEvent("open-direct-add-form", {
           detail: {
             name: point.name,
@@ -369,55 +391,233 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     layerRef.current.clearLayers();
     markersRef.current = {};
 
-    // 🌟 הנה השינוי הגדול: השרת כבר סינן לפי מילים, אז אנחנו מסננים פה *רק* לפי קטגוריה!
     const filtered = points.filter((p) => {
       return activeCategory ? p.category === activeCategory : true;
     });
 
-    filtered.forEach((point) => {
-      const isViewed = viewedIds.includes(point.id) || clickedLocallyRef.current.has(point.id);
-      const isSaved = savedIds.includes(point.id);
+    const groupedByLocation: Record<string, Record<string, Point[]>> = {};
 
-      const marker = L.marker(
-        [point.latitude, point.longitude],
-        { icon: createCategoryIcon(point.category, isViewed, map.getZoom()) }
-      );
+    filtered.forEach(point => {
+      const lat = Number(point.latitude).toFixed(4);
+      const lng = Number(point.longitude).toFixed(4);
+      const locKey = `${lat},${lng}`;
 
-      marker.bindPopup(createPopupNode(point, isSaved, map), {
-        closeButton: true,
-        className: "custom-popup",
-        autoPan: true,
-        maxWidth: 500,
-        minWidth: 230,
-        autoPanPaddingTopLeft: [0, 150],
-        autoPanPaddingBottomRight: [0, 20]
-      });
+      if (!groupedByLocation[locKey]) {
+        groupedByLocation[locKey] = {};
+      }
+      if (!groupedByLocation[locKey][point.category]) {
+        groupedByLocation[locKey][point.category] = [];
+      }
+      groupedByLocation[locKey][point.category].push(point);
+    });
 
-      marker.on("click", (e) => {
-        map.setMaxBounds(null as any);
-        const currentZoom = map.getZoom();
+    Object.entries(groupedByLocation).forEach(([locKey, categoriesGroup]) => {
+      const [centerLatStr, centerLngStr] = locKey.split(',');
+      const centerLat = parseFloat(centerLatStr);
+      const centerLng = parseFloat(centerLngStr);
 
-        clickedLocallyRef.current.add(point.id);
+      const categoriesList = Object.keys(categoriesGroup);
+      const numCategories = categoriesList.length;
 
-        marker.setIcon(createCategoryIcon(point.category, true, currentZoom));
-        marker.openPopup();
+      categoriesList.forEach((category, index) => {
+        const pointsInCat = categoriesGroup[category];
+        const count = pointsInCat.length;
 
-        if (point.id) {
-          fetch("/api/history", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pointId: point.id }),
-          }).catch((err) => console.error("Failed to save history:", err));
+        let finalLat = centerLat;
+        let finalLng = centerLng;
+
+        if (numCategories > 1) {
+          const angle = (index * 2 * Math.PI) / numCategories;
+          const radius = 0.00015; 
+          finalLat += radius * Math.cos(angle);
+          finalLng += radius * Math.sin(angle);
         }
-      });
 
-      marker.on("popupclose", () => {
-        const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
-        map.setMaxBounds(worldBounds);
-      });
+        // 🌟 בדיקה האם לנקודה יש 'נצפה' מתוך המערך או מהזיכרון
+        const isAnyViewed = pointsInCat.some(p => 
+          viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
+        );
 
-      layerRef.current?.addLayer(marker);
-      markersRef.current[point.id] = marker;
+        const marker = L.marker(
+          [finalLat, finalLng],
+          { icon: createGroupedIcon(category, isAnyViewed, map.getZoom(), count) }
+        );
+
+        const popupContent = document.createElement("div");
+
+        if (count === 1) {
+          const singlePoint = pointsInCat[0];
+          const isSaved = savedIds.includes(singlePoint.id);
+          popupContent.appendChild(createPopupNode(singlePoint, isSaved, map));
+        } else {
+          let viewState: 'list' | 'detail' = 'list';
+          let selectedPointIndex = 0;
+
+          const renderPopupState = () => {
+            popupContent.innerHTML = ""; 
+
+            if (viewState === 'list') {
+              const header = document.createElement("div");
+              header.innerHTML = `
+                <div style="font-weight: bold; padding-bottom: 8px; border-bottom: 1px solid #374151; margin-bottom: 8px; color: #fbbf24; text-align: center;">
+                  ${count} ${lang === "he" ? "נקודות במיקום זה" : "Points at this location"}
+                </div>
+              `;
+              popupContent.appendChild(header);
+
+              const listContainer = document.createElement("div");
+              listContainer.style.maxHeight = "250px";
+              listContainer.style.overflowY = "auto";
+              listContainer.style.paddingRight = "5px";
+              listContainer.className = "custom-scrollbar";
+              listContainer.dir = lang === "he" ? "rtl" : "ltr";
+
+              pointsInCat.forEach((p, idx) => {
+                const row = document.createElement("div");
+                row.style.padding = "8px 0";
+                row.style.borderBottom = "1px solid #374151";
+                row.style.cursor = "pointer";
+                row.style.display = "flex";
+                row.style.alignItems = "center";
+                row.style.gap = "10px";
+                row.style.transition = "background 0.2s";
+                row.onmouseover = () => row.style.backgroundColor = "rgba(255,255,255,0.05)";
+                row.onmouseout = () => row.style.backgroundColor = "transparent";
+
+                // 🌟 בדיקה פרטנית על כל יוזמה - האם היא נצפתה או לא?
+                const isPointViewed = viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id));
+                
+                row.onclick = (e) => {
+                  e.stopPropagation();
+                  viewState = 'detail';
+                  selectedPointIndex = idx;
+                  
+                  const currentPoint = pointsInCat[idx];
+                  const pId = Number(currentPoint.id);
+                  
+                  globalClickedPoints.add(pId);
+                  
+                  fetch("/api/history", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pointId: pId }),
+                  })
+                  .then(() => {
+                      window.dispatchEvent(new Event("points-updated"));
+                  })
+                  .catch(console.error);
+
+                  marker.setIcon(createGroupedIcon(category, true, map.getZoom(), count));
+
+                  renderPopupState();
+                };
+
+                const imgUrl = (p.imageUrls && p.imageUrls.length > 0) ? p.imageUrls[0] : (p.imageUrl || `/icons/categories/${category}/default.png`);
+                const pName = lang === "he" ? p.name : (p.name_en || p.name);
+                const arrowIcon = lang === "he" ? "❮" : "❯";
+                const viewedText = lang === "he" ? "✓ נצפה" : "✓ Viewed";
+
+                // 🌟 פה אנחנו שמים את החיווי הוויזואלי (צבע כתום + המילה "נצפה")
+                row.innerHTML = `
+                  <img src="${imgUrl}" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: rgba(255,255,255,0.1); flex-shrink: 0; opacity: ${isPointViewed ? '0.7' : '1'};" />
+                  <div style="flex: 1; overflow: hidden;">
+                    <div style="font-weight: bold; font-size: 13px; color: ${isPointViewed ? '#fbbf24' : '#fff'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pName}</div>
+                    <div style="font-size: 11px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.address || ''}</div>
+                  </div>
+                  <div style="color: ${isPointViewed ? '#fbbf24' : '#9ca3af'}; font-size: 11px; margin-left: 5px; margin-right: 5px; display: flex; align-items: center; gap: 6px;">
+                    ${isPointViewed ? `<span style="font-weight: bold;">${viewedText}</span>` : ''}
+                    <span style="font-size: 14px;">${arrowIcon}</span>
+                  </div>
+                `;
+                listContainer.appendChild(row);
+              });
+              
+              popupContent.appendChild(listContainer);
+
+            } else {
+              const currentPoint = pointsInCat[selectedPointIndex];
+              const isSaved = savedIds.includes(currentPoint.id);
+
+              const backNav = document.createElement("div");
+              backNav.style.paddingBottom = "10px";
+              backNav.style.marginBottom = "5px";
+              backNav.dir = lang === "he" ? "rtl" : "ltr";
+
+              const backBtn = document.createElement("button");
+              backBtn.innerHTML = lang === "he" ? "➔ חזרה לרשימה" : "Back to list ➔";
+              backBtn.style.background = "transparent";
+              backBtn.style.border = "none";
+              backBtn.style.color = "#fbbf24";
+              backBtn.style.fontWeight = "bold";
+              backBtn.style.fontSize = "13px";
+              backBtn.style.cursor = "pointer";
+              backBtn.style.display = "flex";
+              backBtn.style.alignItems = "center";
+              backBtn.onclick = (e) => {
+                e.stopPropagation();
+                viewState = 'list';
+                renderPopupState();
+              };
+              
+              backNav.appendChild(backBtn);
+              popupContent.appendChild(backNav);
+              popupContent.appendChild(createPopupNode(currentPoint, isSaved, map));
+            }
+          };
+
+          renderPopupState();
+        }
+
+        marker.bindPopup(popupContent, {
+          closeButton: true,
+          className: "custom-popup",
+          autoPan: true,
+          maxWidth: 500,
+          minWidth: 230,
+          autoPanPaddingTopLeft: [0, 150],
+          autoPanPaddingBottomRight: [0, 20]
+        });
+
+        marker.on("click", () => {
+          map.setMaxBounds(null as any);
+          const currentZoom = map.getZoom();
+
+          if (count === 1) {
+            const pId = Number(pointsInCat[0].id);
+            globalClickedPoints.add(pId);
+            
+            fetch("/api/history", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pointId: pId }),
+            })
+            .then(() => {
+                window.dispatchEvent(new Event("points-updated"));
+            })
+            .catch(console.error);
+            
+            marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
+          } else {
+            const anyViewed = pointsInCat.some(p => 
+              viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
+            );
+            marker.setIcon(createGroupedIcon(category, anyViewed, currentZoom, count));
+          }
+
+          marker.openPopup();
+        });
+
+        marker.on("popupclose", () => {
+          const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
+          map.setMaxBounds(worldBounds);
+        });
+
+        layerRef.current?.addLayer(marker);
+
+        pointsInCat.forEach(p => {
+          markersRef.current[p.id] = marker;
+        });
+      });
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -439,12 +639,18 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const handleZoomEnd = () => {
       const currentZoom = map.getZoom();
 
-      filtered.forEach((point) => {
-        const marker = markersRef.current[point.id];
-        if (marker) {
-          const isViewed = viewedIds.includes(point.id) || clickedLocallyRef.current.has(point.id);
-          marker.setIcon(createCategoryIcon(point.category, isViewed, currentZoom));
-        }
+      Object.values(groupedByLocation).forEach(categoriesGroup => {
+        Object.entries(categoriesGroup).forEach(([category, pointsInCat]) => {
+          const count = pointsInCat.length;
+          const firstId = pointsInCat[0].id;
+          const marker = markersRef.current[firstId];
+          if (marker) {
+            const isAnyViewed = pointsInCat.some(p => 
+              viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
+            );
+            marker.setIcon(createGroupedIcon(category, isAnyViewed, currentZoom, count));
+          }
+        });
       });
     };
 

@@ -88,7 +88,7 @@ export default function Map({
       maxBounds: worldBounds,
       maxBoundsViscosity: 1.0,
       worldCopyJump: false,
-      zoomControl: true,
+      zoomControl: false,
       preferCanvas: true,
       zoomSnap: 0,
       zoomAnimation: false,
@@ -184,6 +184,12 @@ export default function Map({
           const savedData = await resSaved.json();
           setSavedIds(savedData.map((p: Point) => p.id));
         }
+        // 🌟 שואבים גם את היסטוריית הצפיות כשהנקודות מתעדכנות 🌟
+        const resHistory = await fetch("/api/history");
+        if (resHistory.ok) {
+            const historyData = await resHistory.json();
+            setViewedIds(historyData.map((p: Point) => p.id));
+        }
       }
     };
 
@@ -192,6 +198,7 @@ export default function Map({
       window.removeEventListener("points-updated", refresh);
     };
   }, [isLoggedIn]);
+
 
   useEffect(() => {
     if (!map) return;
