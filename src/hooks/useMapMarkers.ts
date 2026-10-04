@@ -21,16 +21,23 @@ const globalClickedPoints = new Set<number>();
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
   
-  // 🌟 מנגנון גדלים חכם לפי רמות זום! 
-  let baseSize = 24; 
+  // 🌟 מנגנון גדלים חכם עם 4 רמות (עוצב במיוחד למובייל!)
+  let baseSize = 16; // רמת עולם/יבשות (ממש קטן ועדין)
   if (zoom >= 15) {
-    baseSize = 46; 
+    baseSize = 46; // רמת רחוב (קרוב מאוד - גדול וברור ללחיצה)
   } else if (zoom >= 11) {
-    baseSize = 34; 
+    baseSize = 34; // רמת עיר (בינוני)
+  } else if (zoom >= 6) {
+    baseSize = 24; // רמת מדינה (קצת יותר קטן)
   }
 
+  // מקטינים גם את הבועה הצהובה של המספרים כשהאייקון קטן, כדי שלא תבלע אותו!
+  const badgeSize = baseSize < 24 ? 16 : 22;
+  const badgeFontSize = baseSize < 24 ? 10 : 13;
+  const badgeOffset = baseSize < 24 ? -4 : -8;
+
   const badgeHtml = count > 1
-    ? `<div style="position: absolute; top: -8px; right: -8px; background: #fbbf24; color: #000; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; border: 2px solid #111827; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10;">${count}</div>`
+    ? `<div style="position: absolute; top: ${badgeOffset}px; right: ${badgeOffset}px; background: #fbbf24; color: #000; border-radius: 50%; width: ${badgeSize}px; height: ${badgeSize}px; display: flex; align-items: center; justify-content: center; font-size: ${badgeFontSize}px; font-weight: 900; border: 2px solid #111827; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10;">${count}</div>`
     : '';
 
   return L.divIcon({
