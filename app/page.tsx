@@ -192,7 +192,7 @@ export default function Home() {
           className="relative z-40"
         />
 
-        <div className="relative w-52 mx-auto z-40" dir="ltr">
+        {/* <div className="relative w-52 mx-auto z-40" dir="ltr">
           <Search
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
@@ -205,7 +205,7 @@ export default function Home() {
             className="w-full py-1.5 pl-8 pr-3 text-center text-sm rounded-lg bg-black text-white border border-gray-600 placeholder-gray-500 focus:outline-none focus:border-gray-400 focus:ring-0"
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
+        </div> */}
       </div>
 
       {toast && (

@@ -81,8 +81,11 @@ export default function Map({
     );
 
     const newMap = L.map(container, {
-      center: [20, 0],
-      zoom: isMobile ? 1.0 : 2.5,
+     // 🌟 שינינו את המרכז שיהיה באזור המזרח התיכון / אירופה
+      center: [31.5, 34.8], 
+      // 🌟 הגדלנו את הזום ההתחלתי: 3.5 לטלפון ו-4.5 למחשב (שתי יבשות פחות או יותר)
+      zoom: isMobile ? 1.5 : 3,
+      // 🌟 הגדלנו גם את הזום המינימלי, כדי שלא יוכלו להתרחק בטעות חזרה למצב של "ריבוע"
       minZoom: isMobile ? 0.8 : 2.3,
       maxZoom: 18,
       maxBounds: worldBounds,
