@@ -355,13 +355,12 @@ export default function Home() {
                 }}
                 className="flex flex-col items-center justify-end w-full relative z-[1300]"
               >
-                {/* מעטפת בגובה קבוע שמבטיחה שהאייקונים תמיד יושבים בבסיס וממורכבים בדיוק מעל הטקסט */}
                 <div className="h-12 sm:h-14 flex items-end justify-center w-full">
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
                     className={`shrink-0 object-contain transition-transform origin-bottom ${
                       isChai 
-                          ? "w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4]"
+                          ? `w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
                           : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"        
                     }`}
                     alt={cat.label}
