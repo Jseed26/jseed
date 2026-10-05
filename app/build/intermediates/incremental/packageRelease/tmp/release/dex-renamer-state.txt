@@ -1,0 +1,4 @@
+#Mon Oct 05 01:57:34 IDT 2026
+base.0=C\:\\Users\\hadar\\Desktop\\jseed\\jseed-web\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex
