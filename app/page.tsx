@@ -117,14 +117,14 @@ export default function Home() {
 
         <div className="absolute top-3 w-full flex justify-between px-6 z-[9999] pointer-events-none" dir="ltr">
 
+          {/* כפתור הוספת גרעין (ללא רקע) */}
           <button
-            className="pointer-events-auto flex items-center justify-center p-2 rounded-full transition-all hover:scale-110 bg-gray-900/80 border border-gray-700/50 backdrop-blur-sm"
+            className="pointer-events-auto flex items-center justify-center p-1 transition-all hover:scale-110 drop-shadow-lg"
             title={t.addSeed[lang]}
             onClick={() => {
-              // מקפיץ מיד את הטופס ללא צורך בבחירת מיקום קודמת
               window.dispatchEvent(new CustomEvent("open-direct-add-form", {
                 detail: {
-                  category: "leaf", // ברירת מחדל
+                  category: "leaf",
                 }
               }));
             }}
@@ -132,36 +132,35 @@ export default function Home() {
             <img
               src="/icons/ui/seed/default.png"
               alt="Add Seed"
-              className="w-7 h-7 object-contain"
+              className="w-8 h-8 object-contain"
             />
           </button>
 
-          <div className="flex items-center gap-3 pointer-events-auto">
-            <div title={t.notifications[lang]} className="flex items-center">
+          <div className="flex items-center gap-4 pointer-events-auto">
+            {/* פעמון התראות */}
+            <div title={t.notifications[lang]} className="flex items-center drop-shadow-lg">
               <NotificationBell />
             </div>
 
-            <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-700/50 rounded-full py-1 pr-1 pl-3 backdrop-blur-sm">
-
-              <button
-                title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
-                onClick={() => {
-                  if (status === "loading") return;
-                  if (isLoggedIn) {
-                    router.push("/my-points");
-                  } else {
-                    router.push("/auth");
-                  }
-                }}
-                className="hover:scale-105 transition-transform"
-              >
-                <img
-                  src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
-                  className="w-8 h-8 object-cover rounded-full"
-                  alt="Profile"
-                />
-              </button>
-            </div>
+            {/* כפתור פרופיל (ללא רקע) */}
+            <button
+              title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
+              onClick={() => {
+                if (status === "loading") return;
+                if (isLoggedIn) {
+                  router.push("/my-points");
+                } else {
+                  router.push("/auth");
+                }
+              }}
+              className="hover:scale-110 transition-transform drop-shadow-lg"
+            >
+              <img
+                src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
+                className="w-8 h-8 object-contain"
+                alt="Profile"
+              />
+            </button>
           </div>
         </div>
 
@@ -340,8 +339,8 @@ export default function Home() {
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
                     className={`shrink-0 object-contain transition-transform origin-bottom ${isChai
-                        ? `w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
-                        : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"
+                      ? `w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
+                      : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"
                       }`}
                     alt={cat.label}
                   />
