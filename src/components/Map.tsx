@@ -18,11 +18,13 @@ type MapProps = {
   lang: "he" | "en";
 };
 
+// 🌟 עדכנו את ה-ModalState שישמור גם את תוכן הטופס אם המשתמש חזר למפה כדי לבחור מיקום
 type ModalState = {
   lat: number;
   lng: number;
   prefilledName?: string;
   prefilledCategory?: string;
+  draftData?: any; // פה נשמור את המידע שהוא כבר הקליד
 } | null;
 
 const tMap = {
@@ -39,8 +41,9 @@ const tMap = {
   locNotFound: { he: "המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?", en: "Location not found. Use the compass location on the map?" },
   enterAddress: { he: "אנא הזן רחוב, מספר ועיר בלבד", en: "Please enter street, number, and city only" },
   noAddress: { he: "לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?", en: "No address entered. Save point using the compass location?" },
-  // 🌟 משימה 1: הוספנו תרגום להודעת התודה!
   thankYouMsg: { he: "תודה! הגרעין נוסף בהצלחה 🌱", en: "Thank you! Seed added successfully 🌱" },
+  pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" }, // 🌟 הודעה צפה בזמן בחירת מיקום
+  cancelPick: { he: "ביטול חזרה למפה", en: "Cancel Picking" }
 };
 
 export default function Map({
@@ -56,12 +59,16 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
+  
+  // 🌟 סטייט חדש שזוכר שאנחנו עכשיו "מצלפים" על המפה
+  const [isPickingLocation, setIsPickingLocation] = useState(false);
+  const [draftFormState, setDraftFormState] = useState<any>(null); // שומר את הטופס בזמן שאנחנו על המפה
+
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
 
-  // 🌟 משימה 1: סטייט לשמירת הודעת ההצלחה שלנו
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const { status } = useSession();
@@ -131,7 +138,6 @@ export default function Map({
     load();
   }, []);
 
-  // 🌟 משימה 7: הפונקציה המרכזית שדואגת שההיסטוריה (הכתומים) תישאר מעודכנת!
   const loadHistory = async () => {
       try {
         const res = await fetch("/api/history");
@@ -188,7 +194,6 @@ export default function Map({
           const savedData = await resSaved.json();
           setSavedIds(savedData.map((p: Point) => p.id));
         }
-        // מרעננים מחדש את ההיסטוריה הכללית מהשרת כדי לוודא סנכרון
         loadHistory();
       }
     };
@@ -200,10 +205,26 @@ export default function Map({
   }, [isLoggedIn]);
 
 
+  // 🌟 הלוגיקה של לחיצה על המפה עכשיו מנהלת גם את "מצב צלף" וגם את הוספת היוזמה הרגילה
   useEffect(() => {
     if (!map) return;
 
     const handleClick = (e: L.LeafletMouseEvent) => {
+      
+      // 🌟 אם אנחנו במצב בחירת מיקום
+      if (isPickingLocation && draftFormState) {
+          setModal({
+              lat: e.latlng.lat,
+              lng: e.latlng.lng,
+              prefilledCategory: draftFormState.category,
+              draftData: draftFormState, // מחזירים את הטופס כפי שהיה
+          });
+          setIsPickingLocation(false);
+          setDraftFormState(null);
+          return;
+      }
+
+      // התנהגות רגילה של הוספת גרעין עם פלוס (מצפן)
       if (!isCompassMode) return;
 
       if (!isLoggedIn) {
@@ -251,7 +272,7 @@ export default function Map({
       map.off("locationfound", handleLocationFound);
       map.off("movestart", onMove);
     };
-  }, [map, isCompassMode, activeCategory, isLoggedIn, lang]);
+  }, [map, isCompassMode, activeCategory, isLoggedIn, lang, isPickingLocation, draftFormState]);
 
   useEffect(() => {
     const handleDirectAdd = (e: any) => {
@@ -330,21 +351,22 @@ export default function Map({
   });
 
   return (
-    <div className="relative w-full h-full">
+    <div className={`relative w-full h-full ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
       <div
         ref={mapRef}
         className="w-full h-full min-h-[50vh] rounded-2xl overflow-hidden bg-black relative"
       />
 
-      {isCompassMode && (
+      {isCompassMode && !isPickingLocation && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400] pb-8">
           <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="rgba(17,24,39,0.9)" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.3))" }}>
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" fill="#fbbf24" stroke="none" />
           </svg>
         </div>
       )}
 
-      {/* 🌟 משימה 1: קומפוננטת פופאפ הודעת התודה שמרחפת באמצע המסך */}
+      {/* 🌟 משימה 1: קומפוננטת פופאפ הודעת התודה */}
       {successToast && (
         <div className="absolute inset-0 z-[99999] pointer-events-none flex items-center justify-center">
           <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce">
@@ -353,16 +375,56 @@ export default function Map({
         </div>
       )}
 
-      {modal && (
+      {/* 🌟 ממשק צף לבחירת מיקום על המפה! */}
+      {isPickingLocation && (
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-2 pointer-events-auto">
+              <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
+                {tMap.pickLocationMsg[lang]}
+              </div>
+              <button 
+                  onClick={() => {
+                      setIsPickingLocation(false);
+                      // שחזור הטופס ללא שינוי במיקום
+                      setModal({
+                          lat: draftFormState.lat || 31.768,
+                          lng: draftFormState.lng || 35.213,
+                          draftData: draftFormState
+                      });
+                  }}
+                  className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
+              >
+                  ✕ {tMap.cancelPick[lang]}
+              </button>
+          </div>
+      )}
+
+      {modal && !isPickingLocation && (
         <PointForm
           mode="create"
           category={modal.prefilledCategory || activeCategory}
           initialData={{
             lat: modal.lat,
             lng: modal.lng,
-            name: modal.prefilledName,
+            name: modal.draftData?.name || modal.prefilledName,
+            description: modal.draftData?.description,
+            // 🌟 אם הוא חזר מצליפה על המפה, נמלא לו אוטומטית הודעה יפה בשדה הכתובת
+            address: modal.draftData ? (lang === "he" ? "מיקום נבחר מהמפה 📍" : "Location picked from map 📍") : modal.draftData?.address,
+            website: modal.draftData?.website,
+            images: modal.draftData?.images,
+            existingImages: modal.draftData?.existingImages
           }}
           onClose={() => setModal(null)}
+          onPickLocation={(currentFormState) => {
+              setDraftFormState({
+                  ...currentFormState,
+                  lat: modal.lat, 
+                  lng: modal.lng,
+                  // כשאנחנו יוצאים לצלף, ננקה את הכתובת כדי שנוכל למלא אותה בחזרה מהמפה
+                  address: "" 
+              });
+              setModal(null);
+              setIsPickingLocation(true);
+          }}
           onSubmit={async ({ form }) => {
             if (status !== "authenticated") return;
 
@@ -371,7 +433,11 @@ export default function Map({
 
             const cleanAddress = form.address ? form.address.trim() : "";
 
-            if (cleanAddress !== "") {
+            // 🌟 אם הכתובת היא ההודעה האוטומטית שלנו שמעידה שהוא צלף, או אם יש לנו דראפט (שזה אומר שהוא עשה צליפה) 
+            // אנחנו מדלגים על חיפוש הכתובת ושומרים ישר!
+            const isPickedFromMap = modal.draftData !== undefined || cleanAddress.includes("📍");
+
+            if (!isPickedFromMap && cleanAddress !== "") {
               try {
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
                 const geoData = await geoRes.json();
@@ -387,7 +453,7 @@ export default function Map({
                   }
                 }
               } catch (err) { }
-            } else {
+            } else if (!isPickedFromMap) {
               const useCompass = window.confirm(tMap.noAddress[lang]);
               if (!useCompass) {
                 alert(tMap.enterAddress[lang]);
@@ -398,7 +464,8 @@ export default function Map({
             const formData = new FormData();
             formData.append("name", form.name);
             formData.append("description", form.description);
-            formData.append("address", cleanAddress);
+            // אם זו ההודעה האוטומטית, נשמור כתובת ריקה במסד נתונים כדי שלא יראה למשתמשים את הטקסט "מיקום נבחר מהמפה" ככתובת אמיתית
+            formData.append("address", isPickedFromMap ? "" : cleanAddress);
             formData.append("website", form.website);
             formData.append("category", form.category);
             formData.append("latitude", String(finalLat));
@@ -425,23 +492,21 @@ export default function Map({
             setPoints((prev) => [...prev, data]);
             setModal(null);
             setCompassMode(false);
+            setDraftFormState(null); // 🌟 חשוב לנקות את הזיכרון אחרי שמירה מוצלחת
 
-            // 🌟 משימה 7: מוסיפים את הנקודה החדשה להיסטוריה באופן מקומי כדי שתהפוך לכתום מיד!
             setViewedIds((prev) => [...prev, data.id]);
 
             if (map) {
               map.setView([finalLat, finalLng], 16);
             }
 
-            // 🌟 משימה 1: הפעלת הודעת התודה!
             setSuccessToast(tMap.thankYouMsg[lang]);
             setTimeout(() => {
               setSuccessToast(null);
-            }, 3000); // ההודעה תיעלם אחרי 3 שניות
+            }, 3000); 
           }}
         />
       )}
-
 
       {/* GPS Button */}
       <button

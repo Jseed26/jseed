@@ -23,6 +23,8 @@ type Props = {
     category?: string | null;
     onClose: () => void;
     onSubmit: (data: { form: FormState }) => any; 
+    // 🌟 הוספנו פונקציה חדשה שמודיעה למפה שאנחנו רוצים לבחור מיקום
+    onPickLocation?: (currentFormState: FormState) => void; 
 };
 
 const CATEGORIES = [
@@ -38,7 +40,8 @@ const tForm = {
     editTitle: { he: "עריכת גרעין", en: "Edit Seed" },
     namePlaceholder: { he: "שם הגרעין (לדוג: יד ושם...)", en: "Seed Name (e.g., Yad Vashem)" },
     descPlaceholder: { he: "תיאור (לדוג: רשות הזיכרון לשואה ולגבורה)", en: "Description (e.g., The World Holocaust Remembrance Center)" },
-    addressPlaceholder: { he: "כתובת (כתובת מדוייקת/ כללית)", en: "Address (Exact/general address)" },
+    addressPlaceholder: { he: "כתובת (מדוייקת או עיר)", en: "Address (Exact or City)" },
+    pickLocation: { he: "🗺️ סמן מיקום על המפה", en: "🗺️ Pick Location on Map" }, // 🌟 כפתור חדש
     websitePlaceholder: { he: "קישור לאתר (לדוג: https://...)", en: "Website Link (e.g., https://...)" },
     addImages: { he: "הוספת תמונות", en: "Add Images" },
     processing: { he: "מעבד...", en: "Processing..." },
@@ -57,7 +60,7 @@ const tForm = {
     nameTakenMsg: { he: "בחר ביוזמה מהרשימה כדי להצטרף אליה", en: "Select the initiative from the list to join it" }
 };
 
-export default function PointForm({ mode, initialData, onClose, onSubmit, category }: Props) {
+export default function PointForm({ mode, initialData, onClose, onSubmit, onPickLocation, category }: Props) {
     const [lang, setLang] = useState<"en" | "he">("he");
 
     useEffect(() => {
@@ -70,7 +73,7 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
         description: initialData?.description || "",
         address: initialData?.address || "",
         website: initialData?.website || "",
-        images: [],
+        images: initialData?.images || [], // 🌟 קורא גם תמונות שטרם הועלו (במקרה שחזרנו מהמפה)
         existingImages: initialData?.existingImages || [], 
         category: initialData?.category || category || "", 
     });
@@ -102,7 +105,6 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
         init.toLowerCase().includes(form.name.toLowerCase())
     );
 
-    // בדיקה האם השם שהוקלד קיים בדיוק באותה צורה ברשימה
     const isNameTaken = chaiInitiatives.some(init => init.trim().toLowerCase() === form.name.trim().toLowerCase());
 
     async function handleSubmit() {
@@ -257,12 +259,26 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, catego
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
 
-                <input
-                    placeholder={tForm.addressPlaceholder[lang]}
-                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors"
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                />
+                {/* 🌟 אזור בחירת המיקום החדש! 🌟 */}
+                <div className="flex gap-2">
+                    <input
+                        placeholder={tForm.addressPlaceholder[lang]}
+                        className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 placeholder-gray-500 text-white transition-colors flex-1"
+                        value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    />
+                    
+                    {onPickLocation && (
+                        <button
+                            type="button"
+                            onClick={() => onPickLocation(form)}
+                            className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-yellow-500 px-3 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 flex items-center justify-center shadow-inner"
+                            title={tForm.pickLocation[lang]}
+                        >
+                            {tForm.pickLocation[lang]}
+                        </button>
+                    )}
+                </div>
 
                 <input
                     placeholder={tForm.websitePlaceholder[lang]}
