@@ -14,10 +14,10 @@ type Props = {
   searchQuery?: string;
 };
 
-// 🌟 זיכרון גלובלי שומר על הצבע הכתום
+// זיכרון גלובלי שומר על הצבע הכתום
 const globalClickedPoints = new Set<number>();
 
-// 🌟 פונקציית עזר ליצירת האייקון 
+// פונקציית עזר ליצירת האייקון 
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
 
@@ -63,7 +63,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       const style = document.createElement("style");
       style.id = styleId;
       style.innerHTML = `
-        /* איפוס מלא של חלונית המפה המקורית */
         .leaflet-popup.headless-popup { margin: 0 !important; }
         .headless-popup .leaflet-popup-content-wrapper {
             background: transparent !important;
@@ -82,7 +81,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             align-items: center;
         }
 
-        /* עיצוב הטופס החדש שלנו - נוסף max-height כדי שלא ייצא מהמסך! */
         .jseed-custom-modal {
             position: absolute;
             background: #111827;
@@ -99,7 +97,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             overflow-x: hidden;
         }
         
-        /* עיצוב פס הגלילה בתוך החלונית */
         .jseed-custom-modal::-webkit-scrollbar {
             width: 6px;
         }
@@ -119,7 +116,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             .jseed-custom-modal { width: 320px; }
         }
 
-        /* הצ'ופצ'יק שמחבר לגרעין */
         .jseed-modal-tip {
             position: absolute;
             width: 0;
@@ -177,6 +173,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             transform: translateY(-50%);
             border-width: 8px 8px 8px 0;
             border-color: transparent #111827 transparent transparent;
+        }
+
+        /* ✨ אנימציית הזרימה של החוטים הזהובים ✨ */
+        .golden-thread-line {
+            filter: drop-shadow(0px 0px 4px rgba(251, 191, 36, 0.9));
+            animation: dash-flow 30s linear infinite;
+        }
+        @keyframes dash-flow {
+            to { stroke-dashoffset: -1000; }
         }
       `;
       document.head.appendChild(style);
@@ -255,7 +260,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     let imageHtml = "";
 
-    // 🌟 שינוי פרופורציות ל- 16:9 אנכי (9/16) 🌟
     const verticalImgStyle = `width: 100%; aspect-ratio: 9/16; max-height: 280px; object-fit: cover; border-radius: 8px; background: #000; cursor: pointer;`;
 
     if (imagesList.length === 1) {
@@ -279,7 +283,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const plantIconSrc = isSaved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
-    const participantsCount = isChai ? points.filter(p => p.category === "chai" && p.name === point.name).length : 0;
+    
+    // משיכת מספר המשתתפים לאותה יוזמה
+    const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
     container.innerHTML = `
       ${headerHtml}
@@ -483,6 +489,57 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       return activeCategory ? p.category === activeCategory : true;
     });
 
+    // ==========================================
+    // ✨ משימה 2: ציור החוטים הזהובים ליוזמות "חי" ✨
+    // ==========================================
+    const chaiPoints = filtered.filter(p => p.category === "chai");
+    const chaiGroups: Record<string, Point[]> = {};
+
+    // 1. קיבוץ היוזמות לפי השם שלהן
+    chaiPoints.forEach(p => {
+      const nameKey = (p.name || "").trim().toLowerCase();
+      if (nameKey) {
+        if (!chaiGroups[nameKey]) chaiGroups[nameKey] = [];
+        chaiGroups[nameKey].push(p);
+      }
+    });
+
+    // 2. ציור הקווים
+    Object.values(chaiGroups).forEach(group => {
+      if (group.length > 1) {
+       // מיון לפי ID - מכיוון שה-ID עולה אוטומטית (1, 2, 3), המספר הנמוך ביותר הוא תמיד המקור!
+        group.sort((a, b) => Number(a.id) - Number(b.id));
+        
+        const hub = group[0]; // הרכזת - פותח היוזמה המקורי
+
+        // מותחים קו מהמקור לכל שאר המשתתפים ("שמעון", "מאיה", "רינה")
+        for (let i = 1; i < group.length; i++) {
+          const spoke = group[i]; // המשתתפים
+          
+          // מוודאים שהם לא בדיוק באותה נקודה גיאוגרפית (כדי שלא נצייר קו באורך 0)
+          if (hub.latitude !== spoke.latitude || hub.longitude !== spoke.longitude) {
+            const latlngs: L.LatLngExpression[] = [
+              [hub.latitude, hub.longitude],
+              [spoke.latitude, spoke.longitude]
+            ];
+
+            const thread = L.polyline(latlngs, {
+              color: '#fbbf24', // צבע זהב
+              weight: 3,
+              opacity: 0.65,
+              dashArray: '6, 8', // מקווקו כמו חוט תפירה
+              lineCap: 'round',
+              lineJoin: 'round',
+              className: 'golden-thread-line' // מפעיל את אנימציית הזרימה שהוספנו ב-CSS למעלה
+            });
+
+            layerRef.current?.addLayer(thread);
+          }
+        }
+      }
+    });
+    // ==========================================
+
     const groupedByLocation: Record<string, Record<string, Point[]>> = {};
 
     filtered.forEach(point => {
@@ -640,7 +697,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const mapHeight = map.getSize().y;
 
           let direction = "up"; 
-          // 🌟 עכשיו זה 50% - פותר את משימה 5!
           if (pt.y < mapHeight * 0.50) {
             direction = "down"; 
           } else if (pt.x > mapWidth * 0.65) {
