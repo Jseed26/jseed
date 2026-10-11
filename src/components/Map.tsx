@@ -18,13 +18,13 @@ type MapProps = {
   lang: "he" | "en";
 };
 
-// 🌟 עדכנו את ה-ModalState שישמור גם את תוכן הטופס אם המשתמש חזר למפה כדי לבחור מיקום
 type ModalState = {
   lat: number;
   lng: number;
   prefilledName?: string;
   prefilledCategory?: string;
-  draftData?: any; // פה נשמור את המידע שהוא כבר הקליד
+  draftData?: any;
+  parentId?: number | null; // 🌟 הוספנו את הזיכרון להורה של היוזמה!
 } | null;
 
 const tMap = {
@@ -42,7 +42,7 @@ const tMap = {
   enterAddress: { he: "אנא הזן רחוב, מספר ועיר בלבד", en: "Please enter street, number, and city only" },
   noAddress: { he: "לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?", en: "No address entered. Save point using the compass location?" },
   thankYouMsg: { he: "תודה! הגרעין נוסף בהצלחה 🌱", en: "Thank you! Seed added successfully 🌱" },
-  pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" }, // 🌟 הודעה צפה בזמן בחירת מיקום
+  pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" },
   cancelPick: { he: "ביטול חזרה למפה", en: "Cancel Picking" }
 };
 
@@ -60,9 +60,8 @@ export default function Map({
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
   
-  // 🌟 סטייט חדש שזוכר שאנחנו עכשיו "מצלפים" על המפה
   const [isPickingLocation, setIsPickingLocation] = useState(false);
-  const [draftFormState, setDraftFormState] = useState<any>(null); // שומר את הטופס בזמן שאנחנו על המפה
+  const [draftFormState, setDraftFormState] = useState<any>(null);
 
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -204,27 +203,24 @@ export default function Map({
     };
   }, [isLoggedIn]);
 
-
-  // 🌟 הלוגיקה של לחיצה על המפה עכשיו מנהלת גם את "מצב צלף" וגם את הוספת היוזמה הרגילה
   useEffect(() => {
     if (!map) return;
 
     const handleClick = (e: L.LeafletMouseEvent) => {
       
-      // 🌟 אם אנחנו במצב בחירת מיקום
       if (isPickingLocation && draftFormState) {
           setModal({
               lat: e.latlng.lat,
               lng: e.latlng.lng,
               prefilledCategory: draftFormState.category,
-              draftData: draftFormState, // מחזירים את הטופס כפי שהיה
+              draftData: draftFormState,
+              parentId: draftFormState.parentId // 🌟 שומר על ההורה גם כשחוזרים מהצליפה
           });
           setIsPickingLocation(false);
           setDraftFormState(null);
           return;
       }
 
-      // התנהגות רגילה של הוספת גרעין עם פלוס (מצפן)
       if (!isCompassMode) return;
 
       if (!isLoggedIn) {
@@ -287,7 +283,8 @@ export default function Map({
         lat: e.detail.lat || center.lat,
         lng: e.detail.lng || center.lng,
         prefilledName: e.detail.name,
-        prefilledCategory: e.detail.category
+        prefilledCategory: e.detail.category,
+        parentId: e.detail.parentId // 🌟 לוכד את ה-ID של ההורה מהלחיצה על הפלוס בחלונית!
       });
     };
 
@@ -366,7 +363,6 @@ export default function Map({
         </div>
       )}
 
-      {/* 🌟 משימה 1: קומפוננטת פופאפ הודעת התודה */}
       {successToast && (
         <div className="absolute inset-0 z-[99999] pointer-events-none flex items-center justify-center">
           <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce">
@@ -375,7 +371,6 @@ export default function Map({
         </div>
       )}
 
-      {/* 🌟 ממשק צף לבחירת מיקום על המפה! */}
       {isPickingLocation && (
           <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-2 pointer-events-auto">
               <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
@@ -384,11 +379,11 @@ export default function Map({
               <button 
                   onClick={() => {
                       setIsPickingLocation(false);
-                      // שחזור הטופס ללא שינוי במיקום
                       setModal({
                           lat: draftFormState.lat || 31.768,
                           lng: draftFormState.lng || 35.213,
-                          draftData: draftFormState
+                          draftData: draftFormState,
+                          parentId: draftFormState.parentId
                       });
                   }}
                   className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
@@ -407,11 +402,11 @@ export default function Map({
             lng: modal.lng,
             name: modal.draftData?.name || modal.prefilledName,
             description: modal.draftData?.description,
-            // 🌟 אם הוא חזר מצליפה על המפה, נמלא לו אוטומטית הודעה יפה בשדה הכתובת
             address: modal.draftData ? (lang === "he" ? "מיקום נבחר מהמפה 📍" : "Location picked from map 📍") : modal.draftData?.address,
             website: modal.draftData?.website,
             images: modal.draftData?.images,
-            existingImages: modal.draftData?.existingImages
+            existingImages: modal.draftData?.existingImages,
+            parentId: modal.parentId || modal.draftData?.parentId // 🌟 מעביר לטופס
           }}
           onClose={() => setModal(null)}
           onPickLocation={(currentFormState) => {
@@ -419,8 +414,8 @@ export default function Map({
                   ...currentFormState,
                   lat: modal.lat, 
                   lng: modal.lng,
-                  // כשאנחנו יוצאים לצלף, ננקה את הכתובת כדי שנוכל למלא אותה בחזרה מהמפה
-                  address: "" 
+                  address: "", 
+                  parentId: modal.parentId // 🌟 שומר את ההורה
               });
               setModal(null);
               setIsPickingLocation(true);
@@ -432,9 +427,6 @@ export default function Map({
             let finalLng = modal.lng;
 
             const cleanAddress = form.address ? form.address.trim() : "";
-
-            // 🌟 אם הכתובת היא ההודעה האוטומטית שלנו שמעידה שהוא צלף, או אם יש לנו דראפט (שזה אומר שהוא עשה צליפה) 
-            // אנחנו מדלגים על חיפוש הכתובת ושומרים ישר!
             const isPickedFromMap = modal.draftData !== undefined || cleanAddress.includes("📍");
 
             if (!isPickedFromMap && cleanAddress !== "") {
@@ -464,12 +456,16 @@ export default function Map({
             const formData = new FormData();
             formData.append("name", form.name);
             formData.append("description", form.description);
-            // אם זו ההודעה האוטומטית, נשמור כתובת ריקה במסד נתונים כדי שלא יראה למשתמשים את הטקסט "מיקום נבחר מהמפה" ככתובת אמיתית
             formData.append("address", isPickedFromMap ? "" : cleanAddress);
             formData.append("website", form.website);
             formData.append("category", form.category);
             formData.append("latitude", String(finalLat));
             formData.append("longitude", String(finalLng));
+
+            // 🌟🌟🌟 כאן הקסם! שולחים את ההורה לשרת!
+            if (form.parentId) {
+              formData.append("parentId", String(form.parentId));
+            }
 
             if (form.images && form.images.length > 0) {
               form.images.forEach((img) => {
@@ -477,7 +473,6 @@ export default function Map({
               });
             }
 
-            
             const res = await fetch("/api/points", {
               method: "POST",
               body: formData,
@@ -493,7 +488,7 @@ export default function Map({
             setPoints((prev) => [...prev, data]);
             setModal(null);
             setCompassMode(false);
-            setDraftFormState(null); // 🌟 חשוב לנקות את הזיכרון אחרי שמירה מוצלחת
+            setDraftFormState(null);
 
             setViewedIds((prev) => [...prev, data.id]);
 
