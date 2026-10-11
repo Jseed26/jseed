@@ -21,8 +21,8 @@ type MapProps = {
 type ModalState = {
   lat: number;
   lng: number;
-  prefilledName?: string; // הוספנו את זה
-  prefilledCategory?: string; // הוספנו את זה
+  prefilledName?: string;
+  prefilledCategory?: string;
 } | null;
 
 const tMap = {
@@ -39,6 +39,8 @@ const tMap = {
   locNotFound: { he: "המיקום שלך לא נקלט, האם להשתמש במיקום של המצפן במפה?", en: "Location not found. Use the compass location on the map?" },
   enterAddress: { he: "אנא הזן רחוב, מספר ועיר בלבד", en: "Please enter street, number, and city only" },
   noAddress: { he: "לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?", en: "No address entered. Save point using the compass location?" },
+  // 🌟 משימה 1: הוספנו תרגום להודעת התודה!
+  thankYouMsg: { he: "תודה! הגרעין נוסף בהצלחה 🌱", en: "Thank you! Seed added successfully 🌱" },
 };
 
 export default function Map({
@@ -58,6 +60,9 @@ export default function Map({
 
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
+
+  // 🌟 משימה 1: סטייט לשמירת הודעת ההצלחה שלנו
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const { status } = useSession();
 
@@ -81,11 +86,8 @@ export default function Map({
     );
 
     const newMap = L.map(container, {
-     // 🌟 שינינו את המרכז שיהיה באזור המזרח התיכון / אירופה
       center: [31.5, 10.8], 
-      // 🌟 הגדלנו את הזום ההתחלתי: 3.5 לטלפון ו-4.5 למחשב (שתי יבשות פחות או יותר)
       zoom: isMobile ? 2 : 2.5,
-      // 🌟 הגדלנו גם את הזום המינימלי, כדי שלא יוכלו להתרחק בטעות חזרה למצב של "ריבוע"
       minZoom: isMobile ? 2 : 2.5,
       maxZoom: 18,
       maxBounds: worldBounds,
@@ -129,10 +131,8 @@ export default function Map({
     load();
   }, []);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    async function loadHistory() {
+  // 🌟 משימה 7: הפונקציה המרכזית שדואגת שההיסטוריה (הכתומים) תישאר מעודכנת!
+  const loadHistory = async () => {
       try {
         const res = await fetch("/api/history");
         if (res.ok) {
@@ -140,8 +140,10 @@ export default function Map({
           setViewedIds(data.map((p: Point) => p.id));
         }
       } catch (err) { }
-    }
+  };
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
     loadHistory();
   }, [isLoggedIn]);
 
@@ -164,7 +166,6 @@ export default function Map({
   useEffect(() => {
     async function search() {
       const params = new URLSearchParams();
-      // 🌟 החזרנו את שורת החיפוש! עכשיו הטקסט נשלח למנוע ה-AI בשרת
       if (searchQuery.trim()) params.append("q", searchQuery);
       if (activeCategory) params.append("category", activeCategory);
 
@@ -173,7 +174,7 @@ export default function Map({
       setPoints(Array.isArray(data) ? data : []);
     }
     search();
-  }, [searchQuery, activeCategory]); // 🌟 הוספנו את searchQuery לכאן כדי שיחפש בכל הקלדה
+  }, [searchQuery, activeCategory]);
 
   useEffect(() => {
     const refresh = async () => {
@@ -187,12 +188,8 @@ export default function Map({
           const savedData = await resSaved.json();
           setSavedIds(savedData.map((p: Point) => p.id));
         }
-        // 🌟 שואבים גם את היסטוריית הצפיות כשהנקודות מתעדכנות 🌟
-        const resHistory = await fetch("/api/history");
-        if (resHistory.ok) {
-            const historyData = await resHistory.json();
-            setViewedIds(historyData.map((p: Point) => p.id));
-        }
+        // מרעננים מחדש את ההיסטוריה הכללית מהשרת כדי לוודא סנכרון
+        loadHistory();
       }
     };
 
@@ -255,7 +252,7 @@ export default function Map({
       map.off("movestart", onMove);
     };
   }, [map, isCompassMode, activeCategory, isLoggedIn, lang]);
-  // ======= ה-useEffect של הוספת יוזמה (בחוץ, עומד לבד!) =======
+
   useEffect(() => {
     const handleDirectAdd = (e: any) => {
       if (!isLoggedIn) {
@@ -263,11 +260,9 @@ export default function Map({
         return;
       }
 
-      // ניקח את מרכז המפה רק בתור גיבוי אחרון
       const center = mapInstanceRef.current?.getCenter() || { lat: 31.768, lng: 35.213 };
 
       setModal({
-        // 🌟 אנחנו משתמשים קודם כל במיקום המדויק שהגיע מהנקודה!
         lat: e.detail.lat || center.lat,
         lng: e.detail.lng || center.lng,
         prefilledName: e.detail.name,
@@ -331,7 +326,7 @@ export default function Map({
     viewedIds,
     savedIds,
     lang,
-    searchQuery, // 🌟 הנה החוליה החסרה! עכשיו הוא מעביר את החיפוש לסמנים
+    searchQuery,
   });
 
   return (
@@ -350,15 +345,22 @@ export default function Map({
         </div>
       )}
 
+      {/* 🌟 משימה 1: קומפוננטת פופאפ הודעת התודה שמרחפת באמצע המסך */}
+      {successToast && (
+        <div className="absolute inset-0 z-[99999] pointer-events-none flex items-center justify-center">
+          <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce">
+            {successToast}
+          </div>
+        </div>
+      )}
+
       {modal && (
         <PointForm
           mode="create"
-          // 🌟 אם עברנו מהכפתור של הפלוס, נשתמש בקטגוריה שהגיעה משם. אחרת נשתמש בקטגוריה הפעילה מהתפריט
           category={modal.prefilledCategory || activeCategory}
           initialData={{
             lat: modal.lat,
             lng: modal.lng,
-            // 🌟 הנה מה שחסר! מעבירים את השם לתוך הטופס
             name: modal.prefilledName,
           }}
           onClose={() => setModal(null)}
@@ -425,9 +427,18 @@ export default function Map({
             setModal(null);
             setCompassMode(false);
 
+            // 🌟 משימה 7: מוסיפים את הנקודה החדשה להיסטוריה באופן מקומי כדי שתהפוך לכתום מיד!
+            setViewedIds((prev) => [...prev, data.id]);
+
             if (map) {
               map.setView([finalLat, finalLng], 16);
             }
+
+            // 🌟 משימה 1: הפעלת הודעת התודה!
+            setSuccessToast(tMap.thankYouMsg[lang]);
+            setTimeout(() => {
+              setSuccessToast(null);
+            }, 3000); // ההודעה תיעלם אחרי 3 שניות
           }}
         />
       )}

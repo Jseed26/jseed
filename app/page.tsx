@@ -101,9 +101,9 @@ export default function Home() {
   const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: t.community[lang] },
     { key: "triangle", label: t.legacy[lang] },
-    { key: "chai", label: t.chai[lang] },
     { key: "star", label: t.spirit[lang] },
     { key: "circle", label: t.business[lang] },
+    { key: "chai", label: t.chai[lang] },
 
   ];
 
@@ -118,41 +118,22 @@ export default function Home() {
         <div className="absolute top-3 w-full flex justify-between px-6 z-[9999] pointer-events-none" dir="ltr">
 
           <button
-            className="pointer-events-auto flex items-center justify-center p-2 rounded-full transition-all"
-            style={{
-              background: isCompassMode ? "rgba(251, 191, 36, 0.15)" : "transparent",
-              border: isCompassMode ? "1px solid rgba(251, 191, 36, 0.4)" : "1px solid transparent"
-            }}
-            title={isCompassMode ? t.cancel[lang] : t.addSeed[lang]}
+            className="pointer-events-auto flex items-center justify-center p-2 rounded-full transition-all hover:scale-110 bg-gray-900/80 border border-gray-700/50 backdrop-blur-sm"
+            title={t.addSeed[lang]}
             onClick={() => {
-              setCompassMode(v => !v);
-              setToast(!isCompassMode ? t.selectPoint[lang] : null);
-              setTimeout(() => setToast(null), 2000);
+              // מקפיץ מיד את הטופס ללא צורך בבחירת מיקום קודמת
+              window.dispatchEvent(new CustomEvent("open-direct-add-form", {
+                detail: {
+                  category: "leaf", // ברירת מחדל
+                }
+              }));
             }}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="26" height="26"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#fbbf24"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{
-                transition: "all 0.3s ease",
-                filter: isCompassMode ? "drop-shadow(0px 0px 8px rgba(251,191,36,0.6))" : "none",
-                transform: isCompassMode ? "scale(1.1)" : "scale(1)"
-              }}
-            >
-              <circle cx="12" cy="12" r="10" fill={isCompassMode ? "rgba(17,24,39,0.8)" : "none"} />
-              <line x1="12" y1="2" x2="12" y2="4" />
-              <line x1="12" y1="20" x2="12" y2="22" />
-              <line x1="20" y1="12" x2="22" y2="12" />
-              <line x1="2" y1="12" x2="4" y2="12" />
-              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill={isCompassMode ? "rgba(251,191,36,0.2)" : "none"} />
-              <line x1="7.76" y1="16.24" x2="16.24" y2="7.76" />
-            </svg>
+            <img
+              src="/icons/ui/seed/default.png"
+              alt="Add Seed"
+              className="w-7 h-7 object-contain"
+            />
           </button>
 
           <div className="flex items-center gap-3 pointer-events-auto">
@@ -254,7 +235,7 @@ export default function Home() {
         </div>
       </div>
 
-{/* ================= תפריט קטגוריות תחתון ================= */}
+      {/* ================= תפריט קטגוריות תחתון ================= */}
       <div className="shrink-0 w-full flex justify-evenly sm:justify-center items-end px-1 sm:px-0 sm:gap-8 pt-3 pb-5 sm:pb-3 relative z-[1000] bg-black safe-area-bottom">
         {categories.map((cat) => {
           const isActive = activeCategory === cat.key;
@@ -275,7 +256,7 @@ export default function Home() {
                   />
 
                   {/* התפריט עצמו */}
-                  <div className="absolute bottom-[110%] -right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>                    
+                  <div className="absolute bottom-[110%] -right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>
                     <button
                       onClick={() => {
                         setActiveCategory("chai");
@@ -358,11 +339,10 @@ export default function Home() {
                 <div className="h-12 sm:h-14 flex items-end justify-center w-full">
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                    className={`shrink-0 object-contain transition-transform origin-bottom ${
-                      isChai 
-                          ? `w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
-                          : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"        
-                    }`}
+                    className={`shrink-0 object-contain transition-transform origin-bottom ${isChai
+                        ? `w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
+                        : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"
+                      }`}
                     alt={cat.label}
                   />
                 </div>
