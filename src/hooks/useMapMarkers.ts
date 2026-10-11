@@ -175,13 +175,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             border-color: transparent #111827 transparent transparent;
         }
 
-        /* ✨ אנימציית הזרימה של החוטים הזהובים ✨ */
+        /* ✨ קו זהב ישר וזוהר ✨ */
         .golden-thread-line {
             filter: drop-shadow(0px 0px 4px rgba(251, 191, 36, 0.9));
-            animation: dash-flow 30s linear infinite;
-        }
-        @keyframes dash-flow {
-            to { stroke-dashoffset: -1000; }
         }
       `;
       document.head.appendChild(style);
@@ -252,14 +248,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    const imagesList = point.imageUrls && point.imageUrls.length > 0
-      ? point.imageUrls
+    const imagesList = point.imageUrls && point.imageUrls.length > 0 
+      ? point.imageUrls 
       : (point.imageUrl ? [point.imageUrl] : []);
-
+    
     const imagesJsonStr = JSON.stringify(imagesList).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
     let imageHtml = "";
-
     const verticalImgStyle = `width: 100%; aspect-ratio: 9/16; max-height: 280px; object-fit: cover; border-radius: 8px; background: #000; cursor: pointer;`;
 
     if (imagesList.length === 1) {
@@ -283,8 +278,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const plantIconSrc = isSaved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
-    
-    // משיכת מספר המשתתפים לאותה יוזמה
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
     container.innerHTML = `
@@ -460,6 +453,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
     }
 
+    // 🌟 העברת ה-parentId כשלחצים על פלוס בתוך החלונית
     const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
@@ -470,7 +464,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             name: point.name,
             category: "chai",
             lat: point.latitude,
-            lng: point.longitude
+            lng: point.longitude,
+            parentId: point.id // מעביר את ה-ID של הנקודה הנוכחית כהורה
           }
         }));
       };
@@ -490,47 +485,65 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     });
 
     // ==========================================
-    // ✨ משימה 2: ציור החוטים הזהובים ליוזמות "חי" ✨
+    // ✨ ציור קווי זהב ישרים (עם רשת ביטחון אוטומטית) ✨
     // ==========================================
-    const chaiPoints = filtered.filter(p => p.category === "chai");
-    const chaiGroups: Record<string, Point[]> = {};
+    const pointsMap = new Map<number, Point>();
+    points.forEach(p => pointsMap.set(p.id, p));
 
-    // 1. קיבוץ היוזמות לפי השם שלהן
-    chaiPoints.forEach(p => {
-      const nameKey = (p.name || "").trim().toLowerCase();
-      if (nameKey) {
-        if (!chaiGroups[nameKey]) chaiGroups[nameKey] = [];
-        chaiGroups[nameKey].push(p);
+    // קיבוץ לפי שם יוזמה כדי למצוא את המקור (Root) עבור נקודות שאין להן parentId מוגדר
+    const chaiGroups: Record<string, Point[]> = {};
+    points.forEach(p => {
+      if (p.category === "chai") {
+        const nameKey = (p.name || "").trim().toLowerCase();
+        if (nameKey) {
+          if (!chaiGroups[nameKey]) chaiGroups[nameKey] = [];
+          chaiGroups[nameKey].push(p);
+        }
       }
     });
 
-    // 2. ציור הקווים
-    Object.values(chaiGroups).forEach(group => {
-      if (group.length > 1) {
-       // מיון לפי ID - מכיוון שה-ID עולה אוטומטית (1, 2, 3), המספר הנמוך ביותר הוא תמיד המקור!
+    // עבור כל יוזמה, נמצא מי המקור הראשון (לפי ID נמוך ביותר)
+    const rootPointsMap = new Map<string, Point>();
+    Object.entries(chaiGroups).forEach(([nameKey, group]) => {
+      if (group.length > 0) {
         group.sort((a, b) => Number(a.id) - Number(b.id));
-        
-        const hub = group[0]; // הרכזת - פותח היוזמה המקורי
+        rootPointsMap.set(nameKey, group[0]); // הראשון הוא המקור
+      }
+    });
 
-        // מותחים קו מהמקור לכל שאר המשתתפים ("שמעון", "מאיה", "רינה")
-        for (let i = 1; i < group.length; i++) {
-          const spoke = group[i]; // המשתתפים
-          
-          // מוודאים שהם לא בדיוק באותה נקודה גיאוגרפית (כדי שלא נצייר קו באורך 0)
-          if (hub.latitude !== spoke.latitude || hub.longitude !== spoke.longitude) {
+    points.forEach(child => {
+      if (child.category === "chai") {
+        let parent: Point | undefined = undefined;
+
+        // אם יש לו parentId מוגדר, נשתמש בו
+        if (child.parentId) {
+          parent = pointsMap.get(child.parentId);
+        } 
+        
+        // רשת ביטחון: אם אין לו parentId אבל הוא לא המקור בעצמו, נחבר אותו אוטומטית למקור של היוזמה!
+        if (!parent) {
+          const nameKey = (child.name || "").trim().toLowerCase();
+          const root = rootPointsMap.get(nameKey);
+          if (root && root.id !== child.id) {
+            parent = root;
+          }
+        }
+
+        if (parent) {
+          if (parent.latitude !== child.latitude || parent.longitude !== child.longitude) {
             const latlngs: L.LatLngExpression[] = [
-              [hub.latitude, hub.longitude],
-              [spoke.latitude, spoke.longitude]
+              [parent.latitude, parent.longitude],
+              [child.latitude, child.longitude]
             ];
 
+            // 🌟 קו ישר ואחיד לחלוטין (بدون dashArray)
             const thread = L.polyline(latlngs, {
-              color: '#fbbf24', // צבע זהב
+              color: '#fbbf24',
               weight: 3,
-              opacity: 0.65,
-              dashArray: '6, 8', // מקווקו כמו חוט תפירה
+              opacity: 0.75,
               lineCap: 'round',
               lineJoin: 'round',
-              className: 'golden-thread-line' // מפעיל את אנימציית הזרימה שהוספנו ב-CSS למעלה
+              className: 'golden-thread-line'
             });
 
             layerRef.current?.addLayer(thread);

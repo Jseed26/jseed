@@ -432,6 +432,7 @@ export default function MyPointsPage() {
                             });
                         }
 
+                        
                         const res = await fetch(`/api/points/${editingPoint.id}`, {
                             method: "PUT",
                             body: formData,

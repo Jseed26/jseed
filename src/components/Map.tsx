@@ -477,6 +477,7 @@ export default function Map({
               });
             }
 
+            
             const res = await fetch("/api/points", {
               method: "POST",
               body: formData,

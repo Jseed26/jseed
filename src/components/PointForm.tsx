@@ -11,6 +11,7 @@ type FormState = {
     images: File[];            
     existingImages: string[];  
     category: string;
+    parentId?: number | null; // 🌟 שדה לזיכרון ההורה
 };
 
 type Props = {
@@ -19,11 +20,11 @@ type Props = {
         lat?: number;
         lng?: number;
         existingImages?: string[]; 
+        parentId?: number | null; // 🌟 קליטת הורה התחלתי
     };
     category?: string | null;
     onClose: () => void;
     onSubmit: (data: { form: FormState }) => any; 
-    // 🌟 הוספנו פונקציה חדשה שמודיעה למפה שאנחנו רוצים לבחור מיקום
     onPickLocation?: (currentFormState: FormState) => void; 
 };
 
@@ -41,14 +42,14 @@ const tForm = {
     namePlaceholder: { he: "שם הגרעין (לדוג: יד ושם...)", en: "Seed Name (e.g., Yad Vashem)" },
     descPlaceholder: { he: "תיאור (לדוג: רשות הזיכרון לשואה ולגבורה)", en: "Description (e.g., The World Holocaust Remembrance Center)" },
     addressPlaceholder: { he: "כתובת (מדוייקת או עיר)", en: "Address (Exact or City)" },
-    pickLocation: { he: "🗺️ סמן מיקום על המפה", en: "🗺️ Pick Location on Map" }, // 🌟 כפתור חדש
+    pickLocation: { he: "🗺️ סמן מיקום על המפה", en: "🗺️ Pick Location on Map" },
     websitePlaceholder: { he: "קישור לאתר (לדוג: https://...)", en: "Website Link (e.g., https://...)" },
     addImages: { he: "הוספת תמונות", en: "Add Images" },
     processing: { he: "מעבד...", en: "Processing..." },
     compressing: { he: "מכווץ תמונות...", en: "Compressing images..." },
     maxImages: { he: "הגעת למקסימום 3 תמונות", en: "Maximum 3 images reached" },
     imagesCount: { he: "תמונות נוספו (מקסימום 3)", en: "images added (Max 3)" },
-    upTo3: { he: "עד 3 תמונות בסך הכל", en: "Up to 3 images total" },
+    upTo3: { he: "עד 3 תמונות", en: "Up to 3 images" },
     cancel: { he: "ביטול", en: "Cancel" },
     create: { he: "צור", en: "Create" },
     save: { he: "שמור", en: "Save" },
@@ -73,9 +74,10 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
         description: initialData?.description || "",
         address: initialData?.address || "",
         website: initialData?.website || "",
-        images: initialData?.images || [], // 🌟 קורא גם תמונות שטרם הועלו (במקרה שחזרנו מהמפה)
+        images: initialData?.images || [], 
         existingImages: initialData?.existingImages || [], 
         category: initialData?.category || category || "", 
+        parentId: initialData?.parentId || null, // 🌟 שמירת ה-parentId בסטייט של הטופס
     });
 
     const [isCompressing, setIsCompressing] = useState(false);
@@ -259,7 +261,6 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                 />
 
-                {/* 🌟 אזור בחירת המיקום החדש! 🌟 */}
                 <div className="flex gap-2">
                     <input
                         placeholder={tForm.addressPlaceholder[lang]}

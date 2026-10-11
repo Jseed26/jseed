@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import AIEngine from "@/src/lib/ai"; 
+import AIEngine from "@/src/lib/ai";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
-import translate from "google-translate-api-x"; 
+import translate from "google-translate-api-x";
 import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
 
-export const dynamic = 'force-dynamic'; 
+export const dynamic = 'force-dynamic';
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
@@ -41,7 +41,7 @@ export async function GET(req: Request) {
     // אם אנחנו בקטגוריית 'חי' (יוזמות) ויש התאמה מדויקת לשם:
     // אנחנו מחזירים *רק* אותה ויוצאים החוצה מיד! ה-AI לא ירוץ בכלל.
     if (category === 'chai' && exactNameMatches.length > 0) {
-        return NextResponse.json(exactNameMatches);
+      return NextResponse.json(exactNameMatches);
     }
 
 
@@ -61,13 +61,13 @@ export async function GET(req: Request) {
     `, embeddingString);
 
     if (rawPoints.length === 0) {
-        return NextResponse.json([]);
+      return NextResponse.json([]);
     }
 
     const pointIds = rawPoints.map(p => p.id);
     const fullPoints = await prisma.point.findMany({
-        where: { id: { in: pointIds } },
-        include: { _count: { select: { savedBy: true, viewedBy: true } } }
+      where: { id: { in: pointIds } },
+      include: { _count: { select: { savedBy: true, viewedBy: true } } }
     });
 
     const cleanUserQuery = cleanTextForMatching(qRaw);
@@ -75,36 +75,36 @@ export async function GET(req: Request) {
 
     // חגורת בטיחות למילון זיכרון
     if (qRaw.includes("זכר") || qRaw.includes("זיכרו") || qRaw === "remember" || qRaw === "memory") {
-        dictionaryConcepts.push("זכר", "לזכרם", "נר", "נזכור");
+      dictionaryConcepts.push("זכר", "לזכרם", "נר", "נזכור");
     }
 
     const allTermsToSearch = Array.from(new Set([cleanUserQuery, ...dictionaryConcepts]));
 
     const searchResults = fullPoints.map(point => {
-        let aiScore = rawPoints.find(rp => rp.id === point.id)?.score || 0;
-        const rawText = `${point.name} ${point.description || ""} ${point.category}`;
-        const cleanPointText = cleanTextForMatching(rawText);
+      let aiScore = rawPoints.find(rp => rp.id === point.id)?.score || 0;
+      const rawText = `${point.name} ${point.description || ""} ${point.category}`;
+      const cleanPointText = cleanTextForMatching(rawText);
 
-        let isTextMatch = false;
+      let isTextMatch = false;
 
-        for (const term of allTermsToSearch) {
-            if (term && term.length > 1) {
-                if (cleanPointText.includes(term)) {
-                    isTextMatch = true;
-                    break;
-                }
-            }
+      for (const term of allTermsToSearch) {
+        if (term && term.length > 1) {
+          if (cleanPointText.includes(term)) {
+            isTextMatch = true;
+            break;
+          }
         }
+      }
 
-        const finalScore = isTextMatch ? 100 : aiScore;
-        return { ...point, totalScore: finalScore };
+      const finalScore = isTextMatch ? 100 : aiScore;
+      return { ...point, totalScore: finalScore };
     });
 
     const finalResults = searchResults
-        .filter(p => p.totalScore >= 0.55) 
-        .sort((a, b) => b.totalScore - a.totalScore)
-        .map(({ totalScore, ...pointData }) => pointData);
-    
+      .filter(p => p.totalScore >= 0.55)
+      .sort((a, b) => b.totalScore - a.totalScore)
+      .map(({ totalScore, ...pointData }) => pointData);
+
     return NextResponse.json(finalResults);
 
   } catch (error) {
@@ -126,6 +126,9 @@ export async function POST(req: Request) {
     const longitude = Number(formData.get("longitude"));
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
+    // קולטים את ה-parentId שנשלח מהטופס
+    const parentIdStr = formData.get("parentId") as string;
+    const parentId = parentIdStr && parentIdStr !== "null" ? parseInt(parentIdStr) : null;
 
     let final_name_he = name;
     let final_name_en = name;
@@ -204,6 +207,7 @@ export async function POST(req: Request) {
         address: hasAddress ? address : null,
         website,
         userId: session.user.id,
+        parentId: parentId, // 🌟 שמירת ההורה המדויק במסד הנתונים
       },
     });
 

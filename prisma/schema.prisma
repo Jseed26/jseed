@@ -88,6 +88,9 @@ model Point {
   savedBy        SavedPoint[]
   // 🌟 העמודה החדשה: שומרת את 384 המספרים של ה-AI
   embedding      Unsupported("vector(384)")?
+  parentId       Int?
+  parent         Point?   @relation("PointToPoint", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Point[]  @relation("PointToPoint")
 }
 
 model ViewedPoint {
