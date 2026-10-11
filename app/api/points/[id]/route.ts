@@ -145,7 +145,7 @@ export async function PUT(req: Request, context: any) {
 
 /*
 ================================================================================
-DELETE (נשאר ללא שינוי)
+DELETE - מתוקן: מעביר את הילדים לסבא לפני מחיקת ההורה
 ================================================================================
 */
 export async function DELETE(req: Request, context: any) {
@@ -158,6 +158,7 @@ export async function DELETE(req: Request, context: any) {
     const { id } = await context.params;
     const pointId = Number(id);
 
+    // 1. שולפים את הנקודה כדי לבדוק הרשאות וגם כדי לדעת מי הסבא (ה-parentId שלה)
     const existing = await prisma.point.findFirst({
         where: {
             id: pointId,
@@ -169,6 +170,15 @@ export async function DELETE(req: Request, context: any) {
         return Response.json({ error: "Not found" }, { status: 404 });
     }
 
+    const grandparentID = existing.parentId;
+
+    // 2. מעדכנים את כל הילדים של הנקודה הזאת ומחברים אותם לסבא
+    await prisma.point.updateMany({
+        where: { parentId: pointId },
+        data: { parentId: grandparentID },
+    });
+
+    // 3. עכשיו, כשאין לנקודה הזו ילדים שתלויים בה, אפשר למחוק אותה
     await prisma.point.delete({
         where: { id: pointId },
     });
