@@ -49,7 +49,7 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
     className: "",
     iconSize: [baseSize, baseSize],
     iconAnchor: [baseSize / 2, baseSize],
-    popupAnchor: [0, -baseSize / 2] // עוגן שקוף ומדויק במרכז הגרעין!
+    popupAnchor: [0, -baseSize / 2]
   });
 }
 
@@ -57,14 +57,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
 
-  // 🌟 העיצוב החדש והעוקף - Leaflet שקוף, הטופס שלנו שולט
   useEffect(() => {
-    const styleId = "jseed-smart-popups-v5";
+    const styleId = "jseed-smart-popups-v6";
     if (!document.getElementById(styleId)) {
       const style = document.createElement("style");
       style.id = styleId;
       style.innerHTML = `
-        /* איפוס מלא של חלונית המפה המקורית (הופכים אותה לשקופה ב-100%) */
+        /* איפוס מלא של חלונית המפה המקורית */
         .leaflet-popup.headless-popup { margin: 0 !important; }
         .headless-popup .leaflet-popup-content-wrapper {
             background: transparent !important;
@@ -83,7 +82,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             align-items: center;
         }
 
-        /* עיצוב הטופס החדש שלנו (במקום המקורי) */
+        /* עיצוב הטופס החדש שלנו - נוסף max-height כדי שלא ייצא מהמסך! */
         .jseed-custom-modal {
             position: absolute;
             background: #111827;
@@ -95,7 +94,27 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             z-index: 1000;
             cursor: default;
             width: 400px;
+            max-height: 65vh; 
+            overflow-y: auto; 
+            overflow-x: hidden;
         }
+        
+        /* עיצוב פס הגלילה בתוך החלונית */
+        .jseed-custom-modal::-webkit-scrollbar {
+            width: 6px;
+        }
+        .jseed-custom-modal::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        .jseed-custom-modal::-webkit-scrollbar-thumb {
+            background: rgba(251, 191, 36, 0.4);
+            border-radius: 8px;
+        }
+        .jseed-custom-modal::-webkit-scrollbar-thumb:hover {
+            background: rgba(251, 191, 36, 0.7);
+        }
+
         @media (max-width: 450px) {
             .jseed-custom-modal { width: 320px; }
         }
@@ -108,7 +127,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             border-style: solid;
         }
 
-        /* 1. דרום -> נפתח למעלה (ברירת מחדל) */
         .jseed-modal-up {
             bottom: 25px;
             left: 0;
@@ -122,7 +140,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             border-color: #111827 transparent transparent transparent;
         }
 
-        /* 2. צפון -> נפתח למטה */
         .jseed-modal-down {
             top: 25px;
             left: 0;
@@ -136,7 +153,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             border-color: transparent transparent #111827 transparent;
         }
 
-        /* 3. מזרח -> נפתח שמאלה */
         .jseed-modal-left {
             top: 0;
             right: 25px;
@@ -150,7 +166,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             border-color: transparent transparent transparent #111827;
         }
 
-        /* 4. מערב -> נפתח ימינה */
         .jseed-modal-right {
             top: 0;
             left: 25px;
@@ -181,7 +196,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     container.style.fontFamily = "sans-serif";
 
     const isMobile = window.innerWidth < 450;
-    const imgHeight = isMobile ? "180px" : "240px";
     const textMaxHeight = isMobile ? "200px" : "350px";
 
     const isHe = lang === "he";
@@ -241,13 +255,16 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     let imageHtml = "";
 
+    // 🌟 שינוי פרופורציות ל- 16:9 אנכי (9/16) 🌟
+    const verticalImgStyle = `width: 100%; aspect-ratio: 9/16; max-height: 280px; object-fit: cover; border-radius: 8px; background: #000; cursor: pointer;`;
+
     if (imagesList.length === 1) {
-      imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="width: 100%; height: ${imgHeight}; object-fit: cover; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" title="לחץ להגדלה" />`;
+      imageHtml = `<img src="${imagesList[0]}" class="map-lightbox-trigger point-image-container" data-images="${imagesJsonStr}" data-index="0" style="${verticalImgStyle} margin-bottom: 8px;" title="לחץ להגדלה" />`;
     } else if (imagesList.length > 1) {
       imageHtml = `
-        <div class="point-image-container" style="position: relative; width: 100%; height: ${imgHeight}; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
+        <div class="point-image-container" style="position: relative; width: 100%; aspect-ratio: 9/16; max-height: 280px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
           ${imagesList.map((src, i) => `
-            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="position: relative; width: 100%; height: ${imgHeight}; border-radius: 8px; position: absolute; top: 0; left: 0; display:${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
+            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100\%; height: 100\%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
           `).join('')}
           <button class="carousel-prev-${point.id}" style="position: absolute; ${isHe ? 'left' : 'right'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❮' : '❯'}</button>
           <button class="carousel-next-${point.id}" style="position: absolute; ${isHe ? 'right' : 'left'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❯' : '❮'}</button>
@@ -513,7 +530,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           { icon: createGroupedIcon(category, isAnyViewed, map.getZoom(), count) }
         );
 
-        // 🌟 בניית מעטפת הטופס החכם
         const popupContentWrapper = document.createElement("div");
         popupContentWrapper.className = "jseed-custom-modal jseed-modal-up";
 
@@ -612,7 +628,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           renderCurrentPoint();
         }
 
-        // המעטפת השקופה של Leaflet שמחזיקה את הטופס שלנו! אפס תזוזה למפה.
         marker.bindPopup(popupContentWrapper, {
           closeButton: false,
           className: "headless-popup",
@@ -620,18 +635,18 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         });
 
         marker.on("click", () => {
-          // 🌟 אלגוריתם המיקום החכם שקובע את הכיוון בלי להזיז את המפה
           const pt = map.latLngToContainerPoint(marker.getLatLng());
           const mapWidth = map.getSize().x;
           const mapHeight = map.getSize().y;
 
-          let direction = "up"; // ברירת מחדל
-          if (pt.y < mapHeight * 0.35) {
-            direction = "down"; // צפון המסך
+          let direction = "up"; 
+          // 🌟 עכשיו זה 50% - פותר את משימה 5!
+          if (pt.y < mapHeight * 0.50) {
+            direction = "down"; 
           } else if (pt.x > mapWidth * 0.65) {
-            direction = "left"; // מזרח המסך
+            direction = "left"; 
           } else if (pt.x < mapWidth * 0.35) {
-            direction = "right"; // מערב המסך
+            direction = "right"; 
           }
 
           popupContentWrapper.className = `jseed-custom-modal jseed-modal-${direction}`;
@@ -664,7 +679,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const urlParams = new URLSearchParams(window.location.search);
     const pointIdFromUrl = urlParams.get("point");
 
-    // 🌟 התיקון נגד הקוד האדום שהיה לך, עובד מושלם עם המבנה החדש!
     if (pointIdFromUrl) {
       const targetMarker = markersRef.current[Number(pointIdFromUrl)];
       const targetPoint = points.find(p => p.id === Number(pointIdFromUrl));
