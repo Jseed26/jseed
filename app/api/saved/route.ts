@@ -1,9 +1,6 @@
 import { prisma } from "@/src/lib/prisma";
 import { auth } from "@/src/lib/auth/auth";
 
-/**
- * GET - שליפת כל הנקודות השמורות של המשתמש
- */
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,9 +14,6 @@ export async function GET(req: Request) {
   return Response.json(saved.map(s => s.point));
 }
 
-/**
- * POST - הוספה/הסרה מהמועדפים (Toggle)
- */
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,13 +34,11 @@ export async function POST(req: Request) {
     });
 
     if (existing) {
-      // אם כבר שמור - נסיר מהשמורים
       await prisma.savedPoint.delete({
         where: { id: existing.id }
       });
       return Response.json({ saved: false });
     } else {
-      // אם לא שמור - נוסיף לשמורים
       await prisma.savedPoint.create({
         data: {
           userId: session.user.id,
@@ -54,18 +46,19 @@ export async function POST(req: Request) {
         }
       });
 
-      // 🔔 יצירת התראה
+      // 🔔 יצירת התראה: וידאנו שאנחנו באמת מוצאים את יוצר הנקודה
       try {
         const point = await prisma.point.findUnique({
           where: { id: pId },
-          select: { userId: true }
+          select: { userId: true, name: true } // שלפנו גם את השם שיהיה יפה
         });
 
+        // נשלח רק אם לנקודה יש בעלים, וזה לא מי ששומר עכשיו!
         if (point?.userId && point.userId !== session.user.id) {
           await prisma.notification.create({
             data: {
               userId: point.userId, 
-              message: "מישהו הרגע שמר את הגרעין שלך! 🌱",
+              message: `מישהו הרגע שמר את הגרעין שלך: "${point.name}"! 🌱`,
             }
           });
         }

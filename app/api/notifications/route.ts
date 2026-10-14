@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { auth } from "@/src/lib/auth/auth";
 
-// 🌟 חובה להוסיף את זה כדי ש-Next.js לא יתקע לנו גרסה ישנה של ההתראות!
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -16,10 +15,9 @@ export async function GET() {
     const notifications = await prisma.notification.findMany({
       where: { 
         userId: session.user.id,
-        // 🌟 מחקנו את התנאי של isRead: false, כדי שנראה את כל ההיסטוריה!
       },
-      orderBy: { createdAt: "desc" }, // הכי חדש למעלה
-      take: 50, // כדאי להגביל ל-50 התראות אחרונות כדי שהדף לא יהיה כבד מדי
+      orderBy: { createdAt: "desc" },
+      take: 50,
     });
 
     return NextResponse.json(notifications);
@@ -36,7 +34,6 @@ export async function POST() {
   }
 
   try {
-    // מסמן את כל ההתראות של המשתמש הזה כנקראו
     await prisma.notification.updateMany({
       where: { 
         userId: session.user.id,

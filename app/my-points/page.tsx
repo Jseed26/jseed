@@ -43,10 +43,10 @@ const t = {
     history: { he: "היסטוריה", en: "History" },
     saved: { he: "שמורים", en: "Saved" },
     settings: { he: "הגדרות", en: "Settings" },
-    notifications: { he: "התראות", en: "Notifications" }, // 🌟 חדש
+    notifications: { he: "התראות", en: "Notifications" },
     selectCategory: { he: "בחרי קטגוריה כדי לראות נקודות שמורות", en: "Select a category to view saved seeds" },
     noSeeds: { he: "אין כאן נקודות להצגה...", en: "No seeds to display here..." },
-    noNotifications: { he: "אין לך התראות כרגע.", en: "You have no notifications yet." }, // 🌟 חדש
+    noNotifications: { he: "אין לך התראות כרגע.", en: "You have no notifications yet." }, 
     category: { he: "קטגוריה:", en: "Category:" },
     address: { he: "כתובת:", en: "Address:" },
     none: { he: "אין", en: "None" },
@@ -86,7 +86,6 @@ export default function MyPointsPage() {
         window.dispatchEvent(new Event("language-changed")); 
     };
 
-    // 🌟 הוספנו את "התראות" ללשוניות
     const [tab, setTab] = useState<"my" | "history" | "saved" | "notifications" | "settings">("my");
     const [savedCategory, setSavedCategory] = useState<PointCategory | null>(null);
     
@@ -94,7 +93,7 @@ export default function MyPointsPage() {
     const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
     const [savedPoints, setSavedPoints] = useState<Point[]>([]);
     const [allChaiPoints, setAllChaiPoints] = useState<Point[]>([]);
-    const [notifications, setNotifications] = useState<Notification[]>([]); // 🌟 שומר את ההתראות
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
@@ -115,32 +114,32 @@ export default function MyPointsPage() {
 
     useEffect(() => {
         async function loadData() {
-            const resMy = await fetch("/api/my-points");
+            const resMy = await fetch("/api/my-points", { cache: "no-store" });
             if (resMy.status === 401) { router.push("/auth"); return; }
             setPoints(await resMy.json());
 
-            const resHistory = await fetch("/api/history");
+            const resHistory = await fetch("/api/history", { cache: "no-store" });
             if (resHistory.ok) setHistoryPoints(await resHistory.json());
 
-            const resSaved = await fetch("/api/saved");
+            const resSaved = await fetch("/api/saved", { cache: "no-store" });
             if (resSaved.ok) setSavedPoints(await resSaved.json());
 
-            const resChai = await fetch("/api/points?category=chai");
+            const resChai = await fetch("/api/points?category=chai", { cache: "no-store" });
             if (resChai.ok) setAllChaiPoints(await resChai.json());
 
-            // 🌟 טוען את ההתראות
+            // 🌟 וידאנו שההתראות יבואו חדשות מהשרת תמיד!
             try {
-                const resNotif = await fetch("/api/notifications");
+                const resNotif = await fetch("/api/notifications", { cache: "no-store" });
                 if (resNotif.ok) setNotifications(await resNotif.json());
             } catch (err) { console.error(err); }
         }
         loadData();
     }, [router]);
 
-    // כאשר נכנסים ללשונית התראות, מסמנים אותן כנקראו
+    // כאשר נכנסים ללשונית התראות, מסמנים אותן כנקראו בנתיב הנכון
     useEffect(() => {
         if (tab === "notifications" && notifications.some(n => !n.isRead)) {
-            fetch("/api/notifications/mark-read", { method: "POST" })
+            fetch("/api/notifications", { method: "POST" }) // 🌟 תיקון הנתיב!
                 .then(() => {
                     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
                 })
@@ -218,7 +217,6 @@ export default function MyPointsPage() {
                 </button>
             </div>
 
-            {/* 🌟 שורת הלשוניות עכשיו כוללת גם התראות */}
             <div className="flex gap-4 sm:gap-6 border-b border-gray-800 pb-2 mb-6 text-base sm:text-lg overflow-x-auto custom-scrollbar whitespace-nowrap">
                 <button onClick={() => {setTab("my"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.mySeeds[lang]}
