@@ -53,6 +53,40 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
   });
 }
 
+// ✨ הפונקציה שמייצרת את הקשת העגולה ✨
+function createArc(startLat: number, startLng: number, endLat: number, endLng: number) {
+    const latlngs: L.LatLngExpression[] = [];
+    const numPoints = 50; 
+    
+    const midLat = (startLat + endLat) / 2;
+    const midLng = (startLng + endLng) / 2;
+    
+    const dLat = endLat - startLat;
+    const dLng = endLng - startLng;
+    const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+    
+    const curveOffset = distance * 0.2; 
+    
+    const perpLat = -dLng;
+    const perpLng = dLat;
+    const length = Math.sqrt(perpLat * perpLat + perpLng * perpLng);
+    
+    const controlLat = midLat + (perpLat / length) * curveOffset;
+    const controlLng = midLng + (perpLng / length) * curveOffset;
+
+    for (let i = 0; i <= numPoints; i++) {
+        const t = i / numPoints;
+        const u = 1 - t;
+        
+        const lat = u * u * startLat + 2 * u * t * controlLat + t * t * endLat;
+        const lng = u * u * startLng + 2 * u * t * controlLng + t * t * endLng;
+        
+        latlngs.push([lat, lng]);
+    }
+    
+    return latlngs;
+}
+
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he", searchQuery = "" }: Props) {
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<{ [key: number]: L.Marker }>({});
@@ -97,87 +131,35 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             overflow-x: hidden;
         }
         
-        .jseed-custom-modal::-webkit-scrollbar {
-            width: 6px;
-        }
-        .jseed-custom-modal::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-        }
-        .jseed-custom-modal::-webkit-scrollbar-thumb {
-            background: rgba(251, 191, 36, 0.4);
-            border-radius: 8px;
-        }
-        .jseed-custom-modal::-webkit-scrollbar-thumb:hover {
-            background: rgba(251, 191, 36, 0.7);
-        }
+        .jseed-custom-modal::-webkit-scrollbar { width: 6px; }
+        .jseed-custom-modal::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 8px; }
+        .jseed-custom-modal::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.4); border-radius: 8px; }
 
         @media (max-width: 450px) {
             .jseed-custom-modal { width: 320px; }
         }
 
-        .jseed-modal-tip {
-            position: absolute;
-            width: 0;
-            height: 0;
-            border-style: solid;
-        }
+        .jseed-modal-tip { position: absolute; width: 0; height: 0; border-style: solid; }
+        .jseed-modal-up { bottom: 25px; left: 0; transform: translateX(-50%); }
+        .jseed-modal-up .jseed-modal-tip { bottom: -8px; left: 50%; transform: translateX(-50%); border-width: 8px 8px 0 8px; border-color: #111827 transparent transparent transparent; }
 
-        .jseed-modal-up {
-            bottom: 25px;
-            left: 0;
-            transform: translateX(-50%);
-        }
-        .jseed-modal-up .jseed-modal-tip {
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 8px 8px 0 8px;
-            border-color: #111827 transparent transparent transparent;
-        }
+        .jseed-modal-down { top: 25px; left: 0; transform: translateX(-50%); }
+        .jseed-modal-down .jseed-modal-tip { top: -8px; left: 50%; transform: translateX(-50%); border-width: 0 8px 8px 8px; border-color: transparent transparent #111827 transparent; }
 
-        .jseed-modal-down {
-            top: 25px;
-            left: 0;
-            transform: translateX(-50%);
-        }
-        .jseed-modal-down .jseed-modal-tip {
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 0 8px 8px 8px;
-            border-color: transparent transparent #111827 transparent;
-        }
+        .jseed-modal-left { top: 0; right: 25px; transform: translateY(-50%); }
+        .jseed-modal-left .jseed-modal-tip { right: -8px; top: 50%; transform: translateY(-50%); border-width: 8px 0 8px 8px; border-color: transparent transparent transparent #111827; }
 
-        .jseed-modal-left {
-            top: 0;
-            right: 25px;
-            transform: translateY(-50%);
-        }
-        .jseed-modal-left .jseed-modal-tip {
-            right: -8px;
-            top: 50%;
-            transform: translateY(-50%);
-            border-width: 8px 0 8px 8px;
-            border-color: transparent transparent transparent #111827;
-        }
+        .jseed-modal-right { top: 0; left: 25px; transform: translateY(-50%); }
+        .jseed-modal-right .jseed-modal-tip { left: -8px; top: 50%; transform: translateY(-50%); border-width: 8px 8px 8px 0; border-color: transparent #111827 transparent transparent; }
 
-        .jseed-modal-right {
-            top: 0;
-            left: 25px;
-            transform: translateY(-50%);
-        }
-        .jseed-modal-right .jseed-modal-tip {
-            left: -8px;
-            top: 50%;
-            transform: translateY(-50%);
-            border-width: 8px 8px 8px 0;
-            border-color: transparent #111827 transparent transparent;
-        }
-
-        /* ✨ קו זהב ישר וזוהר ✨ */
+        /* ✨ עיצוב הקווים העגולים - דק וזוהר יותר ✨ */
         .golden-thread-line {
-            filter: drop-shadow(0px 0px 4px rgba(251, 191, 36, 0.9));
+            filter: drop-shadow(0px 0px 6px rgba(251, 191, 36, 1));
+        }
+
+        /* ✨ עיצוב החץ ✨ */
+        .golden-arrow-icon {
+            filter: drop-shadow(0px 0px 4px rgba(251, 191, 36, 1));
         }
       `;
       document.head.appendChild(style);
@@ -453,7 +435,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
     }
 
-    // 🌟 העברת ה-parentId כשלחצים על פלוס בתוך החלונית
     const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
@@ -465,7 +446,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             category: "chai",
             lat: point.latitude,
             lng: point.longitude,
-            parentId: point.id // מעביר את ה-ID של הנקודה הנוכחית כהורה
+            parentId: point.id 
           }
         }));
       };
@@ -485,72 +466,94 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     });
 
     // ==========================================
-    // ✨ ציור קווי זהב ישרים (עם רשת ביטחון אוטומטית) ✨
+    // ✨ ציור קשתות (חיצים) עגולות רק כאשר הקטגוריה "חי" נבחרה ✨
+    // כולל רשת ביטחון חכמה ליוזמות ישנות!
     // ==========================================
-    const pointsMap = new Map<number, Point>();
-    points.forEach(p => pointsMap.set(p.id, p));
+    if (activeCategory === "chai") {
+      const pointsMap = new Map<number, Point>();
+      points.forEach(p => pointsMap.set(p.id, p));
 
-    // קיבוץ לפי שם יוזמה כדי למצוא את המקור (Root) עבור נקודות שאין להן parentId מוגדר
-    const chaiGroups: Record<string, Point[]> = {};
-    points.forEach(p => {
-      if (p.category === "chai") {
-        const nameKey = (p.name || "").trim().toLowerCase();
-        if (nameKey) {
-          if (!chaiGroups[nameKey]) chaiGroups[nameKey] = [];
-          chaiGroups[nameKey].push(p);
-        }
-      }
-    });
-
-    // עבור כל יוזמה, נמצא מי המקור הראשון (לפי ID נמוך ביותר)
-    const rootPointsMap = new Map<string, Point>();
-    Object.entries(chaiGroups).forEach(([nameKey, group]) => {
-      if (group.length > 0) {
-        group.sort((a, b) => Number(a.id) - Number(b.id));
-        rootPointsMap.set(nameKey, group[0]); // הראשון הוא המקור
-      }
-    });
-
-    points.forEach(child => {
-      if (child.category === "chai") {
-        let parent: Point | undefined = undefined;
-
-        // אם יש לו parentId מוגדר, נשתמש בו
-        if (child.parentId) {
-          parent = pointsMap.get(child.parentId);
-        } 
-        
-        // רשת ביטחון: אם אין לו parentId אבל הוא לא המקור בעצמו, נחבר אותו אוטומטית למקור של היוזמה!
-        if (!parent) {
-          const nameKey = (child.name || "").trim().toLowerCase();
-          const root = rootPointsMap.get(nameKey);
-          if (root && root.id !== child.id) {
-            parent = root;
+      // 🌟 רשת הביטחון: קיבוץ לפי שם כדי למצוא את השורש של יוזמות ישנות
+      const chaiGroups: Record<string, Point[]> = {};
+      points.forEach(p => {
+        if (p.category === "chai") {
+          const nameKey = (p.name || "").trim().toLowerCase();
+          if (nameKey) {
+            if (!chaiGroups[nameKey]) chaiGroups[nameKey] = [];
+            chaiGroups[nameKey].push(p);
           }
         }
+      });
 
-        if (parent) {
-          if (parent.latitude !== child.latitude || parent.longitude !== child.longitude) {
-            const latlngs: L.LatLngExpression[] = [
-              [parent.latitude, parent.longitude],
-              [child.latitude, child.longitude]
-            ];
+      const rootPointsMap = new Map<string, Point>();
+      Object.entries(chaiGroups).forEach(([nameKey, group]) => {
+        if (group.length > 0) {
+          group.sort((a, b) => Number(a.id) - Number(b.id)); // הראשון שנוצר הוא השורש
+          rootPointsMap.set(nameKey, group[0]);
+        }
+      });
 
-            // 🌟 קו ישר ואחיד לחלוטין (بدون dashArray)
-            const thread = L.polyline(latlngs, {
-              color: '#fbbf24',
-              weight: 3,
-              opacity: 0.75,
-              lineCap: 'round',
-              lineJoin: 'round',
-              className: 'golden-thread-line'
-            });
+      points.forEach(child => {
+        if (child.category === "chai") {
+          let parent: Point | undefined = undefined;
 
-            layerRef.current?.addLayer(thread);
+          // עדיפות ראשונה: אם יש לו הורה מוגדר (נקודה חדשה), מחברים להורה הישיר!
+          if (child.parentId) {
+            parent = pointsMap.get(child.parentId);
+          } 
+          // עדיפות שנייה (רשת ביטחון): אם אין הורה (נקודה ישנה), מחברים לשורש של אותה יוזמה
+          else {
+            const nameKey = (child.name || "").trim().toLowerCase();
+            const root = rootPointsMap.get(nameKey);
+            // נוודא שאנחנו לא מנסים לחבר את השורש לעצמו
+            if (root && root.id !== child.id) {
+              parent = root;
+            }
+          }
+
+          if (parent) {
+            if (parent.latitude !== child.latitude || parent.longitude !== child.longitude) {
+              
+              // יצירת קשת מתמטית מההורה לילד
+              const arcLatLngs = createArc(parent.latitude, parent.longitude, child.latitude, child.longitude);
+
+              const thread = L.polyline(arcLatLngs, {
+                color: '#fbbf24',
+                weight: 1.5, 
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round',
+                className: 'golden-thread-line'
+              });
+
+              layerRef.current?.addLayer(thread);
+
+              // חישוב הזווית של החץ בקצה הקשת
+              const p1 = map.project(arcLatLngs[arcLatLngs.length - 2] as L.LatLngExpression);
+              const p2 = map.project(arcLatLngs[arcLatLngs.length - 1] as L.LatLngExpression);
+              const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+
+              // יצירת סמן החץ בקצה קטן ועדין יותר
+              const arrowIcon = L.divIcon({
+                  className: 'golden-arrow-icon',
+                  html: `<svg width="10" height="10" viewBox="0 0 24 24" style="transform: rotate(${angle}deg); fill: #fbbf24;">
+                             <path d="M24 12l-24-12v24z"/>
+                         </svg>`,
+                  iconSize: [10, 10], 
+                  iconAnchor: [5, 5]
+              });
+
+              const arrowMarker = L.marker([child.latitude, child.longitude], {
+                  icon: arrowIcon,
+                  interactive: false 
+              });
+
+              layerRef.current?.addLayer(arrowMarker);
+            }
           }
         }
-      }
-    });
+      });
+    }
     // ==========================================
 
     const groupedByLocation: Record<string, Record<string, Point[]>> = {};

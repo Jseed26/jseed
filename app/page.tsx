@@ -33,7 +33,6 @@ const t = {
   noInitiatives: { he: "אין יוזמות כרגע", en: "No initiatives yet" },
 };
 
-// 🌟 הגדרנו טיפוס חדש כדי לשמור גם את השם וגם את כמות המשתתפים!
 type InitiativeWithCount = {
   name: string;
   count: number;
@@ -65,19 +64,15 @@ export default function Home() {
 
   const isLoggedIn = status === "authenticated";
 
-  // סטייטים לתפריט הנגלל של "חי"
   const [isChaiMenuOpen, setIsChaiMenuOpen] = useState(false);
 
-  // 🌟 מעכשיו שומרים פה אובייקטים עם כמות, ולא רק מחרוזות טיפשות
   const [chaiInitiatives, setChaiInitiatives] = useState<InitiativeWithCount[]>([]);
 
-  // 🌟 הלוגיקה החדשה של הספירה!
   const fetchChaiInitiatives = async () => {
     try {
       const res = await fetch("/api/points?category=chai");
       const data = await res.json();
       if (Array.isArray(data)) {
-        // סופרים כמה פעמים כל יוזמה מופיעה
         const counts: Record<string, number> = {};
         data.forEach((p: any) => {
           if (p.name) {
@@ -85,7 +80,6 @@ export default function Home() {
           }
         });
 
-        // ממירים למערך של אובייקטים
         const mappedInitiatives = Object.keys(counts).map(name => ({
           name,
           count: counts[name]
@@ -104,7 +98,6 @@ export default function Home() {
     { key: "star", label: t.spirit[lang] },
     { key: "circle", label: t.business[lang] },
     { key: "chai", label: t.chai[lang] },
-
   ];
 
   const userFirstName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "User";
@@ -115,9 +108,8 @@ export default function Home() {
       {/* ================= HEADER ================= */}
       <div className="shrink-0 flex flex-col items-center pt-2 pb-1 gap-2 relative z-[9999]">
 
-        <div className="absolute top-3 w-full flex justify-between px-6 z-[9999] pointer-events-none" dir="ltr">
+        <div className="absolute top-3 w-full flex justify-between items-center px-6 z-[9999] pointer-events-none" dir="ltr">
 
-          {/* כפתור הוספת גרעין (ללא רקע) */}
           <button
             className="pointer-events-auto flex items-center justify-center p-1 transition-all hover:scale-110 drop-shadow-lg"
             title={t.addSeed[lang]}
@@ -137,12 +129,10 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-4 pointer-events-auto">
-            {/* פעמון התראות */}
-            <div title={t.notifications[lang]} className="flex items-center drop-shadow-lg">
+            <div title={t.notifications[lang]} className="flex items-center justify-center drop-shadow-lg">
               <NotificationBell />
             </div>
 
-            {/* כפתור פרופיל (ללא רקע) */}
             <button
               title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
               onClick={() => {
@@ -153,7 +143,7 @@ export default function Home() {
                   router.push("/auth");
                 }
               }}
-              className="hover:scale-110 transition-transform drop-shadow-lg"
+              className="hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center"
             >
               <img
                 src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
@@ -172,6 +162,7 @@ export default function Home() {
           className="relative z-40"
         />
 
+        {/* 🌟 שורת החיפוש המקורית מוסתרת לעתיד 🌟 */}
         {/* <div className="relative w-52 mx-auto z-40" dir="ltr">
           <Search
             size={14}
@@ -203,7 +194,6 @@ export default function Home() {
           isLoggedIn={isLoggedIn}
           lang={lang}
         />
-
       </div>
 
       {/* ================= תפריט קטגוריות תחתון ================= */}
@@ -213,7 +203,7 @@ export default function Home() {
           const isChai = cat.key === "chai";
 
           return (
-            <div key={cat.key} className="relative flex flex-col items-center w-[64px] sm:w-[76px] shrink-0">
+            <div key={cat.key} className={`relative flex flex-col items-center shrink-0 ${isChai ? 'w-[70px] sm:w-[85px]' : 'w-[64px] sm:w-[76px]'}`}>
 
               {/* התפריט הנגלל עבור קטגוריית חי (יוזמות) */}
               {isChai && isChaiMenuOpen && (
@@ -305,20 +295,24 @@ export default function Home() {
                     setIsChaiMenuOpen(false);
                   }
                 }}
-                className="flex flex-col items-center justify-end w-full relative z-[1300]"
+                className="flex flex-col items-center justify-end w-full relative z-[1300] group"
               >
-                <div className="h-12 sm:h-14 flex items-end justify-center w-full">
+                <div className="h-12 sm:h-14 flex items-end justify-center w-full relative">
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                    className={`shrink-0 object-contain transition-transform origin-bottom ${isChai
-                      ? `w-14 h-12 sm:w-16 sm:h-14 scale-[1.2] hover:scale-[1.4] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
-                      : "w-10 h-10 sm:w-12 sm:h-12 hover:scale-105"
-                      }`}
+                    className={`shrink-0 object-contain transition-transform origin-bottom ${
+                      isChai
+                        ? `absolute z-0 w-14 h-12 sm:w-16 sm:h-14 bottom-[-14px] sm:bottom-[-16px] scale-[1.3] sm:scale-[1.4] group-hover:scale-[1.4] sm:group-hover:scale-[1.5] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
+                        : "relative z-10 w-10 h-10 sm:w-12 sm:h-12 group-hover:scale-105"
+                    }`}
                     alt={cat.label}
                   />
                 </div>
-
-                <span className="text-[10px] sm:text-xs mt-1 text-yellow-500 text-center leading-tight break-words w-full">
+                
+                <span 
+                  className="text-[10px] sm:text-xs mt-1 text-center leading-tight break-words w-full relative z-10 text-yellow-500"
+                  style={isChai ? { textShadow: "0px 1px 4px rgba(0,0,0,0.9), 0px 0px 2px rgba(0,0,0,1)" } : {}}
+                >
                   {cat.label}
                 </span>
               </button>
