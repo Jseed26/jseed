@@ -204,9 +204,33 @@ export async function POST(req: Request) {
         address: hasAddress ? address : null,
         website,
         userId: session.user.id,
-        parentId: parentId, // 🌟 שמירת ההורה המדויק במסד הנתונים
+        parentId: parentId, // שמירת ההורה המדויק
       },
     });
+
+    // 🌟 🌟 🌟 התראה: מישהו הצטרף ליוזמה שלך 🌟 🌟 🌟
+    if (parentId !== null && category === "chai") {
+      try {
+        // נמצא את הנקודה שהצטרפו אליה כדי לדעת של מי היא ומה השם שלה
+        const parentPoint = await prisma.point.findUnique({
+          where: { id: parentId },
+          select: { userId: true, name: true }
+        });
+
+        // נשלח התראה לבעלים של היוזמה, בתנאי שזה לא הוא עצמו שהוסיף את הנקודה
+        if (parentPoint?.userId && parentPoint.userId !== session.user.id) {
+          await prisma.notification.create({
+            data: {
+              userId: parentPoint.userId, 
+              message: `מישהו הצטרף הרגע ליוזמה שלך: "${parentPoint.name}"! 🤝`,
+            }
+          });
+        }
+      } catch (notifErr) {
+        console.error("Failed to create join initiative notification:", notifErr);
+      }
+    }
+    
 
     try {
       const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category || ""} ${newPoint.address || ""}`;
@@ -322,7 +346,7 @@ export async function PUT(req: Request, context: any) {
 
 /*
 ================================================================================
-DELETE - מתוקן: הכתרת הילד הראשון ליורש השורש, או העברה לסבא כרגיל
+DELETE
 ================================================================================
 */
 export async function DELETE(req: Request, context: any) {
@@ -335,7 +359,6 @@ export async function DELETE(req: Request, context: any) {
     const { id } = await context.params;
     const pointId = Number(id);
 
-    // שולפים את הנקודה שאנחנו רוצים למחוק
     const existing = await prisma.point.findFirst({
         where: {
             id: pointId,
@@ -349,7 +372,6 @@ export async function DELETE(req: Request, context: any) {
 
     const parentId = existing.parentId;
 
-    // שולפים את כל הילדים הישירים של הנקודה שמיועדת למחיקה (מסודרים לפי הותק)
     const children = await prisma.point.findMany({
         where: { parentId: pointId },
         orderBy: { id: 'asc' } 
@@ -357,23 +379,17 @@ export async function DELETE(req: Request, context: any) {
 
     if (children.length > 0) {
         if (parentId !== null) {
-            // מקרה 1: זו לא נקודת שורש. מעבירים את כל הילדים לסבא
             await prisma.point.updateMany({
                 where: { parentId: pointId },
                 data: { parentId: parentId },
             });
         } else {
-            // מקרה 2: זו נקודת השורש בעצמה! (האבא המייסד)
-            // הילד הראשון שנוצר הופך להיות השורש החדש
             const newRootId = children[0].id;
-
-            // משחררים אותו מההיררכיה (הוא השורש עכשיו)
             await prisma.point.update({
                 where: { id: newRootId },
                 data: { parentId: null }
             });
 
-            // שאר האחים שלו עוברים להיות הילדים שלו
             const otherChildrenIds = children.slice(1).map(c => c.id);
             if (otherChildrenIds.length > 0) {
                 await prisma.point.updateMany({
@@ -381,11 +397,9 @@ export async function DELETE(req: Request, context: any) {
                     data: { parentId: newRootId }
                 });
             }
-            // והנכדים? הנכדים ממילא מחוברים להורים שלהם (לאחים), אז כל העץ זז מושלם!
         }
     }
 
-    // מוחקים את הנקודה
     await prisma.point.delete({
         where: { id: pointId },
     });

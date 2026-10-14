@@ -28,6 +28,13 @@ type Point = {
     };
 };
 
+type Notification = {
+    id: number;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+};
+
 const t = {
     loading: { he: "טוען נתונים...", en: "Loading data..." },
     myArea: { he: "האזור שלי", en: "My Area" },
@@ -35,9 +42,11 @@ const t = {
     mySeeds: { he: "הנקודות שלי", en: "My Seeds" },
     history: { he: "היסטוריה", en: "History" },
     saved: { he: "שמורים", en: "Saved" },
-    settings: { he: "הגדרות", en: "Settings" }, // 🌟 הוספנו תרגום ללשונית החדשה
+    settings: { he: "הגדרות", en: "Settings" },
+    notifications: { he: "התראות", en: "Notifications" }, // 🌟 חדש
     selectCategory: { he: "בחרי קטגוריה כדי לראות נקודות שמורות", en: "Select a category to view saved seeds" },
     noSeeds: { he: "אין כאן נקודות להצגה...", en: "No seeds to display here..." },
+    noNotifications: { he: "אין לך התראות כרגע.", en: "You have no notifications yet." }, // 🌟 חדש
     category: { he: "קטגוריה:", en: "Category:" },
     address: { he: "כתובת:", en: "Address:" },
     none: { he: "אין", en: "None" },
@@ -50,14 +59,14 @@ const t = {
     delete: { he: "מחק", en: "Delete" },
     viewOnMap: { he: "צפה במפה", en: "View on Map" },
     deleteConfirm: { he: "האם אתה בטוח שברצונך למחוק גרעין זה?", en: "Are you sure you want to delete this seed?" },
-    deleteAccountConfirm: { he: "האם אתה בטוח? מחיקת החשבון היא פעולה בלתי הפיכה ותמחק את כל הנקודות שיצרת.", en: "Are you sure? Deleting your account is irreversible and will remove all seeds you created." }, // 🌟 אישור מחיקת משתמש
+    deleteAccountConfirm: { he: "האם אתה בטוח? מחיקת החשבון היא פעולה בלתי הפיכה ותמחק את כל הנקודות שיצרת.", en: "Are you sure? Deleting your account is irreversible and will remove all seeds you created." },
     deleting: { he: "מוחק...", en: "Deleting..." },
     yesDelete: { he: "כן, מחק", en: "Yes, delete" },
     cancel: { he: "ביטול", en: "Cancel" },
     logout: { he: "התנתק", en: "Log Out" },
-    deleteAccount: { he: "מחיקת חשבון", en: "Delete Account" }, // 🌟 כפתור מחיקת חשבון
-    terms: { he: "קריאת התקנון", en: "Terms of Service" }, // 🌟 כפתור תקנון
-    language: { he: "שפת האפליקציה", en: "App Language" }, // 🌟 כפתור שפה
+    deleteAccount: { he: "מחיקת חשבון", en: "Delete Account" },
+    terms: { he: "קריאת התקנון", en: "Terms of Service" },
+    language: { he: "שפת האפליקציה", en: "App Language" },
     participants: { he: "משתתפים ביוזמה", en: "Initiative Participants" },
 };
 
@@ -74,22 +83,23 @@ export default function MyPointsPage() {
     const changeLanguage = (newLang: "en" | "he") => {
         setLang(newLang);
         localStorage.setItem("jseed_lang", newLang);
-        window.dispatchEvent(new Event("language-changed")); // יודיע גם לשאר האפליקציה אם צריך
+        window.dispatchEvent(new Event("language-changed")); 
     };
 
-    // 🌟 הוספנו את 'settings' ללשוניות
-    const [tab, setTab] = useState<"my" | "history" | "saved" | "settings">("my");
+    // 🌟 הוספנו את "התראות" ללשוניות
+    const [tab, setTab] = useState<"my" | "history" | "saved" | "notifications" | "settings">("my");
     const [savedCategory, setSavedCategory] = useState<PointCategory | null>(null);
+    
     const [points, setPoints] = useState<Point[]>([]);
     const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
     const [savedPoints, setSavedPoints] = useState<Point[]>([]);
     const [allChaiPoints, setAllChaiPoints] = useState<Point[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]); // 🌟 שומר את ההתראות
     
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // 🌟 סטייט חדש לאישור מחיקת חשבון
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
@@ -117,9 +127,26 @@ export default function MyPointsPage() {
 
             const resChai = await fetch("/api/points?category=chai");
             if (resChai.ok) setAllChaiPoints(await resChai.json());
+
+            // 🌟 טוען את ההתראות
+            try {
+                const resNotif = await fetch("/api/notifications");
+                if (resNotif.ok) setNotifications(await resNotif.json());
+            } catch (err) { console.error(err); }
         }
         loadData();
     }, [router]);
+
+    // כאשר נכנסים ללשונית התראות, מסמנים אותן כנקראו
+    useEffect(() => {
+        if (tab === "notifications" && notifications.some(n => !n.isRead)) {
+            fetch("/api/notifications/mark-read", { method: "POST" })
+                .then(() => {
+                    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                })
+                .catch(console.error);
+        }
+    }, [tab, notifications]);
 
     async function handleLogout() {
         await signOut({ redirect: false });
@@ -130,7 +157,6 @@ export default function MyPointsPage() {
         if (isDeletingAccount) return;
         setIsDeletingAccount(true);
         try {
-            // קריאה לשרת למחוק את היוזר שמחובר כרגע. נצטרך לוודא שיש לך נתיב כזה ב-API!
             const res = await fetch("/api/user", { method: "DELETE" });
             if (res.ok) {
                 await signOut({ redirect: false });
@@ -179,6 +205,8 @@ export default function MyPointsPage() {
                 ? savedPoints.filter(p => p.category === savedCategory)
                 : savedPoints;
 
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
     return (
         <div className="p-4 sm:p-6 text-white bg-black min-h-screen" dir={lang === "he" ? "rtl" : "ltr"}>
             
@@ -190,7 +218,7 @@ export default function MyPointsPage() {
                 </button>
             </div>
 
-            {/* 🌟 שורת הלשוניות עודכנה עם גלילה אופקית (כדי שלא ישבר במסכים קטנים בגלל שהוספנו עוד לשונית) */}
+            {/* 🌟 שורת הלשוניות עכשיו כוללת גם התראות */}
             <div className="flex gap-4 sm:gap-6 border-b border-gray-800 pb-2 mb-6 text-base sm:text-lg overflow-x-auto custom-scrollbar whitespace-nowrap">
                 <button onClick={() => {setTab("my"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.mySeeds[lang]}
@@ -201,13 +229,41 @@ export default function MyPointsPage() {
                 <button onClick={() => setTab("saved")} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors ${tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.saved[lang]} <img src="/icons/ui/plant/active.png" className="w-4 h-4 object-contain" />
                 </button>
+                <button onClick={() => {setTab("notifications"); setSavedCategory(null);}} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors relative ${tab === "notifications" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
+                    {t.notifications[lang]} 🔔
+                    {unreadCount > 0 && (
+                        <span className={`absolute -top-1 ${lang === "he" ? "-left-2" : "-right-2"} bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>
+                            {unreadCount}
+                        </span>
+                    )}
+                </button>
                 <button onClick={() => {setTab("settings"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "settings" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.settings[lang]} ⚙️
                 </button>
             </div>
 
+            {/* ===================== לשונית התראות ===================== */}
+            {tab === "notifications" && (
+                <div className="space-y-3 max-w-2xl mx-auto">
+                    {notifications.length === 0 ? (
+                        <p className="text-gray-400 text-center mt-10">{t.noNotifications[lang]}</p>
+                    ) : (
+                        notifications.map((notif) => (
+                            <div key={notif.id} className={`p-4 rounded-xl border transition-colors ${notif.isRead ? "bg-gray-900/50 border-gray-800" : "bg-yellow-500/10 border-yellow-500/50 shadow-md"}`}>
+                                <p className={`text-sm sm:text-base ${notif.isRead ? "text-gray-300" : "text-white font-bold"}`}>
+                                    {notif.message}
+                                </p>
+                                <span className="text-[10px] text-gray-500 mt-2 block">
+                                    {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                        ))
+                    )}
+                </div>
+            )}
+
             {/* ===================== לשונית הגדרות ===================== */}
-            {tab === "settings" ? (
+            {tab === "settings" && (
                 <div className="space-y-6 max-w-md mx-auto mt-8">
                     
                     {/* שפה */}
@@ -256,8 +312,10 @@ export default function MyPointsPage() {
                         </button>
                     </div>
                 </div>
-            ) : (
-                /* ===================== לשוניות נקודות (שלי/היסטוריה/שמורים) ===================== */
+            )}
+
+            {/* ===================== לשוניות נקודות (שלי/היסטוריה/שמורים) ===================== */}
+            {["my", "history", "saved"].includes(tab) && (
                 <>
                     {tab === "saved" && (
                         <div className="flex justify-center gap-3 mb-6 flex-wrap">
@@ -369,7 +427,7 @@ export default function MyPointsPage() {
                 </div>
             )}
 
-            {/* ===================== מודל מחיקת חשבון 🌟 ===================== */}
+            {/* ===================== מודל מחיקת חשבון ===================== */}
             {showDeleteAccountModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
                     <div className="bg-gray-900 border border-red-800 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">

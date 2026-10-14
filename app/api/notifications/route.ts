@@ -10,12 +10,13 @@ export async function GET() {
   }
 
   try {
+    // מביא את 50 ההתראות האחרונות, גם אם נקראו וגם אם לא
     const notifications = await prisma.notification.findMany({
       where: { 
         userId: session.user.id,
-        isRead: false 
       },
       orderBy: { createdAt: "desc" },
+      take: 50 
     });
 
     return NextResponse.json(notifications);
