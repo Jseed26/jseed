@@ -527,28 +527,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               });
 
               layerRef.current?.addLayer(thread);
-
-              // חישוב הזווית של החץ בקצה הקשת
-              const p1 = map.project(arcLatLngs[arcLatLngs.length - 2] as L.LatLngExpression);
-              const p2 = map.project(arcLatLngs[arcLatLngs.length - 1] as L.LatLngExpression);
-              const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-
-              // יצירת סמן החץ בקצה קטן ועדין יותר
-              const arrowIcon = L.divIcon({
-                  className: 'golden-arrow-icon',
-                  html: `<svg width="10" height="10" viewBox="0 0 24 24" style="transform: rotate(${angle}deg); fill: #fbbf24;">
-                             <path d="M24 12l-24-12v24z"/>
-                         </svg>`,
-                  iconSize: [10, 10], 
-                  iconAnchor: [5, 5]
-              });
-
-              const arrowMarker = L.marker([child.latitude, child.longitude], {
-                  icon: arrowIcon,
-                  interactive: false 
-              });
-
-              layerRef.current?.addLayer(arrowMarker);
             }
           }
         }

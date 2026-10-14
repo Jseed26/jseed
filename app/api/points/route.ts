@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   try {
     const baseWhere: any = category ? { category } : {};
 
-    // 1. אם אין חיפוש, מחזירים הכל רגיל
+    //אם אין חיפוש, מחזירים הכל רגיל
     if (!qRaw) {
       const results = await prisma.point.findMany({
         where: baseWhere,
@@ -28,8 +28,7 @@ export async function GET(req: Request) {
       return NextResponse.json(results);
     }
 
-    // 🌟 התיקון שלנו: חסימת AI ליוזמות (קליק מהתפריט הנגלל)
-    // קודם כל בודקים אם השם שהוקלד זהה *בדיוק* לאחת היוזמות בדאטה-בייס
+    // 🌟 חסימת AI ליוזמות (קליק מהתפריט הנגלל)
     const exactNameMatches = await prisma.point.findMany({
       where: {
         ...baseWhere,
@@ -38,15 +37,12 @@ export async function GET(req: Request) {
       include: { _count: { select: { savedBy: true, viewedBy: true } } }
     });
 
-    // אם אנחנו בקטגוריית 'חי' (יוזמות) ויש התאמה מדויקת לשם:
-    // אנחנו מחזירים *רק* אותה ויוצאים החוצה מיד! ה-AI לא ירוץ בכלל.
     if (category === 'chai' && exactNameMatches.length > 0) {
       return NextResponse.json(exactNameMatches);
     }
 
 
     // ====== מכאן והלאה: חיפוש טקסט חופשי (לא לחיצה מהתפריט) ======
-    // (פה ה-AI והמילונים ממשיכים לעבוד כרגיל בשביל המשתמשים שמקלידים)
     const extractor = await AIEngine.getInstance();
     const output = await extractor(qRaw.toLowerCase(), { pooling: 'mean', normalize: true });
     const queryEmbeddingArray = Array.from(output.data);
@@ -126,6 +122,7 @@ export async function POST(req: Request) {
     const longitude = Number(formData.get("longitude"));
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
+    
     // קולטים את ה-parentId שנשלח מהטופס
     const parentIdStr = formData.get("parentId") as string;
     const parentId = parentIdStr && parentIdStr !== "null" ? parseInt(parentIdStr) : null;
@@ -231,4 +228,167 @@ export async function POST(req: Request) {
     console.error(error);
     return NextResponse.json({ error: "Failed to create point" }, { status: 500 });
   }
+}
+
+async function geocodeAddress(address: string) {
+    try {
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`,
+            { headers: { "User-Agent": "jseed-app" } }
+        );
+        const data = await res.json();
+        if (data?.length > 0) {
+            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+        return null;
+    } catch (e) {
+        console.error("Geocode error:", e);
+        return null;
+    }
+}
+
+export async function PUT(req: Request, context: any) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { id } = await context.params;
+        const pointId = Number(id);
+
+        const formData = await req.formData();
+        const name = (formData.get("name") as string) || "";
+        const description = (formData.get("description") as string) || "";
+        const category = (formData.get("category") as string) || "";
+        const address = (formData.get("address") as string) || "";
+        const website = (formData.get("website") as string) || "";
+
+        const existing = await prisma.point.findFirst({
+            where: { id: pointId, userId: session.user.id },
+        });
+
+        if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+
+        let latitude = existing.latitude;
+        let longitude = existing.longitude;
+
+        if (address && address !== existing.address) {
+            const geo = await geocodeAddress(address);
+            if (geo) {
+                latitude = geo.lat;
+                longitude = geo.lng;
+            }
+        }
+
+        const existingImages = formData.getAll("existingImages") as string[];
+        const newImageFiles = formData.getAll("images") as File[];
+        let newlyUploadedUrls: string[] = [];
+
+        if (newImageFiles && newImageFiles.length > 0) {
+            const uploadPromises = newImageFiles.map(async (file) => {
+                if (file.size > 0) {
+                    const buffer = Buffer.from(await file.arrayBuffer());
+                    const uploadResult: any = await new Promise((resolve, reject) => {
+                        cloudinary.uploader.upload_stream({ folder: "points" }, (err: any, result: any) => {
+                            if (err) reject(err);
+                            else resolve(result);
+                        }).end(buffer);
+                    });
+                    return uploadResult.secure_url;
+                }
+                return null;
+            });
+            
+            const results = await Promise.all(uploadPromises);
+            newlyUploadedUrls = results.filter((url): url is string => url !== null);
+        }
+
+        const finalImageUrls = [...existingImages, ...newlyUploadedUrls].slice(0, 3);
+
+        const updated = await prisma.point.update({
+            where: { id: pointId },
+            data: {
+                name, description, category, address, website, latitude, longitude,
+                imageUrls: finalImageUrls,
+                imageUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : null,
+            },
+        });
+
+        return Response.json(updated);
+    } catch (error) {
+        console.error("PUT Error:", error);
+        return Response.json({ error: "Failed to update point" }, { status: 500 });
+    }
+}
+
+/*
+================================================================================
+DELETE - מתוקן: הכתרת הילד הראשון ליורש השורש, או העברה לסבא כרגיל
+================================================================================
+*/
+export async function DELETE(req: Request, context: any) {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const pointId = Number(id);
+
+    // שולפים את הנקודה שאנחנו רוצים למחוק
+    const existing = await prisma.point.findFirst({
+        where: {
+            id: pointId,
+            userId: session.user.id,
+        },
+    });
+
+    if (!existing) {
+        return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const parentId = existing.parentId;
+
+    // שולפים את כל הילדים הישירים של הנקודה שמיועדת למחיקה (מסודרים לפי הותק)
+    const children = await prisma.point.findMany({
+        where: { parentId: pointId },
+        orderBy: { id: 'asc' } 
+    });
+
+    if (children.length > 0) {
+        if (parentId !== null) {
+            // מקרה 1: זו לא נקודת שורש. מעבירים את כל הילדים לסבא
+            await prisma.point.updateMany({
+                where: { parentId: pointId },
+                data: { parentId: parentId },
+            });
+        } else {
+            // מקרה 2: זו נקודת השורש בעצמה! (האבא המייסד)
+            // הילד הראשון שנוצר הופך להיות השורש החדש
+            const newRootId = children[0].id;
+
+            // משחררים אותו מההיררכיה (הוא השורש עכשיו)
+            await prisma.point.update({
+                where: { id: newRootId },
+                data: { parentId: null }
+            });
+
+            // שאר האחים שלו עוברים להיות הילדים שלו
+            const otherChildrenIds = children.slice(1).map(c => c.id);
+            if (otherChildrenIds.length > 0) {
+                await prisma.point.updateMany({
+                    where: { id: { in: otherChildrenIds } },
+                    data: { parentId: newRootId }
+                });
+            }
+            // והנכדים? הנכדים ממילא מחוברים להורים שלהם (לאחים), אז כל העץ זז מושלם!
+        }
+    }
+
+    // מוחקים את הנקודה
+    await prisma.point.delete({
+        where: { id: pointId },
+    });
+
+    return Response.json({ success: true });
 }

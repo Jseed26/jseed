@@ -94,3 +94,7 @@ body {
 .custom-popup .leaflet-popup-close-button:hover {
     color: #f9fafb !important; /* לבן בריחוף */
 }
+.leaflet-container {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
