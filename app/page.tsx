@@ -135,7 +135,7 @@ export default function Home() {
                 if (isLoggedIn) {
                   router.push("/my-points");
                 } else {
-                  router.push("/auth");
+                  router.push("/my-points");
                 }
               }}
               className="hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center"
@@ -200,7 +200,6 @@ export default function Home() {
           return (
             <div key={cat.key} className={`relative flex flex-col items-center shrink-0 ${isChai ? 'w-[70px] sm:w-[85px]' : 'w-[64px] sm:w-[76px]'}`}>
 
-              {/* התפריט הנגלל עבור קטגוריית חי (יוזמות) */}
               {isChai && isChaiMenuOpen && (
                 <>
                   <div
@@ -211,7 +210,6 @@ export default function Home() {
                     }}
                   />
 
-                  {/* התפריט עצמו */}
                   <div className="absolute bottom-[110%] -right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.3)] z-[1200] flex flex-col overflow-hidden max-h-72" dir={lang === "he" ? "rtl" : "ltr"}>
                     <button
                       onClick={() => {
@@ -295,16 +293,15 @@ export default function Home() {
                 <div className="h-12 sm:h-14 flex items-end justify-center w-full relative">
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                    className={`shrink-0 object-contain transition-transform origin-bottom ${
-                      isChai
+                    className={`shrink-0 object-contain transition-transform origin-bottom ${isChai
                         ? `absolute z-0 w-14 h-12 sm:w-16 sm:h-14 bottom-[-14px] sm:bottom-[-16px] scale-[1.3] sm:scale-[1.4] group-hover:scale-[1.4] sm:group-hover:scale-[1.5] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
                         : "relative z-10 w-10 h-10 sm:w-12 sm:h-12 group-hover:scale-105"
-                    }`}
+                      }`}
                     alt={cat.label}
                   />
                 </div>
-                
-                <span 
+
+                <span
                   className="text-[10px] sm:text-xs mt-1 text-center leading-tight break-words w-full relative z-10 text-yellow-500"
                   style={isChai ? { textShadow: "0px 1px 4px rgba(0,0,0,0.9), 0px 0px 2px rgba(0,0,0,1)" } : {}}
                 >

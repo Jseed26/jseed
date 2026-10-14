@@ -152,12 +152,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         .jseed-modal-right { top: 0; left: 25px; transform: translateY(-50%); }
         .jseed-modal-right .jseed-modal-tip { left: -8px; top: 50%; transform: translateY(-50%); border-width: 8px 8px 8px 0; border-color: transparent #111827 transparent transparent; }
 
-        /* ✨ עיצוב הקווים העגולים - דק וזוהר יותר ✨ */
         .golden-thread-line {
             filter: drop-shadow(0px 0px 6px rgba(251, 191, 36, 1));
         }
 
-        /* ✨ עיצוב החץ ✨ */
         .golden-arrow-icon {
             filter: drop-shadow(0px 0px 4px rgba(251, 191, 36, 1));
         }
@@ -212,6 +210,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const isChai = point.category === "chai";
 
+    // 🌟 הוסר הפלוס מהכותרת
     const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 30px' : '0 30px 0 15px'};">
@@ -221,11 +220,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.3; margin-top: 5px;">
             ${display(displayName)}
           </div>
-          ${isChai ? `
-          <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-top: 3px; flex-shrink: 0; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
-          </button>
-          ` : ''}
         </div>
       </div>
     `;
@@ -258,10 +252,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       `;
     }
 
-    const plantIconSrc = isSaved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
+    const saveIconSrc = isSaved ? "/icons/ui/save/active.png" : "/icons/ui/save/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
+    // 🌟 כאן קורה הקסם: 
+    // כפתור השמירה עוטף את סמל העץ והטקסט ביחד. 
+    // בצד השני מופיע הפלוס רק אם זה Chai.
     container.innerHTML = `
       ${headerHtml}
       ${imageHtml}
@@ -276,19 +273,28 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
       
       <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+        
         <div style="display: flex; gap: 12px; align-items: center;">
-          <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
-            ${currentSavedCount} ${t.saves}
-          </span>
+          <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px;">
+            <img src="${saveIconSrc}" alt="Save" style="width: 18px; height: 18px; object-fit: contain; transition: transform 0.2s;" />
+            <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
+              ${currentSavedCount} ${t.saves}
+            </span>
+          </button>
+          
           ${isChai ? `
-          <span style="font-size: 12px; color: #fbbf24; font-weight: bold;">
+          <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">
             🤝 ${participantsCount}${t.participants}
           </span>
           ` : ''}
         </div>
-        <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; justify-content: center;">
-          <img src="${plantIconSrc}" alt="Save" style="width: 28px; height: 28px; object-fit: contain; transition: transform 0.2s;" />
+
+        ${isChai ? `
+        <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
         </button>
+        ` : ''}
+
       </div>
 
       <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #374151;">
@@ -410,7 +416,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           if (res.ok) {
             const data = await res.json();
             if (img) {
-              img.src = data.saved ? "/icons/ui/plant/active.png" : "/icons/ui/plant/default.png";
+              img.src = data.saved ? "/icons/ui/save/active.png" : "/icons/ui/save/default.png";
               img.style.transform = "scale(1)";
             }
             if (data.saved) currentSavedCount += 1;
@@ -435,6 +441,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
     }
 
+    // הפעלת לחיצה על כפתור הפלוס ביוזמות
     const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
@@ -465,15 +472,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       return activeCategory ? p.category === activeCategory : true;
     });
 
-    // ==========================================
-    // ✨ ציור קשתות (חיצים) עגולות רק כאשר הקטגוריה "חי" נבחרה ✨
-    // כולל רשת ביטחון חכמה ליוזמות ישנות!
-    // ==========================================
     if (activeCategory === "chai") {
       const pointsMap = new Map<number, Point>();
       points.forEach(p => pointsMap.set(p.id, p));
 
-      // 🌟 רשת הביטחון: קיבוץ לפי שם כדי למצוא את השורש של יוזמות ישנות
       const chaiGroups: Record<string, Point[]> = {};
       points.forEach(p => {
         if (p.category === "chai") {
@@ -488,7 +490,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       const rootPointsMap = new Map<string, Point>();
       Object.entries(chaiGroups).forEach(([nameKey, group]) => {
         if (group.length > 0) {
-          group.sort((a, b) => Number(a.id) - Number(b.id)); // הראשון שנוצר הוא השורש
+          group.sort((a, b) => Number(a.id) - Number(b.id)); 
           rootPointsMap.set(nameKey, group[0]);
         }
       });
@@ -497,15 +499,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         if (child.category === "chai") {
           let parent: Point | undefined = undefined;
 
-          // עדיפות ראשונה: אם יש לו הורה מוגדר (נקודה חדשה), מחברים להורה הישיר!
           if (child.parentId) {
             parent = pointsMap.get(child.parentId);
           } 
-          // עדיפות שנייה (רשת ביטחון): אם אין הורה (נקודה ישנה), מחברים לשורש של אותה יוזמה
           else {
             const nameKey = (child.name || "").trim().toLowerCase();
             const root = rootPointsMap.get(nameKey);
-            // נוודא שאנחנו לא מנסים לחבר את השורש לעצמו
             if (root && root.id !== child.id) {
               parent = root;
             }
@@ -514,7 +513,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           if (parent) {
             if (parent.latitude !== child.latitude || parent.longitude !== child.longitude) {
               
-              // יצירת קשת מתמטית מההורה לילד
               const arcLatLngs = createArc(parent.latitude, parent.longitude, child.latitude, child.longitude);
 
               const thread = L.polyline(arcLatLngs, {
@@ -527,12 +525,31 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               });
 
               layerRef.current?.addLayer(thread);
+
+              const p1 = map.project(arcLatLngs[arcLatLngs.length - 2] as L.LatLngExpression);
+              const p2 = map.project(arcLatLngs[arcLatLngs.length - 1] as L.LatLngExpression);
+              const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+
+              const arrowIcon = L.divIcon({
+                  className: 'golden-arrow-icon',
+                  html: `<svg width="10" height="10" viewBox="0 0 24 24" style="transform: rotate(${angle}deg); fill: #fbbf24;">
+                             <path d="M24 12l-24-12v24z"/>
+                         </svg>`,
+                  iconSize: [10, 10], 
+                  iconAnchor: [5, 5]
+              });
+
+              const arrowMarker = L.marker([child.latitude, child.longitude], {
+                  icon: arrowIcon,
+                  interactive: false 
+              });
+
+              layerRef.current?.addLayer(arrowMarker);
             }
           }
         }
       });
     }
-    // ==========================================
 
     const groupedByLocation: Record<string, Record<string, Point[]>> = {};
 

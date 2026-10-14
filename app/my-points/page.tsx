@@ -68,6 +68,8 @@ const t = {
     terms: { he: "קריאת התקנון", en: "Terms of Service" },
     language: { he: "שפת האפליקציה", en: "App Language" },
     participants: { he: "משתתפים ביוזמה", en: "Initiative Participants" },
+    mustLogin: { he: "יש להתחבר על מנת לראות", en: "Please log in to view" },
+    loginNow: { he: "התחבר עכשיו", en: "Log In Now" },
 };
 
 export default function MyPointsPage() {
@@ -102,50 +104,57 @@ export default function MyPointsPage() {
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-    const categoryNames: Record<string, string> = {
-        leaf: "Community",
-        star: "Spirit",
-        triangle: "Legacy",
-        circle: "Business",
-        chai: "Chai", 
-    };
-
+    const isLoggedIn = status === "authenticated";
     const router = useRouter();
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        if (tabParam && ["my", "history", "saved", "notifications", "settings"].includes(tabParam)) {
+            setTab(tabParam as any);
+        }
+    }, []);
+
+    const handleTabChange = (newTab: "my" | "history" | "saved" | "notifications" | "settings") => {
+        setTab(newTab);
+        window.history.replaceState(null, '', `?tab=${newTab}`);
+    };
+
+    useEffect(() => {
         async function loadData() {
-            const resMy = await fetch("/api/my-points", { cache: "no-store" });
-            if (resMy.status === 401) { router.push("/auth"); return; }
-            setPoints(await resMy.json());
+            if (status === "loading") return;
 
-            const resHistory = await fetch("/api/history", { cache: "no-store" });
-            if (resHistory.ok) setHistoryPoints(await resHistory.json());
-
-            const resSaved = await fetch("/api/saved", { cache: "no-store" });
-            if (resSaved.ok) setSavedPoints(await resSaved.json());
-
-            const resChai = await fetch("/api/points?category=chai", { cache: "no-store" });
-            if (resChai.ok) setAllChaiPoints(await resChai.json());
-
-            // 🌟 וידאנו שההתראות יבואו חדשות מהשרת תמיד!
             try {
-                const resNotif = await fetch("/api/notifications", { cache: "no-store" });
-                if (resNotif.ok) setNotifications(await resNotif.json());
+                const resChai = await fetch("/api/points?category=chai", { cache: "no-store" });
+                if (resChai.ok) setAllChaiPoints(await resChai.json());
+
+                if (status === "authenticated") {
+                    const resMy = await fetch("/api/my-points", { cache: "no-store" });
+                    if (resMy.ok) setPoints(await resMy.json());
+
+                    const resHistory = await fetch("/api/history", { cache: "no-store" });
+                    if (resHistory.ok) setHistoryPoints(await resHistory.json());
+
+                    const resSaved = await fetch("/api/saved", { cache: "no-store" });
+                    if (resSaved.ok) setSavedPoints(await resSaved.json());
+
+                    const resNotif = await fetch("/api/notifications", { cache: "no-store" });
+                    if (resNotif.ok) setNotifications(await resNotif.json());
+                }
             } catch (err) { console.error(err); }
         }
         loadData();
-    }, [router]);
+    }, [status]); 
 
-    // כאשר נכנסים ללשונית התראות, מסמנים אותן כנקראו בנתיב הנכון
     useEffect(() => {
-        if (tab === "notifications" && notifications.some(n => !n.isRead)) {
-            fetch("/api/notifications", { method: "POST" }) // 🌟 תיקון הנתיב!
+        if (isLoggedIn && tab === "notifications" && notifications.some(n => !n.isRead)) {
+            fetch("/api/notifications", { method: "POST" }) 
                 .then(() => {
                     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
                 })
                 .catch(console.error);
         }
-    }, [tab, notifications]);
+    }, [tab, notifications, isLoggedIn]);
 
     async function handleLogout() {
         await signOut({ redirect: false });
@@ -194,7 +203,7 @@ export default function MyPointsPage() {
         return <div className="min-h-screen bg-black text-yellow-500 flex items-center justify-center">{t.loading[lang]}</div>;
     }
 
-    const userName = session?.user?.name ? session.user.name : t.myArea[lang];
+    const userName = isLoggedIn && session?.user?.name ? session.user.name : t.myArea[lang];
 
     const displayPoints = tab === "my"
         ? points
@@ -206,8 +215,17 @@ export default function MyPointsPage() {
 
     const unreadCount = notifications.filter(n => !n.isRead).length;
 
+    const categoryNames: Record<string, string> = {
+        leaf: "Community",
+        star: "Spirit",
+        triangle: "Legacy",
+        circle: "Business",
+        chai: "Chai", 
+    };
+
     return (
-        <div className="p-4 sm:p-6 text-white bg-black min-h-screen" dir={lang === "he" ? "rtl" : "ltr"}>
+        // הוספנו pb-32 (padding-bottom) כדי לאפשר גלילה מעבר לבאנר של אפל/אנדרואיד
+        <div className="p-4 sm:p-6 pb-32 text-white bg-black min-h-screen" dir={lang === "he" ? "rtl" : "ltr"}>
             
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-xl sm:text-2xl font-bold truncate pr-2">{userName}</h1>
@@ -218,184 +236,219 @@ export default function MyPointsPage() {
             </div>
 
             <div className="flex gap-4 sm:gap-6 border-b border-gray-800 pb-2 mb-6 text-base sm:text-lg overflow-x-auto custom-scrollbar whitespace-nowrap">
-                <button onClick={() => {setTab("my"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
+                <button onClick={() => {handleTabChange("my"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.mySeeds[lang]}
                 </button>
-                <button onClick={() => {setTab("history"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
+                <button onClick={() => {handleTabChange("history"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.history[lang]}
                 </button>
-                <button onClick={() => setTab("saved")} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors ${tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
+                <button onClick={() => handleTabChange("saved")} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors ${tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.saved[lang]} <img src="/icons/ui/plant/active.png" className="w-4 h-4 object-contain" />
                 </button>
-                <button onClick={() => {setTab("notifications"); setSavedCategory(null);}} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors relative ${tab === "notifications" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
+                <button onClick={() => {handleTabChange("notifications"); setSavedCategory(null);}} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors relative ${tab === "notifications" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.notifications[lang]} 🔔
-                    {unreadCount > 0 && (
+                    {unreadCount > 0 && isLoggedIn && (
                         <span className={`absolute -top-1 ${lang === "he" ? "-left-2" : "-right-2"} bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>
                             {unreadCount}
                         </span>
                     )}
                 </button>
-                <button onClick={() => {setTab("settings"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "settings" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
+                <button onClick={() => {handleTabChange("settings"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "settings" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.settings[lang]} ⚙️
                 </button>
             </div>
 
-            {/* ===================== לשונית התראות ===================== */}
-            {tab === "notifications" && (
-                <div className="space-y-3 max-w-2xl mx-auto">
-                    {notifications.length === 0 ? (
-                        <p className="text-gray-400 text-center mt-10">{t.noNotifications[lang]}</p>
-                    ) : (
-                        notifications.map((notif) => (
-                            <div key={notif.id} className={`p-4 rounded-xl border transition-colors ${notif.isRead ? "bg-gray-900/50 border-gray-800" : "bg-yellow-500/10 border-yellow-500/50 shadow-md"}`}>
-                                <p className={`text-sm sm:text-base ${notif.isRead ? "text-gray-300" : "text-white font-bold"}`}>
-                                    {notif.message}
-                                </p>
-                                <span className="text-[10px] text-gray-500 mt-2 block">
-                                    {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            </div>
-                        ))
-                    )}
+            {/* ===================== מנגנון אורח (משתמש לא מחובר) ===================== */}
+            {!isLoggedIn && tab !== "settings" ? (
+                <div className="flex flex-col items-center justify-center mt-32 space-y-6 px-4 text-center">
+                    <p className="text-gray-400 text-lg font-bold">{t.mustLogin[lang]}</p>
+                    <button 
+                        onClick={() => router.push("/auth")}
+                        className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-3 rounded-xl font-bold shadow-lg transition"
+                    >
+                        {t.loginNow[lang]}
+                    </button>
                 </div>
-            )}
-
-            {/* ===================== לשונית הגדרות ===================== */}
-            {tab === "settings" && (
-                <div className="space-y-6 max-w-md mx-auto mt-8">
-                    
-                    {/* שפה */}
-                    <div className="bg-gray-900/50 border border-gray-800 p-5 rounded-xl shadow-lg">
-                        <h2 className="text-gray-400 text-sm mb-3 font-bold">{t.language[lang]}</h2>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => changeLanguage("he")} 
-                                className={`flex-1 py-2 rounded-lg font-bold transition-colors ${lang === "he" ? "bg-yellow-500 text-black" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}
-                            >
-                                עברית
-                            </button>
-                            <button 
-                                onClick={() => changeLanguage("en")} 
-                                className={`flex-1 py-2 rounded-lg font-bold transition-colors ${lang === "en" ? "bg-yellow-500 text-black" : "bg-gray-800 text-gray-300 hover:bg-gray-700"}`}
-                            >
-                                English
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* קישורים / מידע */}
-                    <div className="bg-gray-900/50 border border-gray-800 p-5 rounded-xl shadow-lg">
-                        <button 
-                            onClick={() => router.push("/terms")} 
-                            className="w-full text-start flex justify-between items-center py-2 text-gray-300 hover:text-yellow-500 transition-colors"
-                        >
-                            <span className="font-bold">📜 {t.terms[lang]}</span>
-                            <span>{lang === "he" ? "❮" : "❯"}</span>
-                        </button>
-                    </div>
-
-                    {/* אזור סכנה */}
-                    <div className="bg-red-900/10 border border-red-900/30 p-5 rounded-xl shadow-lg mt-10">
-                        <button 
-                            onClick={handleLogout} 
-                            className="w-full bg-gray-800 border border-gray-700 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-bold mb-4"
-                        >
-                            🚪 {t.logout[lang]}
-                        </button>
-                        <button 
-                            onClick={() => setShowDeleteAccountModal(true)} 
-                            className="w-full bg-red-900/40 border border-red-800 text-red-200 px-6 py-3 rounded-lg hover:bg-red-900/60 transition font-bold"
-                        >
-                            ⚠️ {t.deleteAccount[lang]}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* ===================== לשוניות נקודות (שלי/היסטוריה/שמורים) ===================== */}
-            {["my", "history", "saved"].includes(tab) && (
+            ) : (
                 <>
-                    {tab === "saved" && (
-                        <div className="flex justify-center gap-3 mb-6 flex-wrap">
-                            {["leaf", "star", "triangle", "circle", "chai"].map((cat) => (
-                                <button key={cat} onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} className={`p-2 rounded-full border transition-colors ${savedCategory === cat ? "border-yellow-500 bg-yellow-500/20 shadow-[0_0_10px_rgba(251,191,36,0.3)]" : "border-gray-700 bg-gray-800 hover:bg-gray-700"}`}>
-                                    <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-7 h-7 sm:w-8 sm:h-8" />
-                                </button>
-                            ))}
+                    {/* ===================== לשונית התראות ===================== */}
+                    {tab === "notifications" && (
+                        <div className="space-y-3 max-w-2xl mx-auto">
+                            {notifications.length === 0 ? (
+                                <p className="text-gray-400 text-center mt-10">{t.noNotifications[lang]}</p>
+                            ) : (
+                                notifications.map((notif) => (
+                                    <div key={notif.id} className={`p-4 rounded-xl border transition-colors ${notif.isRead ? "bg-gray-900/50 border-gray-800" : "bg-yellow-500/10 border-yellow-500/50 shadow-md"}`}>
+                                        <p className={`text-sm sm:text-base ${notif.isRead ? "text-gray-300" : "text-white font-bold"}`}>
+                                            {notif.message}
+                                        </p>
+                                        <span className="text-[10px] text-gray-500 mt-2 block">
+                                            {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     )}
 
-                    {displayPoints.length === 0 ? (
-                        <p className="text-gray-400 text-center mt-10">
-                            {tab === "saved" && !savedCategory
-                                ? t.selectCategory[lang]
-                                : t.noSeeds[lang]
-                            }
-                        </p>
-                    ) : (
-                        <div className="space-y-4 max-w-2xl mx-auto">
-                            {displayPoints.map((p) => {
-                                const pointImages = p.imageUrls && p.imageUrls.length > 0 
-                                    ? p.imageUrls 
-                                    : (p.imageUrl ? [p.imageUrl] : []);
-                                
-                                const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
-                                const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
-
-                                const isChai = p.category === "chai";
-                                const participantsCount = isChai ? Math.max(1, allChaiPoints.filter(cp => cp.name === p.name).length) : 0;
-
-                                return (
-                                <div key={p.id} className="relative border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg overflow-hidden">
-                                    <h2 className="font-bold text-xl">{displayName}</h2>
-                                    
-                                    <ImageGallery images={pointImages} />
-                                    
-                                    <p className="text-sm text-gray-300 mt-3">{displayDesc}</p>
-                                    
-                                    <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
-                                        <p>📍 {t.category[lang]} {categoryNames[p.category] || p.category}</p>
-                                        <p>🏠 {t.address[lang]} {p.address || t.none[lang]}</p>
-                                        <p>🌐 {t.website[lang]} {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:underline">{t.visitSite[lang]}</a> : t.none[lang]}</p>
-                                    </div>
-                                    
-                                    {tab === "my" && (
-                                        <div className="flex justify-around mt-4 pt-4 border-t border-gray-800 text-xs text-gray-400">
-                                            <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} {t.views[lang]}</span>
-                                            <span className="flex items-center gap-1">
-                                                <img src="/icons/ui/plant/active.png" alt="Saves" className="w-4 h-4 object-contain" />
-                                                {p._count?.savedBy || 0} {t.saves[lang]}
-                                            </span>
-                                            {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} {t.clicks[lang]}</span>}
-                                            
-                                            {isChai && (
-                                                <span className="flex items-center gap-1 text-yellow-500 font-bold">
-                                                    🤝 {participantsCount} {t.participants[lang]}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-                                    
-                                    <div className="flex justify-between items-center mt-5">
-                                        <div className="flex gap-2">
-                                            {tab === "my" && (
-                                                <>
-                                                    <button onClick={() => setEditingPoint(p)} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm transition">{t.edit[lang]}</button>
-                                                    <button onClick={() => setPointToDelete(p.id)} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 px-3 sm:px-4 py-2 rounded-lg text-sm transition">{t.delete[lang]}</button>
-                                                </>
-                                            )}
-                                        </div>
-                                        
-                                        <button 
-                                            onClick={() => router.push(`/?point=${p.id}`)}
-                                            className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg"
-                                        >
-                                            📍 {t.viewOnMap[lang]}
-                                        </button>
-                                    </div>
+                    {/* ===================== לשונית הגדרות (מעוצב מחדש) ===================== */}
+                    {tab === "settings" && (
+                        <div className="space-y-6 max-w-md mx-auto mt-8 animate-in fade-in duration-300">
+                            
+                            {/* שפה */}
+                            <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg">
+                                <div className="flex items-center gap-2 text-gray-400 mb-5">
+                                    {/* אייקון גלובוס נקי */}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                    <h2 className="text-sm font-bold uppercase tracking-widest">{t.language[lang]}</h2>
                                 </div>
-                            )})}
+                                <div className="flex gap-4">
+                                    <button 
+                                        onClick={() => changeLanguage("he")} 
+                                        className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 ${lang === "he" ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)] border-transparent" : "bg-black border border-gray-700 text-gray-400 hover:border-gray-500"}`}
+                                    >
+                                        עברית
+                                    </button>
+                                    <button 
+                                        onClick={() => changeLanguage("en")} 
+                                        className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 ${lang === "en" ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)] border-transparent" : "bg-black border border-gray-700 text-gray-400 hover:border-gray-500"}`}
+                                    >
+                                        English
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* קישורים / מידע */}
+                            <button 
+                                onClick={() => router.push("/terms")} 
+                                className="w-full bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg flex justify-between items-center group hover:border-yellow-500/50 transition-all duration-300"
+                            >
+                                <div className="flex items-center gap-3 text-gray-300 group-hover:text-yellow-500 transition-colors">
+                                    {/* אייקון מסמך נקי */}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                                    <span className="font-bold text-base">{t.terms[lang]}</span>
+                                </div>
+                                <span className="text-gray-600 group-hover:text-yellow-500 transition-colors">{lang === "he" ? "❮" : "❯"}</span>
+                            </button>
+
+                            {/* אזור סכנה (רק למחוברים) או כפתור התחברות */}
+                            {isLoggedIn ? (
+                                <div className="pt-6 space-y-4">
+                                    <button 
+                                        onClick={handleLogout} 
+                                        className="w-full bg-black border border-gray-800 text-gray-300 px-6 py-4 rounded-2xl hover:bg-gray-900 hover:text-white transition-all font-bold flex justify-center items-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                        {t.logout[lang]}
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowDeleteAccountModal(true)} 
+                                        className="w-full bg-black border border-red-900/30 text-red-500/80 px-6 py-4 rounded-2xl hover:bg-red-950/40 hover:text-red-400 hover:border-red-900/50 transition-all font-bold flex justify-center items-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                        {t.deleteAccount[lang]}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="bg-gray-900/40 border border-gray-800 p-8 rounded-2xl shadow-lg mt-10 text-center">
+                                    <p className="text-gray-400 text-sm font-bold mb-6">{t.mustLogin[lang]}</p>
+                                    <button 
+                                        onClick={() => router.push("/auth")} 
+                                        className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black px-6 py-4 rounded-xl transition-all font-bold shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                                    >
+                                        {t.loginNow[lang]}
+                                    </button>
+                                </div>
+                            )}
                         </div>
+                    )}
+
+                    {/* ===================== לשוניות נקודות (שלי/היסטוריה/שמורים) ===================== */}
+                    {["my", "history", "saved"].includes(tab) && (
+                        <>
+                            {tab === "saved" && (
+                                <div className="flex justify-center gap-3 mb-6 flex-wrap">
+                                    {["leaf", "star", "triangle", "circle", "chai"].map((cat) => (
+                                        <button key={cat} onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} className={`p-2 rounded-full border transition-colors ${savedCategory === cat ? "border-yellow-500 bg-yellow-500/20 shadow-[0_0_10px_rgba(251,191,36,0.3)]" : "border-gray-700 bg-gray-800 hover:bg-gray-700"}`}>
+                                            <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-7 h-7 sm:w-8 sm:h-8" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {displayPoints.length === 0 ? (
+                                <p className="text-gray-400 text-center mt-10">
+                                    {tab === "saved" && !savedCategory
+                                        ? t.selectCategory[lang]
+                                        : t.noSeeds[lang]
+                                    }
+                                </p>
+                            ) : (
+                                <div className="space-y-4 max-w-2xl mx-auto">
+                                    {displayPoints.map((p) => {
+                                        const pointImages = p.imageUrls && p.imageUrls.length > 0 
+                                            ? p.imageUrls 
+                                            : (p.imageUrl ? [p.imageUrl] : []);
+                                        
+                                        const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
+                                        const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
+
+                                        const isChai = p.category === "chai";
+                                        const participantsCount = isChai ? Math.max(1, allChaiPoints.filter(cp => cp.name === p.name).length) : 0;
+
+                                        return (
+                                        <div key={p.id} className="relative border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg overflow-hidden">
+                                            <h2 className="font-bold text-xl">{displayName}</h2>
+                                            
+                                            <ImageGallery images={pointImages} />
+                                            
+                                            <p className="text-sm text-gray-300 mt-3">{displayDesc}</p>
+                                            
+                                            <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
+                                                <p>📍 {t.category[lang]} {categoryNames[p.category] || p.category}</p>
+                                                <p>🏠 {t.address[lang]} {p.address || t.none[lang]}</p>
+                                                <p>🌐 {t.website[lang]} {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:underline">{t.visitSite[lang]}</a> : t.none[lang]}</p>
+                                            </div>
+                                            
+                                            {tab === "my" && (
+                                                <div className="flex justify-around mt-4 pt-4 border-t border-gray-800 text-xs text-gray-400">
+                                                    <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} {t.views[lang]}</span>
+                                                    <span className="flex items-center gap-1">
+                                                        <img src="/icons/ui/plant/active.png" alt="Saves" className="w-4 h-4 object-contain" />
+                                                        {p._count?.savedBy || 0} {t.saves[lang]}
+                                                    </span>
+                                                    {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} {t.clicks[lang]}</span>}
+                                                    
+                                                    {isChai && (
+                                                        <span className="flex items-center gap-1 text-yellow-500 font-bold">
+                                                            🤝 {participantsCount} {t.participants[lang]}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                            
+                                            <div className="flex justify-between items-center mt-5">
+                                                <div className="flex gap-2">
+                                                    {tab === "my" && (
+                                                        <>
+                                                            <button onClick={() => setEditingPoint(p)} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm transition">{t.edit[lang]}</button>
+                                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 px-3 sm:px-4 py-2 rounded-lg text-sm transition">{t.delete[lang]}</button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                
+                                                <button 
+                                                    onClick={() => router.push(`/?point=${p.id}`)}
+                                                    className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg"
+                                                >
+                                                    📍 {t.viewOnMap[lang]}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )})}
+                                </div>
+                            )}
+                        </>
                     )}
                 </>
             )}
@@ -429,7 +482,10 @@ export default function MyPointsPage() {
             {showDeleteAccountModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
                     <div className="bg-gray-900 border border-red-800 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-red-400">⚠️ {t.deleteAccount[lang]}</h3>
+                        <h3 className="text-lg font-bold text-red-400 flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            {t.deleteAccount[lang]}
+                        </h3>
                         <p className="text-sm text-gray-300 leading-tight">{t.deleteAccountConfirm[lang]}</p>
                         <div className="flex justify-center gap-4">
                             <button 

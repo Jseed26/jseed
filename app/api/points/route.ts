@@ -18,7 +18,6 @@ export async function GET(req: Request) {
   try {
     const baseWhere: any = category ? { category } : {};
 
-    //אם אין חיפוש, מחזירים הכל רגיל
     if (!qRaw) {
       const results = await prisma.point.findMany({
         where: baseWhere,
@@ -28,7 +27,6 @@ export async function GET(req: Request) {
       return NextResponse.json(results);
     }
 
-    // 🌟 חסימת AI ליוזמות (קליק מהתפריט הנגלל)
     const exactNameMatches = await prisma.point.findMany({
       where: {
         ...baseWhere,
@@ -41,8 +39,6 @@ export async function GET(req: Request) {
       return NextResponse.json(exactNameMatches);
     }
 
-
-    // ====== מכאן והלאה: חיפוש טקסט חופשי (לא לחיצה מהתפריט) ======
     const extractor = await AIEngine.getInstance();
     const output = await extractor(qRaw.toLowerCase(), { pooling: 'mean', normalize: true });
     const queryEmbeddingArray = Array.from(output.data);
@@ -69,7 +65,6 @@ export async function GET(req: Request) {
     const cleanUserQuery = cleanTextForMatching(qRaw);
     let dictionaryConcepts = getDictionaryConcepts(qRaw);
 
-    // חגורת בטיחות למילון זיכרון
     if (qRaw.includes("זכר") || qRaw.includes("זיכרו") || qRaw === "remember" || qRaw === "memory") {
       dictionaryConcepts.push("זכר", "לזכרם", "נר", "נזכור");
     }
@@ -123,7 +118,6 @@ export async function POST(req: Request) {
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
     
-    // קולטים את ה-parentId שנשלח מהטופס
     const parentIdStr = formData.get("parentId") as string;
     const parentId = parentIdStr && parentIdStr !== "null" ? parseInt(parentIdStr) : null;
 
@@ -204,34 +198,53 @@ export async function POST(req: Request) {
         address: hasAddress ? address : null,
         website,
         userId: session.user.id,
-        parentId: parentId, // שמירת ההורה המדויק
+        parentId: parentId, 
       },
     });
 
-    // 🌟 🌟 🌟 התראה: מישהו הצטרף ליוזמה שלך 🌟 🌟 🌟
+    // 🌟 🌟 🌟 התראה קהילתית: מישהו הצטרף ליוזמה 🌟 🌟 🌟
     if (parentId !== null && category === "chai") {
       try {
-        // נמצא את הנקודה שהצטרפו אליה כדי לדעת של מי היא ומה השם שלה
+        // מציאת השורש של היוזמה (ההורה)
         const parentPoint = await prisma.point.findUnique({
           where: { id: parentId },
-          select: { userId: true, name: true }
+          select: { userId: true, name: true, id: true }
         });
 
-        // נשלח התראה לבעלים של היוזמה, בתנאי שזה לא הוא עצמו שהוסיף את הנקודה
-        if (parentPoint?.userId && parentPoint.userId !== session.user.id) {
-          await prisma.notification.create({
-            data: {
-              userId: parentPoint.userId, 
-              message: `מישהו הצטרף הרגע ליוזמה שלך: "${parentPoint.name}"! 🤝`,
+        if (parentPoint) {
+            // מציאת כל האנשים האחרים שהצטרפו ליוזמה הזו (האחים)
+            const siblings = await prisma.point.findMany({
+                where: { parentId: parentPoint.id },
+                select: { userId: true }
+            });
+
+            // איסוף כל מספרי המזהים של המשתמשים הקשורים ליוזמה (היוצר המקורי + כל המצטרפים)
+            const userIdsToNotify = new Set<string>();
+            if (parentPoint.userId) userIdsToNotify.add(parentPoint.userId);
+            siblings.forEach(sib => {
+                if (sib.userId) userIdsToNotify.add(sib.userId);
+            });
+
+            // מוודאים שאנחנו לא שולחים התראה למי שהרגע יצר את הנקודה!
+            userIdsToNotify.delete(session.user.id);
+
+            // שליחת התראות לכל שאר המשתתפים
+            const notificationsToCreate = Array.from(userIdsToNotify).map(uId => ({
+                userId: uId,
+                message: `מישהו חדש הצטרף הרגע ליוזמה "${parentPoint.name}" שאת/ה משתתפ/ת בה! 🤝`
+            }));
+
+            if (notificationsToCreate.length > 0) {
+                await prisma.notification.createMany({
+                    data: notificationsToCreate
+                });
             }
-          });
         }
       } catch (notifErr) {
         console.error("Failed to create join initiative notification:", notifErr);
       }
     }
     
-
     try {
       const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category || ""} ${newPoint.address || ""}`;
       const extractor = await AIEngine.getInstance();
@@ -344,11 +357,6 @@ export async function PUT(req: Request, context: any) {
     }
 }
 
-/*
-================================================================================
-DELETE
-================================================================================
-*/
 export async function DELETE(req: Request, context: any) {
     const session = await auth();
 
