@@ -9,8 +9,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import MapLightbox from "@/src/components/MapLightbox";
 
-import NotificationBell from "@/src/components/NotificationBell";
-
 const Map = dynamic(() => import("@/src/components/Map"), {
   ssr: false,
 });
@@ -20,7 +18,6 @@ const t = {
   cancel: { he: "ביטול", en: "Cancel" },
   addSeed: { he: "הוסף נקודה חדשה", en: "Add a new seed" },
   selectPoint: { he: "בחר נקודה על המפה", en: "Select a point on the map" },
-  notifications: { he: "התראות", en: "Notifications" },
   myProfile: { he: "הפרופיל שלי", en: "My Profile" },
   logIn: { he: "התחבר", en: "Log In" },
   community: { he: "קהילה", en: "Community" },
@@ -110,6 +107,7 @@ export default function Home() {
 
         <div className="absolute top-3 w-full flex justify-between items-center px-6 z-[9999] pointer-events-none" dir="ltr">
 
+          {/* כפתור הוספת גרעין */}
           <button
             className="pointer-events-auto flex items-center justify-center p-1 transition-all hover:scale-110 drop-shadow-lg"
             title={t.addSeed[lang]}
@@ -129,10 +127,7 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-4 pointer-events-auto">
-            <div title={t.notifications[lang]} className="flex items-center justify-center drop-shadow-lg">
-              <NotificationBell />
-            </div>
-
+            {/* כפתור פרופיל */}
             <button
               title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
               onClick={() => {
