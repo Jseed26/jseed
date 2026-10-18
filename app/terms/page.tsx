@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 const t = {
     title: { he: "תקנון האתר", en: "Terms of Service" },
     back: { he: "חזרה", en: "Back" },
+    genderNote: { 
+        he: "התקנון מנוסח במין זכר אך פונה לשני המינים כאחד.", 
+        en: "The terms are formulated in the masculine gender but address both genders equally." 
+    },
 };
 
 export default function TermsPage() {
@@ -129,9 +133,10 @@ export default function TermsPage() {
                     </div>
                 )}
                 
-                <div className="bg-yellow-500/10 border border-yellow-500/20 p-5 rounded-xl text-center mt-12">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 p-5 rounded-xl text-center mt-12 space-y-2">
                     <p className="text-yellow-500 italic font-medium">{lang === "he" ? "הערה: השימוש בשירות מהווה אישור כי קראת והבנת את תנאי התקנון." : "Note: Use of the service constitutes confirmation that you have read and understood the terms of service."}</p>
-                    <p className="text-gray-400 text-xs mt-2">{lang === "he" ? "JSeed רשאית לעדכן את התקנון מעת לעת, ועדכון זה יחייב את המשתמשים מרגע פרסומו." : "JSeed may update these terms from time to time, and this update will bind users from the moment of its publication."}</p>
+                    <p className="text-gray-400 text-xs">{lang === "he" ? "JSeed רשאית לעדכן את התקנון מעת לעת, ועדכון זה יחייב את המשתמשים מרגע פרסומו." : "JSeed may update these terms from time to time, and this update will bind users from the moment of its publication."}</p>
+                    <p className="text-gray-400 text-xs font-semibold pt-2 border-t border-yellow-500/10">{t.genderNote[lang]}</p>
                 </div>
             </div>
         </div>
