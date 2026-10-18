@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import { PointCategory } from "@/src/types/point";
 import Image from "next/image";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import MapLightbox from "@/src/components/MapLightbox";
@@ -14,7 +14,7 @@ const Map = dynamic(() => import("@/src/components/Map"), {
 });
 
 const t = {
-  search: { he: "חיפוש seed", en: "Search seed" },
+  search: { he: "חפש לפי תיאור או מאפיינים...", en: "Search by description or features..." },
   cancel: { he: "ביטול", en: "Cancel" },
   addSeed: { he: "הוסף נקודה חדשה", en: "Add a new seed" },
   selectPoint: { he: "בחר נקודה על המפה", en: "Select a point on the map" },
@@ -53,6 +53,9 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState<PointCategory | null>(null);
   const [isCompassMode, setCompassMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // 🌟 סטייט חדש לפתיחה/סגירה של שורת החיפוש החכמה
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
 
@@ -97,8 +100,6 @@ export default function Home() {
     { key: "chai", label: t.chai[lang] },
   ];
 
-  const userFirstName = session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || "User";
-
   return (
     <main className="h-[100dvh] w-full bg-black text-white flex flex-col overflow-hidden fixed inset-0">
 
@@ -107,23 +108,35 @@ export default function Home() {
 
         <div className="absolute top-3 w-full flex justify-between items-center px-6 z-[9999] pointer-events-none" dir="ltr">
 
-          <button
-            className="pointer-events-auto flex items-center justify-center p-1 transition-all hover:scale-110 drop-shadow-lg"
-            title={t.addSeed[lang]}
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent("open-direct-add-form", {
-                detail: {
-                  category: "leaf",
-                }
-              }));
-            }}
-          >
-            <img
-              src="/icons/ui/seed/default.png"
-              alt="Add Seed"
-              className="w-8 h-8 object-contain"
-            />
-          </button>
+          {/* כפתור הוספת גרעין וכפתור זכוכית מגדלת בצד שמאל למעלה */}
+          <div className="flex items-center gap-3 pointer-events-auto">
+            <button
+              className="flex items-center justify-center p-1 transition-all hover:scale-110 drop-shadow-lg"
+              title={t.addSeed[lang]}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-direct-add-form", {
+                  detail: {
+                    category: "leaf",
+                  }
+                }));
+              }}
+            >
+              <img
+                src="/icons/ui/seed/default.png"
+                alt="Add Seed"
+                className="w-8 h-8 object-contain"
+              />
+            </button>
+
+            {/* 🌟 כפתור זכוכית המגדלת בצבע זהב */}
+            <button
+              className="flex items-center justify-center p-1.5 transition-all hover:scale-110 drop-shadow-lg bg-yellow-500/10 border border-yellow-500/50 rounded-full text-yellow-400"
+              title="חיפוש חכם"
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+            >
+              <Search className="w-5 h-5 text-yellow-400" />
+            </button>
+          </div>
 
           <div className="flex items-center gap-4 pointer-events-auto">
             <button
@@ -150,6 +163,32 @@ export default function Home() {
           height={60}
           className="relative z-40"
         />
+
+        {/* 🌟 שורת החיפוש החכמה שנפתחת כשלוחצים על זכוכית המגדלת */}
+        {isSearchOpen && (
+          <div className="w-11/12 max-w-md px-4 mt-1 transition-all animate-fadeIn relative z-[10000]">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t.search[lang]}
+                className="w-full bg-gray-900 border-2 border-yellow-500 text-white px-4 py-2 pl-10 pr-10 rounded-xl text-sm focus:outline-none shadow-[0_0_15px_rgba(251,191,36,0.3)]"
+                dir={lang === "he" ? "rtl" : "ltr"}
+                autoFocus
+              />
+              <Search className="absolute left-3 w-4 h-4 text-yellow-500 pointer-events-none" />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 text-gray-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {toast && (
@@ -247,7 +286,6 @@ export default function Home() {
               <button
                 onClick={() => {
                   if (isChai) {
-                    // 🌟 התיקון שלנו: אם כבר פעיל - מכבה הכל. אם לא - פותח תפריט.
                     if (isActive) {
                       setActiveCategory(null);
                       setSearchQuery("");

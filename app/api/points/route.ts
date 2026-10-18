@@ -1,15 +1,83 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import AIEngine from "@/src/lib/ai";
 import cloudinary from "@/src/lib/cloudinary";
 import { auth } from "@/src/lib/auth/auth";
 import translate from "google-translate-api-x";
-import { getDictionaryConcepts, cleanTextForMatching } from "@/src/lib/searchUtils";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const dynamic = 'force-dynamic';
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
+// ==========================================
+// 🌟 סוכן ההעשרה של JSeed (Data Enrichment)
+// ==========================================
+async function enrichPointWithAI(point: any) {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("No GEMINI_API_KEY found, skipping AI enrichment.");
+      return null;
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3.8-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const isInitiative = point.category === "chai";
+
+    let prompt = `
+      You are an AI assistant for a Jewish mapping app called JSeed.
+      Your job is to analyze the following location/initiative and output a strict JSON object with metadata.
+      
+      Name: "${point.name}"
+      Description: "${point.description || 'No description'}"
+      Category: "${point.category}"
+      Address: "${point.address || 'No address'}"
+
+      ${isInitiative
+        ? `This is a local community initiative. DO NOT search the internet. Just read the Name and Description, and extract logical search keywords (in Hebrew) and target audience.`
+        : `This is a physical place or business. Please find its real opening hours, phone number, and whether it is kosher or open on Shabbat.`}
+
+      Return exactly this JSON format (no markdown, no extra text):
+      {
+        "keywords": ["keyword1", "keyword2", "keyword3"],
+        "openingHours": "string or null",
+        "isOpenOnShabbat": true/false/null,
+        "isKosher": "string with kashrut type or true/false/null",
+        "childFriendly": true/false/null,
+        "environment": "indoor" | "outdoor" | "nature" | "urban" | null,
+        "targetAudience": ["families", "couples", "groups", "solo"]
+      }
+    `;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    });
+
+    const responseText = result.response.text();
+    const aiMetadata = JSON.parse(responseText);
+
+    await prisma.point.update({
+      where: { id: point.id },
+      data: { aiMetadata: aiMetadata }
+    });
+
+    return aiMetadata;
+
+  } catch (error) {
+    console.error("AI Enrichment Failed:", error);
+    return null;
+  }
+}
+
+// ==========================================
+// 🌟 מנוע החיפוש החכם מבוסס AI Metadata
+// ==========================================
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const qRaw = searchParams.get("q")?.trim() || "";
@@ -27,80 +95,72 @@ export async function GET(req: Request) {
       return NextResponse.json(results);
     }
 
-    const exactNameMatches = await prisma.point.findMany({
-      where: {
-        ...baseWhere,
-        name: qRaw
-      },
+    const allPoints = await prisma.point.findMany({
+      where: baseWhere,
       include: { _count: { select: { savedBy: true, viewedBy: true } } }
     });
 
-    if (category === 'chai' && exactNameMatches.length > 0) {
-      return NextResponse.json(exactNameMatches);
-    }
+    const queryLower = qRaw.toLowerCase();
+    
+    const asksForShabbat = queryLower.includes("שבת") || queryLower.includes("פתוח");
+    const asksForKids = queryLower.includes("ילדים") || queryLower.includes("משפחה") || queryLower.includes("טיול") || queryLower.includes("לטייל");
+    const isMemorialQuery = queryLower.includes("זכר") || queryLower.includes("הנצחה") || queryLower.includes("זיכרון");
+    
+    // 🌟 זיהוי האם המשתמש מחפש משהו בישראל
+    const asksForIsrael = queryLower.includes("בישראל") || queryLower.includes("בארץ");
 
-    const extractor = await AIEngine.getInstance();
-    const output = await extractor(qRaw.toLowerCase(), { pooling: 'mean', normalize: true });
-    const queryEmbeddingArray = Array.from(output.data);
-    const embeddingString = `[${queryEmbeddingArray.join(',')}]`;
+    const stopWords = ["איפה", "אפשר", "אני", "היכן", "להיות", "ללכת", "לטייל", "באיזה", "מה", "עם", "ב", "ל", "ה", "של", "את", "בישראל", "ישראל"];
+    
+    const queryWords = queryLower
+      .split(/\s+/)
+      .map(w => w.replace(/^(ב|ל|ו|ה|מ|כ|שה)/, ""))
+      .filter(w => w.length > 1 && !stopWords.includes(w));
 
-    const rawPoints = await prisma.$queryRawUnsafe<{ id: number, score: number }[]>(`
-      SELECT id, 
-             CASE WHEN embedding IS NULL THEN 0 ELSE 1 - (embedding <=> $1::vector) END AS score
-      FROM "Point"
-      WHERE 1=1
-      ${category ? `AND category = '${category}'` : ""}
-    `, embeddingString);
+    const filteredPoints = allPoints.filter(point => {
+      const meta = (point.aiMetadata as any) || {};
+      const pointText = `${point.name} ${point.description || ""} ${point.address || ""} ${(meta.keywords || []).join(" ")}`.toLowerCase();
 
-    if (rawPoints.length === 0) {
-      return NextResponse.json([]);
-    }
+      // 🌟 סינון גיאוגרפי לפי הקואורדינטות ב-Prisma אם ביקשו בישראל
+      if (asksForIsrael) {
+        // גבולות משוערים של מדינת ישראל (קו רוחב 29.5 עד 33.3, קו אורך 34.2 עד 35.9)
+        const isInIsrael = point.latitude >= 29.5 && point.latitude <= 33.3 && point.longitude >= 34.2 && point.longitude <= 35.9;
+        if (!isInIsrael) return false;
+      }
 
-    const pointIds = rawPoints.map(p => p.id);
-    const fullPoints = await prisma.point.findMany({
-      where: { id: { in: pointIds } },
-      include: { _count: { select: { savedBy: true, viewedBy: true } } }
-    });
-
-    const cleanUserQuery = cleanTextForMatching(qRaw);
-    let dictionaryConcepts = getDictionaryConcepts(qRaw);
-
-    if (qRaw.includes("זכר") || qRaw.includes("זיכרו") || qRaw === "remember" || qRaw === "memory") {
-      dictionaryConcepts.push("זכר", "לזכרם", "נר", "נזכור");
-    }
-
-    const allTermsToSearch = Array.from(new Set([cleanUserQuery, ...dictionaryConcepts]));
-
-    const searchResults = fullPoints.map(point => {
-      let aiScore = rawPoints.find(rp => rp.id === point.id)?.score || 0;
-      const rawText = `${point.name} ${point.description || ""} ${point.category}`;
-      const cleanPointText = cleanTextForMatching(rawText);
-
-      let isTextMatch = false;
-
-      for (const term of allTermsToSearch) {
-        if (term && term.length > 1) {
-          if (cleanPointText.includes(term)) {
-            isTextMatch = true;
-            break;
-          }
+      // רגישות למשפחות: פסילת נרות זיכרון אישיים כשמבקשים טיול עם ילדים
+      if (asksForKids && !isMemorialQuery) {
+        if (point.name.includes("נר לזכרם") || point.description?.includes("נר לזכרם")) {
+          return false;
         }
       }
 
-      const finalScore = isTextMatch ? 100 : aiScore;
-      return { ...point, totalScore: finalScore };
+      if (asksForShabbat && meta.isOpenOnShabbat === false) {
+        return false;
+      }
+
+      if (asksForKids && meta.childFriendly === false) {
+        return false;
+      }
+
+      if (queryWords.length === 0) {
+        return asksForKids || asksForShabbat;
+      }
+
+      const matchesAnyKeyword = queryWords.some(word => pointText.includes(word));
+      const matchesFullName = pointText.includes(queryLower);
+
+      return matchesAnyKeyword || matchesFullName || (asksForKids && meta.childFriendly);
     });
 
-    const finalResults = searchResults
-      .filter(p => p.totalScore >= 0.55)
-      .sort((a, b) => b.totalScore - a.totalScore)
-      .map(({ totalScore, ...pointData }) => pointData);
-
-    return NextResponse.json(finalResults);
+    return NextResponse.json(filteredPoints);
 
   } catch (error) {
-    console.error("GET Points Error:", error);
-    return NextResponse.json([]);
+    console.error("Search Error:", error);
+    const fallback = await prisma.point.findMany({ 
+      where: category ? { category } : {}, 
+      include: { _count: { select: { savedBy: true, viewedBy: true } } } 
+    });
+    return NextResponse.json(fallback);
   }
 }
 
@@ -117,7 +177,7 @@ export async function POST(req: Request) {
     const longitude = Number(formData.get("longitude"));
     const address = formData.get("address") as string;
     const website = formData.get("website") as string;
-    
+
     const parentIdStr = formData.get("parentId") as string;
     const parentId = parentIdStr && parentIdStr !== "null" ? parseInt(parentIdStr) : null;
 
@@ -143,7 +203,7 @@ export async function POST(req: Request) {
         }
       }
     } catch (translateError) {
-      console.error("Translation API limit/error, skipping translation:", translateError);
+      console.error("Translation error:", translateError);
     }
 
     const files = formData.getAll("images") as File[];
@@ -198,67 +258,12 @@ export async function POST(req: Request) {
         address: hasAddress ? address : null,
         website,
         userId: session.user.id,
-        parentId: parentId, 
+        parentId: parentId,
       },
     });
 
-    // 🌟 🌟 🌟 התראה קהילתית: מישהו הצטרף ליוזמה 🌟 🌟 🌟
-    if (parentId !== null && category === "chai") {
-      try {
-        // מציאת השורש של היוזמה (ההורה)
-        const parentPoint = await prisma.point.findUnique({
-          where: { id: parentId },
-          select: { userId: true, name: true, id: true }
-        });
-
-        if (parentPoint) {
-            // מציאת כל האנשים האחרים שהצטרפו ליוזמה הזו (האחים)
-            const siblings = await prisma.point.findMany({
-                where: { parentId: parentPoint.id },
-                select: { userId: true }
-            });
-
-            // איסוף כל מספרי המזהים של המשתמשים הקשורים ליוזמה (היוצר המקורי + כל המצטרפים)
-            const userIdsToNotify = new Set<string>();
-            if (parentPoint.userId) userIdsToNotify.add(parentPoint.userId);
-            siblings.forEach(sib => {
-                if (sib.userId) userIdsToNotify.add(sib.userId);
-            });
-
-            // מוודאים שאנחנו לא שולחים התראה למי שהרגע יצר את הנקודה!
-            userIdsToNotify.delete(session.user.id);
-
-            // שליחת התראות לכל שאר המשתתפים
-            const notificationsToCreate = Array.from(userIdsToNotify).map(uId => ({
-                userId: uId,
-                message: `מישהו חדש הצטרף הרגע ליוזמה "${parentPoint.name}" שאת/ה משתתפ/ת בה! 🤝`
-            }));
-
-            if (notificationsToCreate.length > 0) {
-                await prisma.notification.createMany({
-                    data: notificationsToCreate
-                });
-            }
-        }
-      } catch (notifErr) {
-        console.error("Failed to create join initiative notification:", notifErr);
-      }
-    }
-    
-    try {
-      const textToAnalyze = `${newPoint.name} ${newPoint.description || ""} ${newPoint.category || ""} ${newPoint.address || ""}`;
-      const extractor = await AIEngine.getInstance();
-      const output = await extractor(textToAnalyze, { pooling: 'mean', normalize: true });
-      const embeddingArray = Array.from(output.data);
-      const embeddingString = `[${embeddingArray.join(',')}]`;
-
-      await prisma.$executeRawUnsafe(
-        `UPDATE "Point" SET embedding = $1::vector WHERE id = $2`,
-        embeddingString, newPoint.id
-      );
-    } catch (aiError) {
-      console.error("AI Embedding Error:", aiError);
-    }
+    // הרצת סוכן ההעשרה ברקע
+    enrichPointWithAI(newPoint).catch(console.error);
 
     return NextResponse.json(newPoint);
   } catch (error) {
@@ -268,149 +273,87 @@ export async function POST(req: Request) {
 }
 
 async function geocodeAddress(address: string) {
-    try {
-        const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`,
-            { headers: { "User-Agent": "jseed-app" } }
-        );
-        const data = await res.json();
-        if (data?.length > 0) {
-            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        }
-        return null;
-    } catch (e) {
-        console.error("Geocode error:", e);
-        return null;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`,
+      { headers: { "User-Agent": "jseed-app" } }
+    );
+    const data = await res.json();
+    if (data?.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
     }
+    return null;
+  } catch (e) {
+    console.error("Geocode error:", e);
+    return null;
+  }
 }
 
 export async function PUT(req: Request, context: any) {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
-
-        const { id } = await context.params;
-        const pointId = Number(id);
-
-        const formData = await req.formData();
-        const name = (formData.get("name") as string) || "";
-        const description = (formData.get("description") as string) || "";
-        const category = (formData.get("category") as string) || "";
-        const address = (formData.get("address") as string) || "";
-        const website = (formData.get("website") as string) || "";
-
-        const existing = await prisma.point.findFirst({
-            where: { id: pointId, userId: session.user.id },
-        });
-
-        if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
-
-        let latitude = existing.latitude;
-        let longitude = existing.longitude;
-
-        if (address && address !== existing.address) {
-            const geo = await geocodeAddress(address);
-            if (geo) {
-                latitude = geo.lat;
-                longitude = geo.lng;
-            }
-        }
-
-        const existingImages = formData.getAll("existingImages") as string[];
-        const newImageFiles = formData.getAll("images") as File[];
-        let newlyUploadedUrls: string[] = [];
-
-        if (newImageFiles && newImageFiles.length > 0) {
-            const uploadPromises = newImageFiles.map(async (file) => {
-                if (file.size > 0) {
-                    const buffer = Buffer.from(await file.arrayBuffer());
-                    const uploadResult: any = await new Promise((resolve, reject) => {
-                        cloudinary.uploader.upload_stream({ folder: "points" }, (err: any, result: any) => {
-                            if (err) reject(err);
-                            else resolve(result);
-                        }).end(buffer);
-                    });
-                    return uploadResult.secure_url;
-                }
-                return null;
-            });
-            
-            const results = await Promise.all(uploadPromises);
-            newlyUploadedUrls = results.filter((url): url is string => url !== null);
-        }
-
-        const finalImageUrls = [...existingImages, ...newlyUploadedUrls].slice(0, 3);
-
-        const updated = await prisma.point.update({
-            where: { id: pointId },
-            data: {
-                name, description, category, address, website, latitude, longitude,
-                imageUrls: finalImageUrls,
-                imageUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : null,
-            },
-        });
-
-        return Response.json(updated);
-    } catch (error) {
-        console.error("PUT Error:", error);
-        return Response.json({ error: "Failed to update point" }, { status: 500 });
-    }
-}
-
-export async function DELETE(req: Request, context: any) {
+  try {
     const session = await auth();
-
-    if (!session?.user?.id) {
-        return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await context.params;
     const pointId = Number(id);
 
+    const formData = await req.formData();
+    const name = (formData.get("name") as string) || "";
+    const description = (formData.get("description") as string) || "";
+    const category = (formData.get("category") as string) || "";
+    const address = (formData.get("address") as string) || "";
+    const website = (formData.get("website") as string) || "";
+
     const existing = await prisma.point.findFirst({
-        where: {
-            id: pointId,
-            userId: session.user.id,
-        },
+      where: { id: pointId, userId: session.user.id },
     });
 
-    if (!existing) {
-        return Response.json({ error: "Not found" }, { status: 404 });
+    if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+
+    let latitude = existing.latitude;
+    let longitude = existing.longitude;
+
+    if (address && address !== existing.address) {
+      const geo = await geocodeAddress(address);
+      if (geo) {
+        latitude = geo.lat;
+        longitude = geo.lng;
+      }
     }
 
-    const parentId = existing.parentId;
-
-    const children = await prisma.point.findMany({
-        where: { parentId: pointId },
-        orderBy: { id: 'asc' } 
+    const updated = await prisma.point.update({
+      where: { id: pointId },
+      data: {
+        name, description, category, address, website, latitude, longitude,
+      },
     });
 
-    if (children.length > 0) {
-        if (parentId !== null) {
-            await prisma.point.updateMany({
-                where: { parentId: pointId },
-                data: { parentId: parentId },
-            });
-        } else {
-            const newRootId = children[0].id;
-            await prisma.point.update({
-                where: { id: newRootId },
-                data: { parentId: null }
-            });
+    enrichPointWithAI(updated).catch(console.error);
 
-            const otherChildrenIds = children.slice(1).map(c => c.id);
-            if (otherChildrenIds.length > 0) {
-                await prisma.point.updateMany({
-                    where: { id: { in: otherChildrenIds } },
-                    data: { parentId: newRootId }
-                });
-            }
-        }
-    }
+    return Response.json(updated);
+  } catch (error) {
+    console.error("PUT Error:", error);
+    return Response.json({ error: "Failed to update point" }, { status: 500 });
+  }
+}
 
-    await prisma.point.delete({
-        where: { id: pointId },
-    });
+export async function DELETE(req: Request, context: any) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    return Response.json({ success: true });
+  const { id } = await context.params;
+  const pointId = Number(id);
+
+  const existing = await prisma.point.findFirst({
+    where: { id: pointId, userId: session.user.id },
+  });
+
+  if (!existing) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await prisma.point.delete({ where: { id: pointId } });
+  return Response.json({ success: true });
 }

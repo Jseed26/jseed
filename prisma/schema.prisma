@@ -91,6 +91,8 @@ model Point {
   parentId       Int?
   parent         Point?   @relation("PointToPoint", fields: [parentId], references: [id], onDelete: SetNull)
   children       Point[]  @relation("PointToPoint")
+  // 🌟 העמודה החדשה שלנו למוח ה-AI המורחב! 🌟
+  aiMetadata     Json?
 }
 
 model ViewedPoint {
