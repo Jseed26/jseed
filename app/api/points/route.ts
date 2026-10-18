@@ -101,16 +101,16 @@ export async function GET(req: Request) {
     });
 
     const queryLower = qRaw.toLowerCase();
-    
+
     const asksForShabbat = queryLower.includes("שבת") || queryLower.includes("פתוח");
     const asksForKids = queryLower.includes("ילדים") || queryLower.includes("משפחה") || queryLower.includes("טיול") || queryLower.includes("לטייל");
     const isMemorialQuery = queryLower.includes("זכר") || queryLower.includes("הנצחה") || queryLower.includes("זיכרון");
-    
+
     // 🌟 זיהוי האם המשתמש מחפש משהו בישראל
     const asksForIsrael = queryLower.includes("בישראל") || queryLower.includes("בארץ");
 
     const stopWords = ["איפה", "אפשר", "אני", "היכן", "להיות", "ללכת", "לטייל", "באיזה", "מה", "עם", "ב", "ל", "ה", "של", "את", "בישראל", "ישראל"];
-    
+
     const queryWords = queryLower
       .split(/\s+/)
       .map(w => w.replace(/^(ב|ל|ו|ה|מ|כ|שה)/, ""))
@@ -146,19 +146,34 @@ export async function GET(req: Request) {
         return asksForKids || asksForShabbat;
       }
 
-      const matchesAnyKeyword = queryWords.some(word => pointText.includes(word));
+      const matchesAnyKeyword = queryWords.some(
+        word => pointText.includes(word)
+      );
+
       const matchesFullName = pointText.includes(queryLower);
 
-      return matchesAnyKeyword || matchesFullName || (asksForKids && meta.childFriendly);
+      // התאמה לפי העדפות החיפוש
+      const matchesShabbat =
+        asksForShabbat && meta.isOpenOnShabbat === true;
+
+      const matchesKids =
+        asksForKids && meta.childFriendly === true;
+
+      return (
+        matchesAnyKeyword ||
+        matchesFullName ||
+        matchesShabbat ||
+        matchesKids
+      );
     });
 
     return NextResponse.json(filteredPoints);
 
   } catch (error) {
     console.error("Search Error:", error);
-    const fallback = await prisma.point.findMany({ 
-      where: category ? { category } : {}, 
-      include: { _count: { select: { savedBy: true, viewedBy: true } } } 
+    const fallback = await prisma.point.findMany({
+      where: category ? { category } : {},
+      include: { _count: { select: { savedBy: true, viewedBy: true } } }
     });
     return NextResponse.json(fallback);
   }
