@@ -155,10 +155,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         .golden-thread-line {
             filter: drop-shadow(0px 0px 6px rgba(251, 191, 36, 1));
         }
-
-        .golden-arrow-icon {
-            filter: drop-shadow(0px 0px 4px rgba(251, 191, 36, 1));
-        }
       `;
       document.head.appendChild(style);
     }
@@ -210,7 +206,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const isChai = point.category === "chai";
 
-    // 🌟 הוסר הפלוס מהכותרת
+    // הוסר הפלוס מהכותרת למעלה
     const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 30px' : '0 30px 0 15px'};">
@@ -256,9 +252,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let currentSavedCount = point._count?.savedBy || 0;
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
-    // 🌟 כאן קורה הקסם: 
-    // כפתור השמירה עוטף את סמל העץ והטקסט ביחד. 
-    // בצד השני מופיע הפלוס רק אם זה Chai.
+    // 🌟 כפתור השמירה עוטף את סמל העץ והטקסט ביחד, הפלוס בצד השני רק אם זה Chai
     container.innerHTML = `
       ${headerHtml}
       ${imageHtml}
@@ -441,7 +435,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
     }
 
-    // הפעלת לחיצה על כפתור הפלוס ביוזמות
     const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
@@ -515,6 +508,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               
               const arcLatLngs = createArc(parent.latitude, parent.longitude, child.latitude, child.longitude);
 
+              // 🌟 הוסר החץ. נשאר רק הקו!
               const thread = L.polyline(arcLatLngs, {
                 color: '#fbbf24',
                 weight: 1.5, 
@@ -525,26 +519,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               });
 
               layerRef.current?.addLayer(thread);
-
-              const p1 = map.project(arcLatLngs[arcLatLngs.length - 2] as L.LatLngExpression);
-              const p2 = map.project(arcLatLngs[arcLatLngs.length - 1] as L.LatLngExpression);
-              const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-
-              const arrowIcon = L.divIcon({
-                  className: 'golden-arrow-icon',
-                  html: `<svg width="10" height="10" viewBox="0 0 24 24" style="transform: rotate(${angle}deg); fill: #fbbf24;">
-                             <path d="M24 12l-24-12v24z"/>
-                         </svg>`,
-                  iconSize: [10, 10], 
-                  iconAnchor: [5, 5]
-              });
-
-              const arrowMarker = L.marker([child.latitude, child.longitude], {
-                  icon: arrowIcon,
-                  interactive: false 
-              });
-
-              layerRef.current?.addLayer(arrowMarker);
             }
           }
         }

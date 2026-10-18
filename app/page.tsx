@@ -107,7 +107,6 @@ export default function Home() {
 
         <div className="absolute top-3 w-full flex justify-between items-center px-6 z-[9999] pointer-events-none" dir="ltr">
 
-          {/* כפתור הוספת גרעין */}
           <button
             className="pointer-events-auto flex items-center justify-center p-1 transition-all hover:scale-110 drop-shadow-lg"
             title={t.addSeed[lang]}
@@ -127,16 +126,11 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-4 pointer-events-auto">
-            {/* כפתור פרופיל */}
             <button
-              title={isLoggedIn ? t.myProfile[lang] : t.logIn[lang]}
+              title={t.myProfile[lang]}
               onClick={() => {
                 if (status === "loading") return;
-                if (isLoggedIn) {
-                  router.push("/my-points");
-                } else {
-                  router.push("/my-points");
-                }
+                router.push("/my-points");
               }}
               className="hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center"
             >
@@ -156,22 +150,6 @@ export default function Home() {
           height={60}
           className="relative z-40"
         />
-
-        {/* 🌟 שורת החיפוש המקורית מוסתרת לעתיד 🌟 */}
-        {/* <div className="relative w-52 mx-auto z-40" dir="ltr">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-          />
-
-          <input
-            type="text"
-            value={searchQuery}
-            placeholder={t.search[lang]}
-            className="w-full py-1.5 pl-8 pr-3 text-center text-sm rounded-lg bg-black text-white border border-gray-600 placeholder-gray-500 focus:outline-none focus:border-gray-400 focus:ring-0"
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div> */}
       </div>
 
       {toast && (
@@ -269,15 +247,11 @@ export default function Home() {
               <button
                 onClick={() => {
                   if (isChai) {
+                    // 🌟 התיקון שלנו: אם כבר פעיל - מכבה הכל. אם לא - פותח תפריט.
                     if (isActive) {
-                      if (isChaiMenuOpen) {
-                        setActiveCategory(null);
-                        setSearchQuery("");
-                        setIsChaiMenuOpen(false);
-                      } else {
-                        if (chaiInitiatives.length === 0) fetchChaiInitiatives();
-                        setIsChaiMenuOpen(true);
-                      }
+                      setActiveCategory(null);
+                      setSearchQuery("");
+                      setIsChaiMenuOpen(false);
                     } else {
                       if (chaiInitiatives.length === 0) fetchChaiInitiatives();
                       setActiveCategory("chai");
@@ -293,15 +267,16 @@ export default function Home() {
                 <div className="h-12 sm:h-14 flex items-end justify-center w-full relative">
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                    className={`shrink-0 object-contain transition-transform origin-bottom ${isChai
+                    className={`shrink-0 object-contain transition-transform origin-bottom ${
+                      isChai
                         ? `absolute z-0 w-14 h-12 sm:w-16 sm:h-14 bottom-[-14px] sm:bottom-[-16px] scale-[1.3] sm:scale-[1.4] group-hover:scale-[1.4] sm:group-hover:scale-[1.5] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
                         : "relative z-10 w-10 h-10 sm:w-12 sm:h-12 group-hover:scale-105"
-                      }`}
+                    }`}
                     alt={cat.label}
                   />
                 </div>
-
-                <span
+                
+                <span 
                   className="text-[10px] sm:text-xs mt-1 text-center leading-tight break-words w-full relative z-10 text-yellow-500"
                   style={isChai ? { textShadow: "0px 1px 4px rgba(0,0,0,0.9), 0px 0px 2px rgba(0,0,0,1)" } : {}}
                 >
