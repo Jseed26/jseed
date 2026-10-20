@@ -14,7 +14,7 @@ const Map = dynamic(() => import("@/src/components/Map"), {
 });
 
 const t = {
-  search: { he: "חפש לפי תיאור או מאפיינים...", en: "Search by description or features..." },
+  search: { he: "חפש לפי תיאור או מאפיינים (ולחץ Enter)...", en: "Search by description or features (press Enter)..." },
   cancel: { he: "ביטול", en: "Cancel" },
   addSeed: { he: "הוסף נקודה חדשה", en: "Add a new seed" },
   selectPoint: { he: "בחר נקודה על המפה", en: "Select a point on the map" },
@@ -52,9 +52,11 @@ export default function Home() {
 
   const [activeCategory, setActiveCategory] = useState<PointCategory | null>(null);
   const [isCompassMode, setCompassMode] = useState(false);
+  
+  // 🌟 הפרדה: searchInput זה מה שמקלידים, searchQuery נשלח לשרת רק בלחיצה על Enter / Search!
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   
-  // 🌟 סטייט חדש לפתיחה/סגירה של שורת החיפוש החכמה
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -132,7 +134,13 @@ export default function Home() {
             <button
               className="flex items-center justify-center p-1.5 transition-all hover:scale-110 drop-shadow-lg bg-yellow-500/10 border border-yellow-500/50 rounded-full text-yellow-400"
               title="חיפוש חכם"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              onClick={() => {
+                setIsSearchOpen(!isSearchOpen);
+                if (isSearchOpen) {
+                  setSearchInput("");
+                  setSearchQuery("");
+                }
+              }}
             >
               <Search className="w-5 h-5 text-yellow-400" />
             </button>
@@ -164,29 +172,55 @@ export default function Home() {
           className="relative z-40"
         />
 
-        {/* 🌟 שורת החיפוש החכמה שנפתחת כשלוחצים על זכוכית המגדלת */}
+        {/* 🌟 שורת החיפוש החכמה שנשלחת רק בלחיצה על Enter או Search בנייד */}
         {isSearchOpen && (
           <div className="w-11/12 max-w-md px-4 mt-1 transition-all animate-fadeIn relative z-[10000]">
-            <div className="relative flex items-center">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setActiveCategory(null); // מבטל סינון קטגוריה כדי לחפש בכל המפה
+                setSearchQuery(searchInput.trim());
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
+              }}
+              className="relative flex items-center"
+            >
               <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                type="search"
+                enterKeyHint="search"
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  if (e.target.value === "") {
+                    setSearchQuery("");
+                  }
+                }}
                 placeholder={t.search[lang]}
-                className="w-full bg-gray-900 border-2 border-yellow-500 text-white px-4 py-2 pl-10 pr-10 rounded-xl text-sm focus:outline-none shadow-[0_0_15px_rgba(251,191,36,0.3)]"
+                className="w-full bg-gray-900 border-2 border-yellow-500 text-white px-4 py-2 pl-10 pr-10 rounded-xl text-sm focus:outline-none shadow-[0_0_15px_rgba(251,191,36,0.3)] [&::-webkit-search-cancel-button]:hidden"
                 dir={lang === "he" ? "rtl" : "ltr"}
                 autoFocus
               />
-              <Search className="absolute left-3 w-4 h-4 text-yellow-500 pointer-events-none" />
-              {searchQuery && (
+              <button
+                type="submit"
+                className="absolute left-3 text-yellow-500 hover:scale-110 transition-transform"
+                title="חפש"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+              {searchInput && (
                 <button
-                  onClick={() => setSearchQuery("")}
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchQuery("");
+                  }}
                   className="absolute right-3 text-gray-400 hover:text-white"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
-            </div>
+            </form>
           </div>
         )}
       </div>
@@ -244,6 +278,7 @@ export default function Home() {
                     <button
                       onClick={() => {
                         setActiveCategory("chai");
+                        setSearchInput("");
                         setSearchQuery("");
                         setIsChaiMenuOpen(false);
                       }}
@@ -259,6 +294,7 @@ export default function Home() {
                           key={idx}
                           onClick={() => {
                             setActiveCategory("chai");
+                            setSearchInput(init.name);
                             setSearchQuery(init.name);
                             setIsChaiMenuOpen(false);
                           }}
@@ -288,6 +324,7 @@ export default function Home() {
                   if (isChai) {
                     if (isActive) {
                       setActiveCategory(null);
+                      setSearchInput("");
                       setSearchQuery("");
                       setIsChaiMenuOpen(false);
                     } else {

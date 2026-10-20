@@ -14,10 +14,26 @@ type Props = {
   searchQuery?: string;
 };
 
-// זיכרון גלובלי שומר על הצבע הכתום
-const globalClickedPoints = new Set<number>();
+// שמירה נצחית של הצבע הכתום בזיכרון המכשיר (localStorage)
+const getPersistedViewed = () => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('jseed_viewed_points');
+    if (stored) {
+      try { return new Set<number>(JSON.parse(stored)); } catch (e) {}
+    }
+  }
+  return new Set<number>();
+};
 
-// פונקציית עזר ליצירת האייקון 
+const globalClickedPoints = getPersistedViewed();
+
+const persistViewedPoint = (id: number) => {
+  globalClickedPoints.add(id);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('jseed_viewed_points', JSON.stringify(Array.from(globalClickedPoints)));
+  }
+};
+
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
 
@@ -53,7 +69,6 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
   });
 }
 
-// ✨ הפונקציה שמייצרת את הקשת העגולה ✨
 function createArc(startLat: number, startLng: number, endLat: number, endLng: number) {
     const latlngs: L.LatLngExpression[] = [];
     const numPoints = 50; 
@@ -206,7 +221,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const isChai = point.category === "chai";
 
-    // הוסר הפלוס מהכותרת למעלה
     const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 30px' : '0 30px 0 15px'};">
@@ -252,13 +266,16 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let currentSavedCount = point._count?.savedBy || 0;
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
-    // 🌟 כפתור השמירה עוטף את סמל העץ והטקסט ביחד, הפלוס בצד השני רק אם זה Chai
+    // 🌟 משימה 5: הוספנו white-space: pre-wrap לתיאור כדי לשמור על ירידות שורות (כמו מתכון)!
     container.innerHTML = `
       ${headerHtml}
       ${imageHtml}
       
       <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
-        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.desc}</strong> ${display(displayDesc)}</div>
+        <div style="margin-bottom: 10px;">
+            <strong style="color: #f9fafb; display: block; margin-bottom: 4px;">${t.desc}</strong> 
+            <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
+        </div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> ${display(point.address)}</div>
         <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
         ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
@@ -508,7 +525,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               
               const arcLatLngs = createArc(parent.latitude, parent.longitude, child.latitude, child.longitude);
 
-              // 🌟 הוסר החץ. נשאר רק הקו!
               const thread = L.polyline(arcLatLngs, {
                 color: '#fbbf24',
                 weight: 1.5, 
@@ -604,7 +620,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             const isSaved = savedIds.includes(currentPoint.id);
 
             if (!globalClickedPoints.has(pId)) {
-              globalClickedPoints.add(pId);
+              persistViewedPoint(pId);
               fetch("/api/history", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -681,13 +697,16 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const mapWidth = map.getSize().x;
           const mapHeight = map.getSize().y;
 
+          // 🌟 משימה 2: פתיחה חכמה של הפופ-אפ לפי כיוון כדי שלא ייחתך!
           let direction = "up"; 
-          if (pt.y < mapHeight * 0.50) {
-            direction = "down"; 
-          } else if (pt.x > mapWidth * 0.65) {
-            direction = "left"; 
+          
+          if (pt.y < mapHeight * 0.55) {
+             direction = "down"; 
+          }
+          if (pt.x > mapWidth * 0.65) {
+             direction = "left";
           } else if (pt.x < mapWidth * 0.35) {
-            direction = "right"; 
+             direction = "right";
           }
 
           popupContentWrapper.className = `jseed-custom-modal jseed-modal-${direction}`;
@@ -696,7 +715,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           if (count === 1) {
             const pId = Number(pointsInCat[0].id);
             if (!globalClickedPoints.has(pId)) {
-              globalClickedPoints.add(pId);
+              persistViewedPoint(pId);
               fetch("/api/history", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

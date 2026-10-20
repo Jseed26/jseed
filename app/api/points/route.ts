@@ -10,15 +10,12 @@ export const dynamic = 'force-dynamic';
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
 // ==========================================
-// 🌟 סוכן ההעשרה של JSeed (Data Enrichment)
+// 🌟 סוכן ההעשרה (פועל רק ביצירת/עריכת נקודה)
 // ==========================================
 async function enrichPointWithAI(point: any) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn("No GEMINI_API_KEY found, skipping AI enrichment.");
-      return null;
-    }
+    if (!apiKey) return null;
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
@@ -30,9 +27,9 @@ async function enrichPointWithAI(point: any) {
 
     const isInitiative = point.category === "chai";
 
-    let prompt = `
+    const prompt = `
       You are an AI assistant for a Jewish mapping app called JSeed.
-      Your job is to analyze the following location/initiative and output a strict JSON object with metadata.
+      Analyze the following location/initiative and output a strict JSON object with metadata.
       
       Name: "${point.name}"
       Description: "${point.description || 'No description'}"
@@ -40,15 +37,15 @@ async function enrichPointWithAI(point: any) {
       Address: "${point.address || 'No address'}"
 
       ${isInitiative
-        ? `This is a local community initiative. DO NOT search the internet. Just read the Name and Description, and extract logical search keywords (in Hebrew) and target audience.`
-        : `This is a physical place or business. Please find its real opening hours, phone number, and whether it is kosher or open on Shabbat.`}
+        ? `This is a community initiative. Extract logical Hebrew search keywords and target audience based on Name and Description.`
+        : `This is a physical place or business. Determine its opening hours, whether it is kosher, open on Shabbat, and child-friendly.`}
 
-      Return exactly this JSON format (no markdown, no extra text):
+      Return strictly this JSON format (no markdown, no extra text):
       {
         "keywords": ["keyword1", "keyword2", "keyword3"],
         "openingHours": "string or null",
         "isOpenOnShabbat": true/false/null,
-        "isKosher": "string with kashrut type or true/false/null",
+        "isKosher": "string or true/false/null",
         "childFriendly": true/false/null,
         "environment": "indoor" | "outdoor" | "nature" | "urban" | null,
         "targetAudience": ["families", "couples", "groups", "solo"]
@@ -59,8 +56,7 @@ async function enrichPointWithAI(point: any) {
       contents: [{ role: "user", parts: [{ text: prompt }] }]
     });
 
-    const responseText = result.response.text();
-    const aiMetadata = JSON.parse(responseText);
+    const aiMetadata = JSON.parse(result.response.text());
 
     await prisma.point.update({
       where: { id: point.id },
@@ -68,15 +64,14 @@ async function enrichPointWithAI(point: any) {
     });
 
     return aiMetadata;
-
   } catch (error) {
-    console.error("AI Enrichment Failed:", error);
+    console.error("AI Enrichment Failed (will retry later):", error);
     return null;
   }
 }
 
 // ==========================================
-// 🌟 מנוע החיפוש החכם מבוסס AI Metadata
+// 🌟 מנוע החיפוש המקומי המהיר (ללא קריאות AI בזמן חיפוש)
 // ==========================================
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -86,96 +81,83 @@ export async function GET(req: Request) {
   try {
     const baseWhere: any = category ? { category } : {};
 
-    if (!qRaw) {
-      const results = await prisma.point.findMany({
-        where: baseWhere,
-        include: { _count: { select: { savedBy: true, viewedBy: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-      return NextResponse.json(results);
-    }
-
     const allPoints = await prisma.point.findMany({
       where: baseWhere,
-      include: { _count: { select: { savedBy: true, viewedBy: true } } }
+      include: { _count: { select: { savedBy: true, viewedBy: true } } },
+      orderBy: { createdAt: "desc" },
     });
 
-    const queryLower = qRaw.toLowerCase();
+    // אם אין שאילתת חיפוש, מחזירים את כל הנקודות
+    if (!qRaw) {
+      return NextResponse.json(allPoints);
+    }
 
+    if (category === "chai") {
+      const exactChai = allPoints.filter(p => p.name.trim() === qRaw);
+      if (exactChai.length > 0) return NextResponse.json(exactChai);
+    }
+
+    const queryLower = qRaw.toLowerCase();
+    
+    // זיהוי כוונות נפוצות מהשאלה של המשתמש
     const asksForShabbat = queryLower.includes("שבת") || queryLower.includes("פתוח");
     const asksForKids = queryLower.includes("ילדים") || queryLower.includes("משפחה") || queryLower.includes("טיול") || queryLower.includes("לטייל");
-    const isMemorialQuery = queryLower.includes("זכר") || queryLower.includes("הנצחה") || queryLower.includes("זיכרון");
-
-    // 🌟 זיהוי האם המשתמש מחפש משהו בישראל
     const asksForIsrael = queryLower.includes("בישראל") || queryLower.includes("בארץ");
+    const isMemorialQuery = queryLower.includes("זכר") || queryLower.includes("הנצחה") || queryLower.includes("זיכרון") || queryLower.includes("נר");
 
-    const stopWords = ["איפה", "אפשר", "אני", "היכן", "להיות", "ללכת", "לטייל", "באיזה", "מה", "עם", "ב", "ל", "ה", "של", "את", "בישראל", "ישראל"];
-
+    const stopWords = ["איפה", "אפשר", "אני", "היכן", "להיות", "ללכת", "לטייל", "באיזה", "מה", "עם", "ב", "ל", "ה", "של", "את", "בישראל", "ישראל", "בארץ", "מקומות", "מקום", "פתוחים", "פתוח"];
+    
     const queryWords = queryLower
       .split(/\s+/)
       .map(w => w.replace(/^(ב|ל|ו|ה|מ|כ|שה)/, ""))
       .filter(w => w.length > 1 && !stopWords.includes(w));
 
+    // סינון חכם ישירות מול נתוני ה-JSON (aiMetadata) של הנקודות במסד הנתונים
     const filteredPoints = allPoints.filter(point => {
       const meta = (point.aiMetadata as any) || {};
-      const pointText = `${point.name} ${point.description || ""} ${point.address || ""} ${(meta.keywords || []).join(" ")}`.toLowerCase();
+      const pointText = `${point.name} ${point.name_en || ""} ${point.description || ""} ${point.address || ""} ${(meta.keywords || []).join(" ")}`.toLowerCase();
 
-      // 🌟 סינון גיאוגרפי לפי הקואורדינטות ב-Prisma אם ביקשו בישראל
+      // 1. סינון גיאוגרפי לישראל לפי הקואורדינטות
       if (asksForIsrael) {
-        // גבולות משוערים של מדינת ישראל (קו רוחב 29.5 עד 33.3, קו אורך 34.2 עד 35.9)
-        const isInIsrael = point.latitude >= 29.5 && point.latitude <= 33.3 && point.longitude >= 34.2 && point.longitude <= 35.9;
+        const isInIsrael = point.latitude >= 29.4 && point.latitude <= 33.4 && point.longitude >= 34.1 && point.longitude <= 35.9;
         if (!isInIsrael) return false;
       }
 
-      // רגישות למשפחות: פסילת נרות זיכרון אישיים כשמבקשים טיול עם ילדים
-      if (asksForKids && !isMemorialQuery) {
+      // 2. הגנה מפני הצגת נרות זיכרון אישיים בשאלות כלליות או טיולים
+      if ((asksForKids || asksForShabbat || queryWords.length > 0) && !isMemorialQuery) {
         if (point.name.includes("נר לזכרם") || point.description?.includes("נר לזכרם")) {
           return false;
         }
       }
 
-      if (asksForShabbat && meta.isOpenOnShabbat === false) {
-        return false;
+      // 3. סינון לפי שבת מתוך ה-JSON של ה-AI
+      if (asksForShabbat) {
+        if (meta.isOpenOnShabbat === true) return true;
+        if (meta.isOpenOnShabbat === false) return false;
       }
 
-      if (asksForKids && meta.childFriendly === false) {
-        return false;
+      // 4. סינון לפי ילדים מתוך ה-JSON של ה-AI
+      if (asksForKids) {
+        if (meta.childFriendly === true) return true;
+        if (meta.childFriendly === false) return false;
       }
 
+      // 5. התאמה טקסטואלית רגילה או לפי מילות מפתח מתוך ה-JSON
       if (queryWords.length === 0) {
         return asksForKids || asksForShabbat;
       }
 
-      const matchesAnyKeyword = queryWords.some(
-        word => pointText.includes(word)
-      );
-
+      const matchesKeyword = queryWords.some(word => pointText.includes(word));
       const matchesFullName = pointText.includes(queryLower);
 
-      // התאמה לפי העדפות החיפוש
-      const matchesShabbat =
-        asksForShabbat && meta.isOpenOnShabbat === true;
-
-      const matchesKids =
-        asksForKids && meta.childFriendly === true;
-
-      return (
-        matchesAnyKeyword ||
-        matchesFullName ||
-        matchesShabbat ||
-        matchesKids
-      );
+      return matchesKeyword || matchesFullName;
     });
 
     return NextResponse.json(filteredPoints);
 
   } catch (error) {
     console.error("Search Error:", error);
-    const fallback = await prisma.point.findMany({
-      where: category ? { category } : {},
-      include: { _count: { select: { savedBy: true, viewedBy: true } } }
-    });
-    return NextResponse.json(fallback);
+    return NextResponse.json([]);
   }
 }
 
@@ -277,7 +259,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // הרצת סוכן ההעשרה ברקע
     enrichPointWithAI(newPoint).catch(console.error);
 
     return NextResponse.json(newPoint);
