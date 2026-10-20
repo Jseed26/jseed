@@ -71,12 +71,26 @@ export async function PUT(req: Request, context: any) {
         📍 GEO UPDATE (אם כתובת השתנתה)
         ================================================================================
         */
+        const reqLat = formData.get("latitude");
+        const reqLng = formData.get("longitude");
+
         let latitude = existing.latitude;
         let longitude = existing.longitude;
+        let isMapPicked = false;
 
-        if (address && address !== existing.address) {
+        // אם הגיעו קואורדינטות חדשות מהסימון במפה - נעדכן אותן!
+        if (reqLat !== null && reqLat !== "" && reqLat !== "undefined" && !isNaN(Number(reqLat))) {
+            latitude = Number(reqLat);
+            isMapPicked = true;
+        }
+        if (reqLng !== null && reqLng !== "" && reqLng !== "undefined" && !isNaN(Number(reqLng))) {
+            longitude = Number(reqLng);
+            isMapPicked = true;
+        }
+
+        // רק אם המשתמש הקליד כתובת חדשה ידנית (ולא דקר מיקום במפה), נחפש אותה ב-Geocoding
+        if (!isMapPicked && address && address !== existing.address && address.trim() !== "") {
             const geo = await geocodeAddress(address);
-
             if (geo) {
                 latitude = geo.lat;
                 longitude = geo.lng;
@@ -88,10 +102,10 @@ export async function PUT(req: Request, context: any) {
         🖼️ IMAGE UPLOAD (שילוב תמונות ישנות וחדשות)
         ================================================================================
         */
-        
+
         // 1. שולפים את הלינקים של התמונות שהמשתמש השאיר (לא מחק ב-X)
         const existingImages = formData.getAll("existingImages") as string[];
-        
+
         // 2. שולפים את הקבצים החדשים שהמשתמש הוסיף
         const newImageFiles = formData.getAll("images") as File[];
         let newlyUploadedUrls: string[] = [];
@@ -105,7 +119,7 @@ export async function PUT(req: Request, context: any) {
                 }
                 return null;
             });
-            
+
             const results = await Promise.all(uploadPromises);
             newlyUploadedUrls = results.filter((url): url is string => url !== null);
         }
@@ -128,7 +142,7 @@ export async function PUT(req: Request, context: any) {
                 website,
                 latitude,
                 longitude,
-                
+
                 // שומרים את מערך התמונות המעודכן
                 imageUrls: finalImageUrls,
                 // תאימות לאחור: השדה הישן יקבל את התמונה הראשונה, או null אם אין תמונות בכלל

@@ -8,6 +8,7 @@ import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
 import { useSession } from "next-auth/react";
 import PointForm from "@/src/components/PointForm";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type MapProps = {
   activeCategory: Point["category"] | null;
@@ -24,7 +25,9 @@ type ModalState = {
   prefilledName?: string;
   prefilledCategory?: string;
   draftData?: any;
-  parentId?: number | null; // 🌟 הוספנו את הזיכרון להורה של היוזמה!
+  parentId?: number | null;
+  mode?: "create" | "edit"; 
+  pointId?: number; 
 } | null;
 
 const tMap = {
@@ -42,8 +45,10 @@ const tMap = {
   enterAddress: { he: "אנא הזן רחוב, מספר ועיר בלבד", en: "Please enter street, number, and city only" },
   noAddress: { he: "לא הזנת כתובת. האם לשמור את הנקודה לפי המיקום של המצפן במפה?", en: "No address entered. Save point using the compass location?" },
   thankYouMsg: { he: "תודה! הגרעין נוסף בהצלחה 🌱", en: "Thank you! Seed added successfully 🌱" },
+  editSuccess: { he: "הגרעין עודכן בהצלחה! 🔄", en: "Seed updated successfully! 🔄" },
   pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" },
-  cancelPick: { he: "ביטול חזרה למפה", en: "Cancel Picking" }
+  cancelPick: { he: "ביטול חזרה", en: "Cancel Picking" },
+  gpsDisabled: { he: "שירותי המיקום כבויים. ניתן להדליקם בהגדרות ב'אזור שלי'.", en: "Location services are disabled in settings." }
 };
 
 export default function Map({
@@ -55,6 +60,8 @@ export default function Map({
   lang,
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
@@ -69,15 +76,51 @@ export default function Map({
   const [savedIds, setSavedIds] = useState<number[]>([]);
 
   const [successToast, setSuccessToast] = useState<string | null>(null);
-
   const { status } = useSession();
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [filterRadius, setFilterRadius] = useState<number | null>(null);
-
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
+
+  const [gpsEnabled, setGpsEnabled] = useState(true);
+
+  useEffect(() => {
+    const checkGps = () => {
+        setGpsEnabled(localStorage.getItem("jseed_gps_disabled") !== "true");
+    };
+    checkGps();
+    window.addEventListener("gps-setting-changed", checkGps);
+    return () => window.removeEventListener("gps-setting-changed", checkGps);
+  }, []);
+
+  useEffect(() => {
+    if (!gpsEnabled) {
+        setIsFollowing(false);
+        setUserLocation(null);
+        setFilterRadius(null);
+    }
+  }, [gpsEnabled]);
+
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const editPointId = searchParams.get("editPoint");
+
+    if (action === "pick_location" && editPointId) {
+      const draftJson = localStorage.getItem("jseed_edit_draft");
+      if (draftJson) {
+        try {
+          const parsed = JSON.parse(draftJson);
+          if (parsed.pointId.toString() === editPointId) {
+            setDraftFormState({ ...parsed.form, editPointId: parsed.pointId });
+            setIsPickingLocation(true);
+            router.replace('/', { scroll: false });
+          }
+        } catch (e) {}
+      }
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -85,11 +128,7 @@ export default function Map({
 
     const container = mapRef.current;
     const isMobile = window.innerWidth < 768;
-
-    const worldBounds = L.latLngBounds(
-      [-90, -180],
-      [90, 180]
-    );
+    const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
     const newMap = L.map(container, {
       center: [31.5, 10.8], 
@@ -108,13 +147,9 @@ export default function Map({
     });
 
     mapInstanceRef.current = newMap;
-
     const maptilerLayer = L.tileLayer(
       "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
-      {
-        noWrap: true,
-        bounds: worldBounds
-      }
+      { noWrap: true, bounds: worldBounds }
     );
 
     maptilerLayer.addTo(newMap);
@@ -128,9 +163,10 @@ export default function Map({
     };
   }, []);
 
+  // 🌟 ביטול Cache למשיכת נקודות חדשות!
   useEffect(() => {
     async function load() {
-      const res = await fetch("/api/points");
+      const res = await fetch("/api/points", { cache: "no-store" });
       const data = await res.json();
       setPoints(Array.isArray(data) ? data : []);
     }
@@ -150,11 +186,6 @@ export default function Map({
   useEffect(() => {
     if (!isLoggedIn) return;
     loadHistory();
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
     async function loadSaved() {
       try {
         const res = await fetch("/api/saved");
@@ -164,7 +195,6 @@ export default function Map({
         }
       } catch (err) { }
     }
-
     loadSaved();
   }, [isLoggedIn]);
 
@@ -174,7 +204,7 @@ export default function Map({
       if (searchQuery.trim()) params.append("q", searchQuery);
       if (activeCategory) params.append("category", activeCategory);
 
-      const res = await fetch(`/api/points?${params.toString()}`);
+      const res = await fetch(`/api/points?${params.toString()}`, { cache: "no-store" });
       const data = await res.json();
       setPoints(Array.isArray(data) ? data : []);
     }
@@ -183,7 +213,7 @@ export default function Map({
 
   useEffect(() => {
     const refresh = async () => {
-      const res = await fetch("/api/points");
+      const res = await fetch("/api/points", { cache: "no-store" });
       const data = await res.json();
       setPoints(data);
 
@@ -196,25 +226,23 @@ export default function Map({
         loadHistory();
       }
     };
-
     window.addEventListener("points-updated", refresh);
-    return () => {
-      window.removeEventListener("points-updated", refresh);
-    };
+    return () => window.removeEventListener("points-updated", refresh);
   }, [isLoggedIn]);
 
   useEffect(() => {
     if (!map) return;
 
     const handleClick = (e: L.LeafletMouseEvent) => {
-      
       if (isPickingLocation && draftFormState) {
           setModal({
               lat: e.latlng.lat,
               lng: e.latlng.lng,
               prefilledCategory: draftFormState.category,
               draftData: draftFormState,
-              parentId: draftFormState.parentId // 🌟 שומר על ההורה גם כשחוזרים מהצליפה
+              parentId: draftFormState.parentId,
+              mode: draftFormState.editPointId ? "edit" : "create",
+              pointId: draftFormState.editPointId
           });
           setIsPickingLocation(false);
           setDraftFormState(null);
@@ -222,16 +250,12 @@ export default function Map({
       }
 
       if (!isCompassMode) return;
-
       if (!isLoggedIn) {
         alert(tMap.loginRequired[lang]);
         return;
       }
 
-      setModal({
-        lat: e.latlng.lat,
-        lng: e.latlng.lng,
-      });
+      setModal({ lat: e.latlng.lat, lng: e.latlng.lng, mode: "create" });
     };
 
     const handleLocationError = () => {
@@ -242,7 +266,6 @@ export default function Map({
 
     const handleLocationFound = (e: any) => {
       setIsLocating(false);
-
       if (e.latlng.lat === 0 && e.latlng.lng === 0) {
         setIsFollowing(false);
         setUserLocation(null);
@@ -250,7 +273,6 @@ export default function Map({
         alert(tMap.locationUnstable[lang]);
         return;
       }
-
       setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
       setIsFollowing(true);
     };
@@ -276,15 +298,14 @@ export default function Map({
         alert(tMap.loginRequired[lang]);
         return;
       }
-
       const center = mapInstanceRef.current?.getCenter() || { lat: 31.768, lng: 35.213 };
-
       setModal({
         lat: e.detail.lat || center.lat,
         lng: e.detail.lng || center.lng,
         prefilledName: e.detail.name,
         prefilledCategory: e.detail.category,
-        parentId: e.detail.parentId // 🌟 לוכד את ה-ID של ההורה מהלחיצה על הפלוס בחלונית!
+        parentId: e.detail.parentId,
+        mode: "create"
       });
     };
 
@@ -294,7 +315,6 @@ export default function Map({
 
   const filteredPoints = useMemo(() => {
     if (!filterRadius || !userLocation || !map) return points;
-
     return points.filter((p) => {
       const distanceInMeters = map.distance(
         [Number(p.latitude), Number(p.longitude)],
@@ -365,7 +385,7 @@ export default function Map({
 
       {successToast && (
         <div className="absolute inset-0 z-[99999] pointer-events-none flex items-center justify-center">
-          <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce">
+          <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce text-center mx-4">
             {successToast}
           </div>
         </div>
@@ -383,7 +403,9 @@ export default function Map({
                           lat: draftFormState.lat || 31.768,
                           lng: draftFormState.lng || 35.213,
                           draftData: draftFormState,
-                          parentId: draftFormState.parentId
+                          parentId: draftFormState.parentId,
+                          mode: draftFormState.editPointId ? "edit" : "create",
+                          pointId: draftFormState.editPointId
                       });
                   }}
                   className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
@@ -395,7 +417,7 @@ export default function Map({
 
       {modal && !isPickingLocation && (
         <PointForm
-          mode="create"
+          mode={modal.mode || "create"}
           category={modal.prefilledCategory || activeCategory}
           initialData={{
             lat: modal.lat,
@@ -406,16 +428,20 @@ export default function Map({
             website: modal.draftData?.website,
             images: modal.draftData?.images,
             existingImages: modal.draftData?.existingImages,
-            parentId: modal.parentId || modal.draftData?.parentId // 🌟 מעביר לטופס
+            parentId: modal.parentId || modal.draftData?.parentId 
           }}
-          onClose={() => setModal(null)}
+          onClose={() => {
+              setModal(null);
+              if (modal.mode === "edit") router.push("/my-points");
+          }}
           onPickLocation={(currentFormState) => {
               setDraftFormState({
                   ...currentFormState,
                   lat: modal.lat, 
                   lng: modal.lng,
                   address: "", 
-                  parentId: modal.parentId // 🌟 שומר את ההורה
+                  parentId: modal.parentId,
+                  editPointId: modal.pointId
               });
               setModal(null);
               setIsPickingLocation(true);
@@ -462,22 +488,21 @@ export default function Map({
             formData.append("latitude", String(finalLat));
             formData.append("longitude", String(finalLng));
 
-            // 🌟🌟🌟 כאן הקסם! שולחים את ההורה לשרת!
-            if (form.parentId) {
-              formData.append("parentId", String(form.parentId));
-            }
+            if (form.parentId) formData.append("parentId", String(form.parentId));
 
             if (form.images && form.images.length > 0) {
-              form.images.forEach((img) => {
-                formData.append("images", img);
-              });
+              form.images.forEach((img) => formData.append("images", img));
             }
 
-            const res = await fetch("/api/points", {
-              method: "POST",
-              body: formData,
-            });
+            const isEditing = modal.mode === "edit";
+            if (isEditing && form.existingImages && form.existingImages.length > 0) {
+               form.existingImages.forEach(url => formData.append("existingImages", url));
+            }
 
+            const endpoint = isEditing ? `/api/points/${modal.pointId}` : "/api/points";
+            const method = isEditing ? "PUT" : "POST";
+
+            const res = await fetch(endpoint, { method, body: formData });
             const data = await res.json();
 
             if (!res.ok) {
@@ -485,21 +510,22 @@ export default function Map({
               return;
             }
 
-            setPoints((prev) => [...prev, data]);
             setModal(null);
             setCompassMode(false);
             setDraftFormState(null);
 
-            setViewedIds((prev) => [...prev, data.id]);
-
-            if (map) {
-              map.setView([finalLat, finalLng], 16);
+            if (isEditing) {
+               window.dispatchEvent(new Event("points-updated"));
+               localStorage.removeItem("jseed_edit_draft"); 
+               router.push("/my-points"); 
+            } else {
+               setPoints((prev) => [...prev, data]);
+               setViewedIds((prev) => [...prev, data.id]);
+               if (map) map.setView([finalLat, finalLng], 16);
+               
+               setSuccessToast(tMap.thankYouMsg[lang]);
+               setTimeout(() => setSuccessToast(null), 3000); 
             }
-
-            setSuccessToast(tMap.thankYouMsg[lang]);
-            setTimeout(() => {
-              setSuccessToast(null);
-            }, 3000); 
           }}
         />
       )}
@@ -508,6 +534,10 @@ export default function Map({
       <button
         onClick={() => {
           if (!map) return;
+          if (!gpsEnabled) {
+              alert(tMap.gpsDisabled[lang]);
+              return;
+          }
           if (isLocating) return;
 
           if (isFollowing) {
@@ -515,14 +545,10 @@ export default function Map({
             setIsFollowing(false);
           } else {
             setIsLocating(true);
-            map.locate({
-              setView: true,
-              maxZoom: 16,
-              enableHighAccuracy: true
-            });
+            map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
           }
         }}
-        className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
+        className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
         title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
       >
         {isLocating ? (
@@ -545,6 +571,10 @@ export default function Map({
       <div className="absolute bottom-6 left-[68px] z-[400] flex flex-col-reverse items-start gap-2">
         <button
           onClick={() => {
+            if (!gpsEnabled) {
+                alert(tMap.gpsDisabled[lang]);
+                return;
+            }
             if (!userLocation && map) {
               if (!isLocating) {
                 setIsLocating(true);
@@ -555,7 +585,7 @@ export default function Map({
             }
             setShowRadiusMenu(!showRadiusMenu);
           }}
-          className={`p-2 rounded-full shadow-lg transition-colors border ${filterRadius
+          className={`p-2 rounded-full shadow-lg transition-colors border ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60 text-gray-500" : filterRadius
             ? "bg-yellow-500 border-yellow-400 text-black"
             : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
             }`}
@@ -566,7 +596,7 @@ export default function Map({
           </svg>
         </button>
 
-        {showRadiusMenu && userLocation && (
+        {showRadiusMenu && userLocation && gpsEnabled && (
           <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
             <button
               onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}

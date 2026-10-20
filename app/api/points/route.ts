@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
 // ==========================================
-// 🌟 סוכן ההעשרה (פועל רק ביצירת/עריכת נקודה)
+// 🌟 סוכן ההעשרה של JSeed
 // ==========================================
 async function enrichPointWithAI(point: any) {
   try {
@@ -35,12 +35,13 @@ async function enrichPointWithAI(point: any) {
       Description: "${point.description || 'No description'}"
       Category: "${point.category}"
       Address: "${point.address || 'No address'}"
+      Coordinates: ${point.latitude}, ${point.longitude}
 
       ${isInitiative
         ? `This is a community initiative. Extract logical Hebrew search keywords and target audience based on Name and Description.`
         : `This is a physical place or business. Determine its opening hours, whether it is kosher, open on Shabbat, and child-friendly.`}
 
-      Return strictly this JSON format (no markdown, no extra text):
+      Return strictly this JSON format:
       {
         "keywords": ["keyword1", "keyword2", "keyword3"],
         "openingHours": "string or null",
@@ -65,13 +66,13 @@ async function enrichPointWithAI(point: any) {
 
     return aiMetadata;
   } catch (error) {
-    console.error("AI Enrichment Failed (will retry later):", error);
+    console.error("AI Enrichment Failed:", error);
     return null;
   }
 }
 
 // ==========================================
-// 🌟 מנוע החיפוש המקומי המהיר (ללא קריאות AI בזמן חיפוש)
+// 🌟 מנוע החיפוש המקומי המהיר
 // ==========================================
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -87,7 +88,6 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    // אם אין שאילתת חיפוש, מחזירים את כל הנקודות
     if (!qRaw) {
       return NextResponse.json(allPoints);
     }
@@ -99,7 +99,6 @@ export async function GET(req: Request) {
 
     const queryLower = qRaw.toLowerCase();
     
-    // זיהוי כוונות נפוצות מהשאלה של המשתמש
     const asksForShabbat = queryLower.includes("שבת") || queryLower.includes("פתוח");
     const asksForKids = queryLower.includes("ילדים") || queryLower.includes("משפחה") || queryLower.includes("טיול") || queryLower.includes("לטייל");
     const asksForIsrael = queryLower.includes("בישראל") || queryLower.includes("בארץ");
@@ -112,37 +111,31 @@ export async function GET(req: Request) {
       .map(w => w.replace(/^(ב|ל|ו|ה|מ|כ|שה)/, ""))
       .filter(w => w.length > 1 && !stopWords.includes(w));
 
-    // סינון חכם ישירות מול נתוני ה-JSON (aiMetadata) של הנקודות במסד הנתונים
     const filteredPoints = allPoints.filter(point => {
       const meta = (point.aiMetadata as any) || {};
       const pointText = `${point.name} ${point.name_en || ""} ${point.description || ""} ${point.address || ""} ${(meta.keywords || []).join(" ")}`.toLowerCase();
 
-      // 1. סינון גיאוגרפי לישראל לפי הקואורדינטות
       if (asksForIsrael) {
         const isInIsrael = point.latitude >= 29.4 && point.latitude <= 33.4 && point.longitude >= 34.1 && point.longitude <= 35.9;
         if (!isInIsrael) return false;
       }
 
-      // 2. הגנה מפני הצגת נרות זיכרון אישיים בשאלות כלליות או טיולים
       if ((asksForKids || asksForShabbat || queryWords.length > 0) && !isMemorialQuery) {
         if (point.name.includes("נר לזכרם") || point.description?.includes("נר לזכרם")) {
           return false;
         }
       }
 
-      // 3. סינון לפי שבת מתוך ה-JSON של ה-AI
       if (asksForShabbat) {
         if (meta.isOpenOnShabbat === true) return true;
         if (meta.isOpenOnShabbat === false) return false;
       }
 
-      // 4. סינון לפי ילדים מתוך ה-JSON של ה-AI
       if (asksForKids) {
         if (meta.childFriendly === true) return true;
         if (meta.childFriendly === false) return false;
       }
 
-      // 5. התאמה טקסטואלית רגילה או לפי מילות מפתח מתוך ה-JSON
       if (queryWords.length === 0) {
         return asksForKids || asksForShabbat;
       }
@@ -306,10 +299,25 @@ export async function PUT(req: Request, context: any) {
 
     if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
+    const reqLat = formData.get("latitude");
+    const reqLng = formData.get("longitude");
+
     let latitude = existing.latitude;
     let longitude = existing.longitude;
+    let isMapPicked = false;
 
-    if (address && address !== existing.address) {
+    // 🌟 התיקון הקריטי: מזהים אם המיקום סומן במפורש מהמפה!
+    if (reqLat && reqLat !== "null" && reqLat !== "undefined") {
+        latitude = Number(reqLat);
+        isMapPicked = true;
+    }
+    if (reqLng && reqLng !== "null" && reqLng !== "undefined") {
+        longitude = Number(reqLng);
+        isMapPicked = true;
+    }
+
+    // 🌟 אם סומן מהמפה, בחיים לא נריץ המרת כתובת (Geocode) כדי למנוע דריסה!
+    if (address && address !== existing.address && address !== "" && !isMapPicked) {
       const geo = await geocodeAddress(address);
       if (geo) {
         latitude = geo.lat;

@@ -71,22 +71,40 @@ const t = {
     mustLogin: { he: "יש להתחבר על מנת לראות", en: "Please log in to view" },
     loginNow: { he: "התחבר עכשיו", en: "Log In Now" },
     contactUs: { he: "ליצירת קשר ניתן לפנות אלינו:", en: "For contact, you can reach us at:" },
+    locationTitle: { he: "שירותי מיקום מפה (GPS)", en: "Map Location Services (GPS)" },
+    locationDesc: { he: "שימוש במיקום כדי להציג מרחקים ולנווט", en: "Use location to show distances and navigate" },
 };
 
 export default function MyPointsPage() {
     const { data: session, status } = useSession();
     
     const [lang, setLang] = useState<"en" | "he">("he");
+    
+    const [gpsEnabled, setGpsEnabled] = useState(true);
 
     useEffect(() => {
         const savedLang = localStorage.getItem("jseed_lang") as "en" | "he";
         if (savedLang) setLang(savedLang);
+
+        const isGpsDisabled = localStorage.getItem("jseed_gps_disabled") === "true";
+        setGpsEnabled(!isGpsDisabled);
     }, []);
 
     const changeLanguage = (newLang: "en" | "he") => {
         setLang(newLang);
         localStorage.setItem("jseed_lang", newLang);
         window.dispatchEvent(new Event("language-changed")); 
+    };
+
+    const toggleGps = () => {
+        const newVal = !gpsEnabled;
+        setGpsEnabled(newVal);
+        if (!newVal) {
+            localStorage.setItem("jseed_gps_disabled", "true");
+        } else {
+            localStorage.removeItem("jseed_gps_disabled");
+        }
+        window.dispatchEvent(new Event("gps-setting-changed")); 
     };
 
     const [tab, setTab] = useState<"my" | "history" | "saved" | "notifications" | "settings">("my");
@@ -227,7 +245,6 @@ export default function MyPointsPage() {
     return (
         <div className="p-4 sm:p-6 pb-32 text-white bg-black min-h-screen relative" dir={lang === "he" ? "rtl" : "ltr"}>
             
-            {/* 🌟 משימה 19: כפתור חזרה למפה נשאר מקובע תמיד בצד שמאל למעלה (ltr כופה שמאל) */}
             <button 
                 onClick={() => router.push("/")} 
                 className="fixed top-5 left-5 z-[9999] bg-gray-900 border border-yellow-500/50 text-yellow-500 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-xl flex items-center gap-2"
@@ -249,7 +266,7 @@ export default function MyPointsPage() {
                     {t.history[lang]}
                 </button>
                 <button onClick={() => handleTabChange("saved")} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors ${tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
-                    {t.saved[lang]} <img src="/icons/ui/plant/active.png" className="w-4 h-4 object-contain" />
+                    {t.saved[lang]} <img src="/icons/ui/save/active.png" className="w-4 h-4 object-contain" />
                 </button>
                 <button onClick={() => {handleTabChange("notifications"); setSavedCategory(null);}} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors relative ${tab === "notifications" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
                     {t.notifications[lang]} 🔔
@@ -318,6 +335,24 @@ export default function MyPointsPage() {
                                         English
                                     </button>
                                 </div>
+                            </div>
+
+                            {/* 🌟 שירותי מיקום */}
+                            <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg">
+                                <div className="flex justify-between items-center mb-3">
+                                    <div className="flex items-center gap-2 text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                        <h2 className="text-sm font-bold uppercase tracking-widest">{t.locationTitle[lang]}</h2>
+                                    </div>
+                                    <button 
+                                        onClick={toggleGps} 
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${gpsEnabled ? 'bg-yellow-500' : 'bg-gray-700'}`}
+                                        dir="ltr"
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${gpsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500">{t.locationDesc[lang]}</p>
                             </div>
 
                             {/* קישורים / מידע */}
@@ -425,7 +460,7 @@ export default function MyPointsPage() {
                                                 <div className="flex justify-around mt-4 pt-4 border-t border-gray-800 text-xs text-gray-400">
                                                     <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} {t.views[lang]}</span>
                                                     <span className="flex items-center gap-1">
-                                                        <img src="/icons/ui/plant/active.png" alt="Saves" className="w-4 h-4 object-contain" />
+                                                        <img src="/icons/ui/save/active.png" alt="Saves" className="w-4 h-4 object-contain" />
                                                         {p._count?.savedBy || 0} {t.saves[lang]}
                                                     </span>
                                                     {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} {t.clicks[lang]}</span>}
@@ -532,6 +567,17 @@ export default function MyPointsPage() {
                             : (editingPoint.imageUrl ? [editingPoint.imageUrl] : [])
                     }}
                     onClose={() => setEditingPoint(null)}
+                    onPickLocation={(currentFormState) => {
+                        const draftToSave = {
+                            ...currentFormState,
+                            images: []
+                        };
+                        localStorage.setItem("jseed_edit_draft", JSON.stringify({
+                            pointId: editingPoint.id,
+                            form: draftToSave
+                        }));
+                        router.push(`/?editPoint=${editingPoint.id}&action=pick_location`);
+                    }}
                     onSubmit={async ({ form }) => {
                         const formData = new FormData();
                         formData.append("name", form.name);

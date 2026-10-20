@@ -7,12 +7,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // 1. שולפים רק 3 נקודות בכל פעם כדי לא לעבור את מגבלת ה-5 בקשות לדקה של גוגל
+    // שולפים רק נקודה 1 בכל הרצה כדי למנוע Timeout ארוך בדפדפן ו-Rate Limit
     const pointsToUpdate = await prisma.point.findMany({
       where: {
         aiMetadata: { equals: Prisma.DbNull } 
       },
-      take: 3, 
+      take: 1, 
     });
 
     if (pointsToUpdate.length === 0) {
@@ -35,6 +35,7 @@ export async function GET() {
 
     for (const point of pointsToUpdate) {
       try {
+        console.log(`⏳ Processing point ID ${point.id}: "${point.name}"...`);
         const isInitiative = point.category === "chai";
         
         const prompt = `
@@ -75,18 +76,16 @@ export async function GET() {
         });
 
         successCount++;
-        
-        // 🌟 השהיה של 12 שניות שלמות בין נקודה לנקודה כדי להישאר בבטחה מתחת למכסה (5 לדקה)
-        await new Promise(resolve => setTimeout(resolve, 12000));
+        console.log(`✅ Successfully enriched point ID ${point.id}!`);
 
       } catch (err: any) {
-        console.error(`Failed to enrich point ID ${point.id}:`, err.message);
+        console.error(`❌ Failed to enrich point ID ${point.id}:`, err.message);
         errors.push({ id: point.id, error: err.message });
       }
     }
 
     return NextResponse.json({ 
-        message: `Successfully enriched ${successCount} points. Refresh this page to do the next batch.`,
+        message: `Successfully enriched ${successCount} point(s) in this batch. Refresh this page to do the next one!`,
         remainingErrors: errors 
     });
 
