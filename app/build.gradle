@@ -21,7 +21,7 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'app.vercel.jseed.twa',
+    applicationId: 'jseed.example.com',
     hostName: 'jseed.vercel.app', // The domain being opened in the TWA.
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
     name: 'JSeed', // The application name.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "app.vercel.jseed.twa"
+    namespace "jseed.example.com"
     defaultConfig {
-        applicationId "app.vercel.jseed.twa"
+        applicationId "jseed.example.com"
         minSdkVersion 24
         targetSdkVersion 36
         versionCode 1

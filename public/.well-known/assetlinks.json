@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "app.vercel.jseed.twa",
-        "sha256_cert_fingerprints": ["CE:F0:FC:A6:9E:BF:9D:86:7B:0A:39:75:E6:6E:F1:05:F0:62:EE:A3:2D:CB:EA:24:6C:2E:66:3F:65:C7:38:85"]
+        "sha256_cert_fingerprints": ["2C:79:2B:A9:81:97:93:62:02:E1:77:40:E0:EA:54:B3:AE:82:4E:39:53:96:EF:F8:0B:79:A5:B1:47:AB:6A:98"]
       }
     }]

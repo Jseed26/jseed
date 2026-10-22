@@ -6,7 +6,6 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-// 🌍 פונקציית עזר שהופכת קוד מדינה (כמו IL) לדגל אמוג'י
 function getFlagEmoji(countryCode: string | null) {
     if (!countryCode) return "🌍";
     const codePoints = countryCode
@@ -20,8 +19,8 @@ const CATEGORY_META: Record<string, { label: string; subLabel: string; icon: str
     leaf: { label: "קהילה", subLabel: "עלה", icon: "/icons/categories/leaf/active.png", color: "#fbbf24" },
     star: { label: "רוח", subLabel: "מגן דוד", icon: "/icons/categories/star/active.png", color: "#f59e0b" },
     triangle: { label: "מורשת", subLabel: "פירמידה", icon: "/icons/categories/triangle/active.png", color: "#d97706" },
-    circle: { label: "עסקים", subLabel: "מטבע", icon: "/icons/categories/circle/active.png", color: "#b45309" },
-    chai: { label: "יוזמות", subLabel: "חי", icon: "/icons/categories/chai/active.png", color: "#fde68a" },
+    circle: { label: "עסקים", subLabel: "מטבע", icon: "/icons/categories/circle/active.png", color: "#fde047" },
+    chai: { label: "יוזמות", subLabel: "חי", icon: "/icons/categories/chai/active.png", color: "#b45309" },
 };
 
 export default async function AdminDashboard({
@@ -45,12 +44,9 @@ export default async function AdminDashboard({
 
     const resolvedSearchParams = await searchParams;
     const searchQuery = resolvedSearchParams?.q?.trim() || "";
-    const sortMode = resolvedSearchParams?.sort || ""; // "saved" | "clicks" | "views" | "recent"
+    const sortMode = resolvedSearchParams?.sort || "";
     const filterCat = resolvedSearchParams?.cat || "";
 
-    // ==========================================
-    // 📊 1. שליפת סטטיסטיקות משתמשים וזמן שהות
-    // ==========================================
     const totalUsers = await prisma.user.count();
     const totalVisitors = await prisma.visitor.count();
     const totalSessionsCount = totalUsers + totalVisitors;
@@ -72,7 +68,6 @@ export default async function AdminDashboard({
     const webVisitorsCount = await prisma.visitor.count({ where: { platform: "WEB" } });
     const totalWeb = webUsersCount + webVisitorsCount;
 
-    // 🟢 חישוב מחוברים כעת (Live) - מי שעדכן זמן ב-5 הדקות האחרונות
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     const onlineUsers = await prisma.user.count({
@@ -83,9 +78,6 @@ export default async function AdminDashboard({
     });
     const totalOnlineNow = onlineUsers + onlineVisitors;
 
-    // ==========================================
-    // 📈 2. משימה 13 + 23: ניתוח גרעינים וקטגוריות
-    // ==========================================
     const allPointsWithStats = await prisma.point.findMany({
         include: {
             user: { select: { id: true, name: true, email: true } },
@@ -149,7 +141,6 @@ export default async function AdminDashboard({
 
     const categoryStats = categoryKeys.map(k => {
         const item = categoryStatsMap[k];
-        // אם אין עדיין אינטראקציות, נחשב אחוז לפי כמות הגרעינים כדי שהגרף תמיד ייראה חי
         const percentage = grandTotalInteractions > 0
             ? Math.round((item.totalInteractions / grandTotalInteractions) * 100)
             : (totalPointsCount > 0 ? Math.round((item.pointsCount / totalPointsCount) * 100) : 0);
@@ -162,24 +153,6 @@ export default async function AdminDashboard({
         };
     });
 
-    // חישוב מקטעים לגרף הטבעת (SVG Donut Chart)
-    let cumulativePercent = 0;
-    const donutSegments = categoryStats.map(cat => {
-        const value = grandTotalInteractions > 0 ? cat.totalInteractions : cat.pointsCount;
-        const totalBase = grandTotalInteractions > 0 ? grandTotalInteractions : (totalPointsCount || 1);
-        const fraction = totalBase > 0 ? (value / totalBase) * 100 : 0;
-        const segment = {
-            ...cat,
-            strokeDasharray: `${fraction} ${100 - fraction}`,
-            strokeDashoffset: 100 - cumulativePercent,
-        };
-        cumulativePercent += fraction;
-        return segment;
-    });
-
-    // ==========================================
-    // 📅 3. גרף פעילות וכניסות ב-7 הימים האחרונים
-    // ==========================================
     const dayNamesHe = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
     const last7Days: { label: string; dateStr: string; count: number }[] = [];
 
@@ -191,7 +164,6 @@ export default async function AdminDashboard({
         const nextD = new Date(d);
         nextD.setDate(d.getDate() + 1);
 
-        // סופרים פעילות באותו יום: צפיות בגרעינים, שמירות, יצירת גרעינים, וכניסות משתמשים/אורחים
         let dayActivity = 0;
         allPointsWithStats.forEach(p => {
             if (p.createdAt >= d && p.createdAt < nextD) dayActivity++;
@@ -208,9 +180,6 @@ export default async function AdminDashboard({
 
     const maxDailyCount = Math.max(...last7Days.map(d => d.count), 1);
 
-    // ==========================================
-    // 👥 4. משיכת משתמשים לטבלה (כולל updatedAt למשימה 4!)
-    // ==========================================
     const users = await prisma.user.findMany({
         select: {
             id: true,
@@ -228,9 +197,6 @@ export default async function AdminDashboard({
         ]
     });
 
-    // ==========================================
-    // 🔍 5. משימה 20: מנוע חיפוש ודירוג גרעינים למנהלים
-    // ==========================================
     let filteredAdminPoints = [...allPointsWithStats];
 
     if (filterCat) {
@@ -260,7 +226,6 @@ export default async function AdminDashboard({
         filteredAdminPoints.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
-    // אם המנהלת חיפשה או בחרה פילטר דירוג - נציג עד 30 תוצאות, אחרת נציג אוטומטית את 5 המובילים!
     const isFilteringPoints = Boolean(searchQuery || sortMode || filterCat);
     const displayedAdminPoints = isFilteringPoints
         ? filteredAdminPoints.slice(0, 30)
@@ -268,7 +233,6 @@ export default async function AdminDashboard({
             .sort((a, b) => ((b._count.savedBy * 2) + b.linkClicks + b._count.viewedBy) - ((a._count.savedBy * 2) + a.linkClicks + a._count.viewedBy))
             .slice(0, 5);
 
-    // 🌟 פונקציית מחיקה בשרת
     async function deletePointAction(formData: FormData) {
         "use server";
         const currentSession = await auth();
@@ -282,7 +246,6 @@ export default async function AdminDashboard({
         }
     }
 
-    // טבעת ממוצע זמן שהייה (עד 15 דקות כ-100% ויזואלי)
     const avgTimeRingPercent = Math.min(100, Math.round((Number(avgSessionMins) / 15) * 100));
 
     return (
@@ -315,14 +278,14 @@ export default async function AdminDashboard({
             <div className="max-w-7xl mx-auto space-y-8">
 
                 {/* ========================================== */}
-                {/* 🌟 שורה 1: מדדי ליבה מרכזיים (בהשראת העיצוב ששלחת) */}
+                {/* 🌟 שורה 1: מדדי ליבה מרכזיים */}
                 {/* ========================================== */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
 
                     {/* כרטיס 1: מחוברים כעת (Live) */}
                     <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-green-500/40 p-5 rounded-2xl relative shadow-[0_0_25px_rgba(34,197,94,0.08)] flex flex-col justify-between">
                         <div className="flex justify-between items-center">
-                            <span className="text-gray-400 text-sm font-bold">מחוברים כעת (Live)</span>
+                            <span className="text-gray-300 text-sm font-bold">מחוברים כעת (Live)</span>
                             <span className="relative flex h-3.5 w-3.5">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-500"></span>
@@ -340,18 +303,17 @@ export default async function AdminDashboard({
                         </div>
                     </div>
 
-                    {/* כרטיס 2: כמות כניסות ומשתמשים (Sessions) */}
+                    {/* כרטיס 2: סה"כ מבקרים במערכת */}
                     <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 p-5 rounded-2xl shadow-[0_0_20px_rgba(251,191,36,0.05)] flex flex-col justify-between">
                         <div className="flex justify-between items-center">
-                            <span className="text-gray-300 text-sm font-bold">סה״כ משתמשים וכניסות</span>
-                            <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">Sessions</span>
+                            <span className="text-gray-300 text-sm font-bold">סה״כ מבקרים במערכת</span>
+                            <span className="text-[11px] text-gray-500">רשומים + אורחים</span>
                         </div>
                         <div className="my-3 flex items-baseline justify-between">
                             <div>
                                 <span className="text-4xl font-black text-yellow-400">{totalSessionsCount.toLocaleString()}</span>
                                 <p className="text-xs text-gray-400 mt-1">רשומים: <strong className="text-white">{totalUsers}</strong> | אורחים: <strong className="text-white">{totalVisitors}</strong></p>
                             </div>
-                            {/* מיני גרף קו דקורטיבי */}
                             <svg className="w-20 h-10 stroke-yellow-500 fill-none" viewBox="0 0 100 40">
                                 <polyline strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points="5,35 25,22 45,27 65,12 85,18 95,5" />
                             </svg>
@@ -376,7 +338,6 @@ export default async function AdminDashboard({
                                 </strong>
                             </span>
                         </div>
-                        {/* טבעת עגולה בסגנון התמונה */}
                         <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
                             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                                 <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#27272a" strokeWidth="3.5" />
@@ -393,17 +354,17 @@ export default async function AdminDashboard({
                         </div>
                     </div>
 
-                    {/* כרטיס 4: סה"כ אינטראקציות וגרעינים (Seed Clicks) */}
+                    {/* כרטיס 4: סה"כ אינטראקציות וגרעינים */}
                     <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 p-5 rounded-2xl shadow-[0_0_20px_rgba(251,191,36,0.05)] flex flex-col justify-between">
                         <div className="flex justify-between items-center">
                             <span className="text-gray-300 text-sm font-bold">אינטראקציות בגרעינים</span>
-                            <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                                {totalPointsCount} גרעינים במפה
+                            <span className="text-[11px] text-gray-400">
+                                סה״כ {totalPointsCount} גרעינים במפה
                             </span>
                         </div>
                         <div className="my-3">
                             <span className="text-4xl font-black text-yellow-400">{grandTotalInteractions.toLocaleString()}</span>
-                            <span className="text-xs text-gray-400 mr-2">סה״כ פעולות</span>
+                            <span className="text-xs text-gray-400 mr-2">פעולות במפה</span>
                         </div>
                         <div className="flex justify-between text-xs text-gray-300 pt-3 border-t border-gray-800/80">
                             <span>👀 צפיות: <strong>{totalViewsAll}</strong></span>
@@ -415,76 +376,27 @@ export default async function AdminDashboard({
                 </div>
 
                 {/* ========================================== */}
-                {/* 🌟 שורה 2: משימה 13 + 23 - גרף עוגה קטגוריות + גרף עמודות יומי */}
+                {/* 🌟 שורה 2: טבלת קטגוריות ונתונים + גרף עמודות יומי */}
                 {/* ========================================== */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                    {/* פופולריות ואינטראקציה לפי קטגוריות (7 עמודות) */}
-                    <div className="lg:col-span-7 bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <div>
-                                <h2 className="text-lg font-bold text-yellow-400">פופולריות ואינטראקציה לפי קטגוריות</h2>
-                                <p className="text-xs text-gray-400">פילוח משתמשים, שמירות, צפיות וכניסות ללינקים בכל קטגוריה</p>
-                            </div>
+                    <div className="lg:col-span-7 bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <h2 className="text-lg font-bold text-yellow-400 mb-1">פופולריות ואינטראקציה לפי קטגוריות</h2>
+                            <p className="text-xs text-gray-400 mb-6">סיכום מדויק של גרעינים, צפיות, שמירות ומשתמשים לפי קטגוריות המפה</p>
                         </div>
 
-                        <div className="flex flex-col md:flex-row items-center gap-8 mb-6">
-                            {/* Donut Chart SVG */}
-                            <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
-                                <svg className="w-full h-full -rotate-90" viewBox="0 0 42 42">
-                                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#1f2937" strokeWidth="6" />
-                                    {donutSegments.map((seg) => (
-                                        <circle
-                                            key={seg.key}
-                                            cx="21"
-                                            cy="21"
-                                            r="15.915"
-                                            fill="transparent"
-                                            stroke={seg.meta.color}
-                                            strokeWidth="6"
-                                            strokeDasharray={seg.strokeDasharray}
-                                            strokeDashoffset={seg.strokeDashoffset}
-                                        />
-                                    ))}
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                                    <span className="text-2xl font-black text-yellow-400">{totalPointsCount}</span>
-                                    <span className="text-[11px] text-gray-400">גרעינים פעילים</span>
-                                </div>
-                            </div>
-
-                            {/* מקרא קטגוריות מהיר */}
-                            <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {categoryStats.map((cat) => (
-                                    <div key={cat.key} className="bg-black/40 border border-gray-800/80 rounded-xl p-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-2.5">
-                                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cat.meta.color }} />
-                                            <img src={cat.meta.icon} alt={cat.meta.label} className="w-6 h-6 object-contain" />
-                                            <div>
-                                                <div className="text-sm font-bold text-white">{cat.meta.label}</div>
-                                                <div className="text-[11px] text-gray-400">{cat.pointsCount} גרעינים</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-left">
-                                            <span className="text-lg font-extrabold text-yellow-400">{cat.percentage}%</span>
-                                            <div className="text-[10px] text-gray-500">{cat.totalInteractions} פעולות</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* טבלת פירוט מדויקת למשימה 13 */}
+                        {/* טבלת פירוט קטגוריות */}
                         <div className="overflow-x-auto border border-gray-800/90 rounded-xl">
                             <table className="w-full text-right text-sm border-collapse">
                                 <thead>
                                     <tr className="bg-black/60 text-gray-400 border-b border-gray-800 text-xs">
                                         <th className="p-3">קטגוריה</th>
                                         <th className="p-3 text-center">גרעינים 🌱</th>
-                                        <th className="p-3 text-center">משתמשים מעורבים 👥</th>
+                                        <th className="p-3 text-center">משתמשים 👥</th>
                                         <th className="p-3 text-center">צפיות 👀</th>
                                         <th className="p-3 text-center">שמירות 🌟</th>
-                                        <th className="p-3 text-center">כניסות ללינק 🔗</th>
+                                        <th className="p-3 text-center">קליקים 🔗</th>
                                         <th className="p-3 text-center">נתח פעילות</th>
                                     </tr>
                                 </thead>
@@ -492,9 +404,9 @@ export default async function AdminDashboard({
                                     {categoryStats.map((cat) => (
                                         <tr key={cat.key} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
                                             <td className="p-3 font-bold flex items-center gap-2">
+                                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.meta.color }} />
                                                 <img src={cat.meta.icon} alt="" className="w-5 h-5 object-contain" />
                                                 <span>{cat.meta.label}</span>
-                                                <span className="text-xs text-gray-500">({cat.meta.subLabel})</span>
                                             </td>
                                             <td className="p-3 text-center font-bold text-white">{cat.pointsCount}</td>
                                             <td className="p-3 text-center text-gray-300">{cat.uniqueUsers}</td>
@@ -513,14 +425,13 @@ export default async function AdminDashboard({
                         </div>
                     </div>
 
-                    {/* גרף פעילות יומי ב-7 הימים האחרונים (5 עמודות) */}
+                    {/* גרף פעילות יומי ב-7 הימים האחרונים */}
                     <div className="lg:col-span-5 bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
                         <div>
                             <h2 className="text-lg font-bold text-yellow-400">גרף אינטראקציות ופעילות יומי</h2>
                             <p className="text-xs text-gray-400 mb-6">צפיות, שמירות והוספת גרעינים ב-7 הימים האחרונים</p>
                         </div>
 
-                        {/* עמודות הגרף */}
                         <div className="flex items-end justify-between gap-3 h-56 pt-8 pb-2 px-2 border-b border-gray-800">
                             {last7Days.map((day, idx) => {
                                 const heightPercent = Math.max(8, Math.round((day.count / maxDailyCount) * 100));
@@ -530,7 +441,8 @@ export default async function AdminDashboard({
                                             {day.count}
                                         </span>
                                         <div
-                                            className="w-full max-w-[38px] rounded-t-lg bg-gradient-to-t from-yellow-700/60 via-yellow-500 to-yellow-300 shadow-[0_0_12px_rgba(251,191,36,0.25)] transition-all duration-300 group-hover:brightness-125"
+                                            title={`${day.label} (${day.dateStr}): ${day.count} פעולות`}
+                                            className="w-full max-w-[38px] rounded-t-lg bg-gradient-to-t from-yellow-700/60 via-yellow-500 to-yellow-300 shadow-[0_0_12px_rgba(251,191,36,0.25)] transition-all duration-300 group-hover:brightness-125 cursor-pointer"
                                             style={{ height: `${heightPercent}%` }}
                                         />
                                     </div>
@@ -538,7 +450,6 @@ export default async function AdminDashboard({
                             })}
                         </div>
 
-                        {/* תוויות ימים למטה */}
                         <div className="flex justify-between gap-3 pt-3 px-2 text-center">
                             {last7Days.map((day, idx) => (
                                 <div key={idx} className="flex-1">
@@ -548,9 +459,8 @@ export default async function AdminDashboard({
                             ))}
                         </div>
 
-                        {/* סיכום מהיר מתחת לגרף */}
                         <div className="mt-6 bg-black/40 border border-gray-800/80 rounded-xl p-3.5 flex justify-between items-center text-xs text-gray-400">
-                            <span>🔥 סה״כ פעולות השבוע:</span>
+                            <span>🔥 סה״כ פעולות ב-7 הימים האחרונים:</span>
                             <strong className="text-yellow-400 text-sm">
                                 {last7Days.reduce((acc, cur) => acc + cur.count, 0)} אינטראקציות
                             </strong>
@@ -560,9 +470,9 @@ export default async function AdminDashboard({
                 </div>
 
                 {/* ========================================== */}
-                {/* 🌟 שורה 3: משימה 20 - מנוע חיפוש ודירוג גרעינים מלא למנהלים */}
+                {/* 🌟 שורה 3: מנוע חיפוש ודירוג גרעינים מלא למנהלים */}
                 {/* ========================================== */}
-                <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
+                <div id="seed-explorer" className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                         <div>
                             <h2 className="text-xl font-bold text-yellow-400">🔍 מנוע חיפוש ודירוג גרעינים (Data & Seed Explorer)</h2>
@@ -571,28 +481,27 @@ export default async function AdminDashboard({
                             </p>
                         </div>
 
-                        {/* כפתורי Quick Filters למיון מהיר */}
                         <div className="flex flex-wrap gap-2">
                             <Link
-                                href="/admin?sort=saved"
+                                href="/admin?sort=saved#seed-explorer"
                                 className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "saved" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700 hover:border-yellow-500/50"}`}
                             >
                                 🌟 הכי שמורים
                             </Link>
                             <Link
-                                href="/admin?sort=clicks"
+                                href="/admin?sort=clicks#seed-explorer"
                                 className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "clicks" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700 hover:border-yellow-500/50"}`}
                             >
                                 🔗 הכי הרבה כניסות ללינק
                             </Link>
                             <Link
-                                href="/admin?sort=views"
+                                href="/admin?sort=views#seed-explorer"
                                 className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "views" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700 hover:border-yellow-500/50"}`}
                             >
                                 👀 הכי נצפים
                             </Link>
                             <Link
-                                href="/admin?sort=recent"
+                                href="/admin?sort=recent#seed-explorer"
                                 className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "recent" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700 hover:border-yellow-500/50"}`}
                             >
                                 🆕 אחרונים שנוספו
@@ -600,8 +509,7 @@ export default async function AdminDashboard({
                         </div>
                     </div>
 
-                    {/* שורת חיפוש חופשי + סינון קטגוריה */}
-                    <form method="GET" className="flex flex-col sm:flex-row gap-3 mb-6">
+                    <form method="GET" action="/admin#seed-explorer" className="flex flex-col sm:flex-row gap-3 mb-6">
                         <input
                             type="text"
                             name="q"
@@ -626,7 +534,7 @@ export default async function AdminDashboard({
                             חפש / סנן
                         </button>
                         {isFilteringPoints && (
-                            <Link href="/admin" className="bg-gray-800 text-gray-300 px-5 py-3 rounded-xl hover:bg-gray-700 transition flex items-center justify-center text-sm border border-gray-700">
+                            <Link href="/admin#seed-explorer" className="bg-gray-800 text-gray-300 px-5 py-3 rounded-xl hover:bg-gray-700 transition flex items-center justify-center text-sm border border-gray-700">
                                 איפוס
                             </Link>
                         )}
@@ -650,7 +558,6 @@ export default async function AdminDashboard({
                                     <div key={p.id} className="bg-black/50 border border-gray-800 hover:border-yellow-500/40 rounded-2xl p-4 sm:p-5 transition">
                                         <div className="flex flex-col lg:flex-row justify-between gap-4">
 
-                                            {/* צד ימין: תמונה וכל פרטי הגרעין */}
                                             <div className="flex flex-col sm:flex-row gap-4 flex-1">
                                                 {images.length > 0 ? (
                                                     <img
@@ -706,7 +613,6 @@ export default async function AdminDashboard({
                                                 </div>
                                             </div>
 
-                                            {/* צד שמאל: מדדי הגרעין וכפתורי פעולה */}
                                             <div className="flex flex-row lg:flex-col justify-between items-center lg:items-end gap-3 border-t lg:border-t-0 border-gray-800 pt-3 lg:pt-0 shrink-0">
                                                 <div className="flex items-center gap-3">
                                                     <div className="bg-gray-900 border border-gray-800 px-3 py-2 rounded-xl text-center min-w-[68px]">
@@ -743,7 +649,6 @@ export default async function AdminDashboard({
                                             </div>
                                         </div>
 
-                                        {/* תצוגת המבנה הפיזי / AI JSON של הגרעין (כמו בתמונה ששלחת!) */}
                                         <details className="mt-3 pt-2 border-t border-gray-800/60 text-xs">
                                             <summary className="cursor-pointer text-gray-400 hover:text-yellow-400 font-bold select-none">
                                                 🧬 הצג מבנה נתונים מלא ו-AI Metadata (JSON)
@@ -778,7 +683,7 @@ export default async function AdminDashboard({
                 </div>
 
                 {/* ========================================== */}
-                {/* 🌟 שורה 4: משימה 4 - טבלת משתמשים עם חיווי ירוק למחוברים בפועל */}
+                {/* 🌟 שורה 4: טבלת משתמשים עם חיווי ירוק למחוברים בפועל */}
                 {/* ========================================== */}
                 <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
                     <div className="flex justify-between items-center mb-4">
