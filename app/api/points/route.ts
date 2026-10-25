@@ -252,7 +252,8 @@ export async function POST(req: Request) {
       },
     });
 
-    enrichPointWithAI(newPoint).catch(console.error);
+    // תיקון קריטי: המתנה ל-AI כדי ש-Vercel לא יקטע את התהליך
+    await enrichPointWithAI(newPoint).catch(console.error);
 
     return NextResponse.json(newPoint);
   } catch (error) {
@@ -260,6 +261,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create point" }, { status: 500 });
   }
 }
+
+// ==========================================
+// ⚠️ שימי לב: פונקציות ה-PUT וה-DELETE למטה דורשות קובץ נפרד!
+// יש להעביר אותן ואת פונקציית העזר geocodeAddress (וגם את enrichPointWithAI) 
+// לקובץ חדש בנתיב: app/api/points/[id]/route.ts
+// ==========================================
 
 async function geocodeAddress(address: string) {
   try {
@@ -306,7 +313,6 @@ export async function PUT(req: Request, context: any) {
     let longitude = existing.longitude;
     let isMapPicked = false;
 
-    // 🌟 התיקון הקריטי: מזהים אם המיקום סומן במפורש מהמפה!
     if (reqLat && reqLat !== "null" && reqLat !== "undefined") {
         latitude = Number(reqLat);
         isMapPicked = true;
@@ -316,7 +322,6 @@ export async function PUT(req: Request, context: any) {
         isMapPicked = true;
     }
 
-    // 🌟 אם סומן מהמפה, בחיים לא נריץ המרת כתובת (Geocode) כדי למנוע דריסה!
     if (address && address !== existing.address && address !== "" && !isMapPicked) {
       const geo = await geocodeAddress(address);
       if (geo) {
@@ -332,7 +337,8 @@ export async function PUT(req: Request, context: any) {
       },
     });
 
-    enrichPointWithAI(updated).catch(console.error);
+    // תיקון קריטי: המתנה ל-AI גם כאן
+    await enrichPointWithAI(updated).catch(console.error);
 
     return Response.json(updated);
   } catch (error) {
