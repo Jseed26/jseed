@@ -35,9 +35,9 @@ export default function ImageGallery({ images }: Props) {
                         onClick={() => setSelectedIndex(i)}
                         className="w-24 h-24 sm:w-28 sm:h-28 bg-black rounded-xl overflow-hidden border border-gray-700 shadow-md shrink-0 cursor-pointer group relative"
                     >
-                        <img 
+                       <img 
                             src={src} 
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+                            className="w-full h-full object-contain bg-gray-900 transition-transform duration-300 group-hover:scale-110" 
                             alt={`תמונה ${i + 1}`}
                         />
                         {/* אייקון זכוכית מגדלת שמופיע במעבר עכבר */}

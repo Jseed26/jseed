@@ -11,7 +11,7 @@ type FormState = {
     images: File[];            
     existingImages: string[];  
     category: string;
-    parentId?: number | null; // 🌟 שדה לזיכרון ההורה
+    parentId?: number | null; 
 };
 
 type Props = {
@@ -20,7 +20,7 @@ type Props = {
         lat?: number;
         lng?: number;
         existingImages?: string[]; 
-        parentId?: number | null; // 🌟 קליטת הורה התחלתי
+        parentId?: number | null; 
     };
     category?: string | null;
     onClose: () => void;
@@ -40,7 +40,9 @@ const tForm = {
     createTitle: { he: "יצירת גרעין", en: "Create Seed" },
     editTitle: { he: "עריכת גרעין", en: "Edit Seed" },
     namePlaceholder: { he: "שם הגרעין (לדוג: יד ושם...)", en: "Seed Name (e.g., Yad Vashem)" },
-    descPlaceholder: { he: "תיאור (לדוג: רשות הזיכרון לשואה ולגבורה)", en: "Description (e.g., The World Holocaust Remembrance Center)" },
+    descPlaceholder: { he: "תיאור קצר, או מילות מפתח ל-AI", en: "Short description, or keywords for AI" },
+    aiHelperText: { he: "כתוב מילות מפתח ולחץ AI לתיאור מלא", en: "Type keywords and click AI for full text" },
+    aiGenerating: { he: "כותב...", en: "Writing..." },
     addressPlaceholder: { he: "כתובת (מדוייקת או עיר)", en: "Address (Exact or City)" },
     pickLocation: { he: "🗺️ סמן מיקום על המפה", en: "🗺️ Pick Location on Map" },
     websitePlaceholder: { he: "קישור לאתר (לדוג: https://...)", en: "Website Link (e.g., https://...)" },
@@ -77,11 +79,12 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
         images: initialData?.images || [], 
         existingImages: initialData?.existingImages || [], 
         category: initialData?.category || category || "", 
-        parentId: initialData?.parentId || null, // 🌟 שמירת ה-parentId בסטייט של הטופס
+        parentId: initialData?.parentId || null, 
     });
 
     const [isCompressing, setIsCompressing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false); // 🌟 מזהה מתי ה-AI חושב
 
     const [chaiInitiatives, setChaiInitiatives] = useState<string[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -108,6 +111,90 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
     );
 
     const isNameTaken = chaiInitiatives.some(init => init.trim().toLowerCase() === form.name.trim().toLowerCase());
+
+// 🌟 הפונקציה שקוראת לג'ימיני ליצירת תיאור (גרסה חסינה לתקיעות)
+    
+async function handleGenerateDescription() {
+    if (!form.name.trim()) {
+        alert(
+            lang === "he"
+                ? "יש להזין קודם את שם הגרעין."
+                : "Please enter the place name first."
+        );
+        return;
+    }
+
+    setIsGeneratingAI(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+    try {
+        const res = await fetch("/api/generate-desc", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name: form.name,
+                keywords: form.description,
+                category: form.category,
+                lang,
+            }),
+            signal: controller.signal,
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            console.error("AI API error:", res.status, data);
+
+            alert(
+                data.message ||
+                (lang === "he"
+                    ? `שגיאה ביצירת התיאור (${res.status}).`
+                    : `Description generation failed (${res.status}).`)
+            );
+            return;
+        }
+
+        if (!data.description) {
+            console.error("AI returned no description:", data);
+            alert(
+                lang === "he"
+                    ? "ה-AI לא החזיר תיאור. נסי שוב."
+                    : "The AI returned no description. Please try again."
+            );
+            return;
+        }
+
+        setForm(prev => ({
+            ...prev,
+            description: data.description,
+        }));
+
+    } catch (error: any) {
+        console.error("Error connecting to AI:", error);
+
+        if (error.name === "AbortError") {
+            alert(
+                lang === "he"
+                    ? "הבקשה ארכה יותר מדי זמן. נסי שוב."
+                    : "The request timed out. Please try again."
+            );
+        } else {
+            alert(
+                lang === "he"
+                    ? "לא הצלחנו להתחבר ל-AI. בדקי את השגיאה בטרמינל."
+                    : "Could not connect to AI. Check the server logs."
+            );
+        }
+    } finally {
+        clearTimeout(timeoutId);
+        setIsGeneratingAI(false);
+    }
+}
+
 
     async function handleSubmit() {
         if (!form.category) {
@@ -199,7 +286,6 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
                                 />
                                 
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-20 max-h-48 overflow-y-auto custom-scrollbar">
-                                    
                                     {!isNameTaken ? (
                                         <button
                                             type="button"
@@ -254,12 +340,29 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
                     />
                 )}
 
-                <textarea
-                    placeholder={tForm.descPlaceholder[lang]}
-                    className="w-full bg-gray-800 border border-gray-700 p-3 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-20 placeholder-gray-500 text-white transition-colors"
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
+                {/* 🌟 אזור התיאור המשודרג עם כפתור ה-AI */}
+                <div className="relative w-full">
+                    <textarea
+                        placeholder={tForm.descPlaceholder[lang]}
+                        className="w-full bg-gray-800 border border-gray-700 p-3 pb-12 rounded-xl text-sm focus:outline-none focus:border-yellow-500 resize-none h-28 placeholder-gray-500 text-white transition-colors"
+                        value={form.description}
+                        onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    />
+                    <div className={`absolute bottom-2 ${lang === "he" ? "left-2" : "right-2"} flex items-center gap-2`}>
+                        <span className="text-[10px] text-gray-500 hidden sm:block">
+                            {tForm.aiHelperText[lang]}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleGenerateDescription}
+                            disabled={isGeneratingAI || isSubmitting}
+                            className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-500 hover:to-blue-400 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={tForm.aiHelperText[lang]}
+                        >
+                            <span>✨</span> {isGeneratingAI ? tForm.aiGenerating[lang] : "AI"}
+                        </button>
+                    </div>
+                </div>
 
                 <div className="flex gap-2">
                     <input
@@ -381,14 +484,14 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
                 </div>
 
                 <div className="flex justify-between items-center pt-3 pb-2">
-                    <button type="button" onClick={onClose} disabled={isCompressing || isSubmitting} className="text-red-400 hover:text-red-300 disabled:opacity-50 text-sm font-bold px-3 py-1.5 transition-colors">
+                    <button type="button" onClick={onClose} disabled={isCompressing || isSubmitting || isGeneratingAI} className="text-red-400 hover:text-red-300 disabled:opacity-50 text-sm font-bold px-3 py-1.5 transition-colors">
                         {tForm.cancel[lang]}
                     </button>
 
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={isCompressing || isSubmitting} 
+                        disabled={isCompressing || isSubmitting || isGeneratingAI} 
                         className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? tForm.saving[lang] : mode === "create" ? tForm.create[lang] : tForm.save[lang]}

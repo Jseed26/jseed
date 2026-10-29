@@ -4,7 +4,8 @@ import "./globals.css";
 import Providers from "./providers";
 import TimeTracker from "@/src/components/TimeTracker";
 import { Analytics } from "@vercel/analytics/react";
-import InstallPrompt from "@/src/components/InstallPrompt"; // או לפי הנתיב המדויק שלך
+import InstallPrompt from "@/src/components/InstallPrompt"; 
+import SecurityShield from "@/src/components/SecurityShield";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,11 +21,11 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // 👈 זה הקסם שמונע מהאייפון להשתגע!
+  userScalable: true,
 };
 
 export const metadata: Metadata = {
-  title: "JSeed", 
+  title: "JSeed",
   description: "Global Jewish Connection",
   manifest: "/manifest.json",
   icons: {
@@ -49,6 +50,8 @@ export default function RootLayout({
           <TimeTracker />
           {children}
           <InstallPrompt />
+          {/* <SecurityShield /> */}
+          //צריך להחזיר כשאני מסיימת
           <Analytics />
         </Providers>
       </body>

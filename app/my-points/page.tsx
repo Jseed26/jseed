@@ -219,7 +219,14 @@ export default function MyPointsPage() {
     }
 
     if (status === "loading") {
-        return <div className="min-h-screen bg-black text-yellow-500 flex items-center justify-center">{t.loading[lang]}</div>;
+        return (
+            <div className="min-h-screen bg-[#070709] text-yellow-500 flex items-center justify-center font-bold">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-4 border-yellow-500/30 border-t-yellow-500 rounded-full animate-spin"></div>
+                    {t.loading[lang]}
+                </div>
+            </div>
+        );
     }
 
     const userName = isLoggedIn && session?.user?.name ? session.user.name : t.myArea[lang];
@@ -243,314 +250,352 @@ export default function MyPointsPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 pb-32 text-white bg-black min-h-screen relative" dir={lang === "he" ? "rtl" : "ltr"}>
+        <div className="min-h-screen bg-[#070709] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/20 via-[#070709] to-[#070709] text-zinc-100 p-4 sm:p-8 pb-32 relative font-sans selection:bg-yellow-500/30" dir={lang === "he" ? "rtl" : "ltr"}>
             
-            <button 
-                onClick={() => router.push("/")} 
-                className="fixed top-5 left-5 z-[9999] bg-gray-900 border border-yellow-500/50 text-yellow-500 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105 shadow-xl flex items-center gap-2"
-                dir="ltr"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                {t.toMap[lang]}
-            </button>
-
-            <div className="flex justify-between items-center mb-6 mt-2">
-                <h1 className="text-xl sm:text-2xl font-bold truncate pr-2">{userName}</h1>
-            </div>
-
-            <div className="flex gap-4 sm:gap-6 border-b border-gray-800 pb-2 mb-6 text-base sm:text-lg overflow-x-auto custom-scrollbar whitespace-nowrap">
-                <button onClick={() => {handleTabChange("my"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "my" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
-                    {t.mySeeds[lang]}
-                </button>
-                <button onClick={() => {handleTabChange("history"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "history" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
-                    {t.history[lang]}
-                </button>
-                <button onClick={() => handleTabChange("saved")} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors ${tab === "saved" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
-                    {t.saved[lang]} <img src="/icons/ui/save/active.png" className="w-4 h-4 object-contain" />
-                </button>
-                <button onClick={() => {handleTabChange("notifications"); setSavedCategory(null);}} className={`flex items-center gap-1.5 pb-1 px-1 transition-colors relative ${tab === "notifications" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
-                    {t.notifications[lang]} 🔔
-                    {unreadCount > 0 && isLoggedIn && (
-                        <span className={`absolute -top-1 ${lang === "he" ? "-left-2" : "-right-2"} bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>
-                            {unreadCount}
-                        </span>
-                    )}
-                </button>
-                <button onClick={() => {handleTabChange("settings"); setSavedCategory(null);}} className={`pb-1 px-1 transition-colors ${tab === "settings" ? "text-yellow-500 font-bold border-b-2 border-yellow-500" : "text-gray-400 hover:text-gray-200"}`}>
-                    {t.settings[lang]} ⚙️
+            {/* Header & Back Button */}
+            <div className="max-w-3xl mx-auto flex justify-between items-center mb-8 pt-2">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-l from-yellow-300 to-yellow-600 truncate pr-2">
+                    {userName}
+                </h1>
+                
+                <button 
+                    onClick={() => router.push("/")} 
+                    className="bg-zinc-900/80 backdrop-blur-md border border-zinc-800 text-yellow-500 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-zinc-800 hover:border-yellow-500/50 shadow-lg flex items-center gap-2"
+                    dir="ltr"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                    {t.toMap[lang]}
                 </button>
             </div>
 
-            {!isLoggedIn && tab !== "settings" ? (
-                <div className="flex flex-col items-center justify-center mt-32 space-y-6 px-4 text-center">
-                    <p className="text-gray-400 text-lg font-bold">{t.mustLogin[lang]}</p>
-                    <button 
-                        onClick={() => router.push("/auth")}
-                        className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-3 rounded-xl font-bold shadow-lg transition"
-                    >
-                        {t.loginNow[lang]}
-                    </button>
+            {/* Modern Tabs Navigation */}
+            <div className="max-w-3xl mx-auto mb-8">
+                <div className="flex gap-2 bg-zinc-900/40 p-1.5 rounded-2xl border border-zinc-800/50 overflow-x-auto custom-scrollbar snap-x">
+                    {[
+                        { id: "my", label: t.mySeeds[lang] },
+                        { id: "history", label: t.history[lang] },
+                        { id: "saved", label: <span className="flex items-center gap-1.5">{t.saved[lang]} <img src="/icons/ui/save/active.png" className="w-3.5 h-3.5 object-contain" /></span> },
+                        { id: "notifications", label: <span className="flex items-center gap-1.5 relative">{t.notifications[lang]} 🔔 {unreadCount > 0 && isLoggedIn && <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</span> },
+                        { id: "settings", label: <span className="flex items-center gap-1.5">{t.settings[lang]} ⚙️</span> }
+                    ].map((item) => (
+                        <button 
+                            key={item.id}
+                            onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }} 
+                            className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${
+                                tab === item.id 
+                                ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50" 
+                                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
+                            }`}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
                 </div>
-            ) : (
-                <>
-                    {tab === "notifications" && (
-                        <div className="space-y-3 max-w-2xl mx-auto">
-                            {notifications.length === 0 ? (
-                                <p className="text-gray-400 text-center mt-10">{t.noNotifications[lang]}</p>
-                            ) : (
-                                notifications.map((notif) => (
-                                    <div key={notif.id} className={`p-4 rounded-xl border transition-colors ${notif.isRead ? "bg-gray-900/50 border-gray-800" : "bg-yellow-500/10 border-yellow-500/50 shadow-md"}`}>
-                                        <p className={`text-sm sm:text-base ${notif.isRead ? "text-gray-300" : "text-white font-bold"}`}>
-                                            {notif.message}
-                                        </p>
-                                        <span className="text-[10px] text-gray-500 mt-2 block">
-                                            {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                ))
-                            )}
+            </div>
+
+            {/* Main Content Area */}
+            <div className="max-w-3xl mx-auto">
+                {!isLoggedIn && tab !== "settings" ? (
+                    <div className="flex flex-col items-center justify-center mt-24 space-y-6 px-4 text-center bg-zinc-900/20 py-16 rounded-3xl border border-zinc-800/50">
+                        <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mb-2 border border-yellow-500/20">
+                            <span className="text-3xl">🔒</span>
                         </div>
-                    )}
-
-                    {tab === "settings" && (
-                        <div className="space-y-6 max-w-md mx-auto mt-8 animate-in fade-in duration-300">
-                            
-                            {/* שפה */}
-                            <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg">
-                                <div className="flex items-center gap-2 text-gray-400 mb-5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-                                    <h2 className="text-sm font-bold uppercase tracking-widest">{t.language[lang]}</h2>
-                                </div>
-                                <div className="flex gap-4">
-                                    <button 
-                                        onClick={() => changeLanguage("he")} 
-                                        className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 ${lang === "he" ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)] border-transparent" : "bg-black border border-gray-700 text-gray-400 hover:border-gray-500"}`}
-                                    >
-                                        עברית
-                                    </button>
-                                    <button 
-                                        onClick={() => changeLanguage("en")} 
-                                        className={`flex-1 py-3 rounded-xl font-bold transition-all duration-300 ${lang === "en" ? "bg-gradient-to-r from-yellow-600 to-yellow-500 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)] border-transparent" : "bg-black border border-gray-700 text-gray-400 hover:border-gray-500"}`}
-                                    >
-                                        English
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* 🌟 שירותי מיקום */}
-                            <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg">
-                                <div className="flex justify-between items-center mb-3">
-                                    <div className="flex items-center gap-2 text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                        <h2 className="text-sm font-bold uppercase tracking-widest">{t.locationTitle[lang]}</h2>
+                        <p className="text-zinc-300 text-lg font-bold">{t.mustLogin[lang]}</p>
+                        <button 
+                            onClick={() => router.push("/auth")}
+                            className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black px-8 py-3 rounded-xl font-bold shadow-[0_4px_14px_0_rgba(251,191,36,0.39)] hover:shadow-[0_6px_20px_rgba(251,191,36,0.23)] hover:-translate-y-0.5 transition-all"
+                        >
+                            {t.loginNow[lang]}
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        {/* Notifications */}
+                        {tab === "notifications" && (
+                            <div className="space-y-3">
+                                {notifications.length === 0 ? (
+                                    <div className="text-center py-16 text-zinc-500 flex flex-col items-center gap-3">
+                                        <span className="text-4xl opacity-50">📭</span>
+                                        <p>{t.noNotifications[lang]}</p>
                                     </div>
-                                    <button 
-                                        onClick={toggleGps} 
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${gpsEnabled ? 'bg-yellow-500' : 'bg-gray-700'}`}
-                                        dir="ltr"
-                                    >
-                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${gpsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-500">{t.locationDesc[lang]}</p>
+                                ) : (
+                                    notifications.map((notif) => (
+                                        <div key={notif.id} className={`p-4 rounded-2xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${notif.isRead ? "bg-zinc-900/30 border-zinc-800/60" : "bg-yellow-500/5 border-yellow-500/30 shadow-md"}`}>
+                                            <p className={`text-sm ${notif.isRead ? "text-zinc-400" : "text-zinc-100 font-bold"}`}>
+                                                {notif.message}
+                                            </p>
+                                            <span className="text-[11px] font-mono text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md w-fit">
+                                                {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    ))
+                                )}
                             </div>
+                        )}
 
-                            {/* קישורים / מידע */}
-                            <button 
-                                onClick={() => router.push("/terms")} 
-                                className="w-full bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg flex justify-between items-center group hover:border-yellow-500/50 transition-all duration-300"
-                            >
-                                <div className="flex items-center gap-3 text-gray-300 group-hover:text-yellow-500 transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
-                                    <span className="font-bold text-base">{t.terms[lang]}</span>
-                                </div>
-                                <span className="text-gray-600 group-hover:text-yellow-500 transition-colors">{lang === "he" ? "❮" : "❯"}</span>
-                            </button>
-
-                            {/* יצירת קשר */}
-                            <div className="bg-gray-900/40 border border-gray-800 p-6 rounded-2xl shadow-lg text-center space-y-2">
-                                <p className="text-gray-400 text-sm font-bold">{t.contactUs[lang]}</p>
-                                <a href="mailto:jseedglobal@gmail.com" className="text-yellow-500 hover:underline font-bold text-base block">
-                                    jseedglobal@gmail.com
-                                </a>
-                            </div>
-
-                            {isLoggedIn ? (
-                                <div className="pt-6 space-y-4">
-                                    <button 
-                                        onClick={handleLogout} 
-                                        className="w-full bg-black border border-gray-800 text-gray-300 px-6 py-4 rounded-2xl hover:bg-gray-900 hover:text-white transition-all font-bold flex justify-center items-center gap-2"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                                        {t.logout[lang]}
-                                    </button>
-                                    <button 
-                                        onClick={() => setShowDeleteAccountModal(true)} 
-                                        className="w-full bg-black border border-red-900/30 text-red-500/80 px-6 py-4 rounded-2xl hover:bg-red-950/40 hover:text-red-400 hover:border-red-900/50 transition-all font-bold flex justify-center items-center gap-2"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                                        {t.deleteAccount[lang]}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="bg-gray-900/40 border border-gray-800 p-8 rounded-2xl shadow-lg mt-10 text-center">
-                                    <p className="text-gray-400 text-sm font-bold mb-6">{t.mustLogin[lang]}</p>
-                                    <button 
-                                        onClick={() => router.push("/auth")} 
-                                        className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black px-6 py-4 rounded-xl transition-all font-bold shadow-[0_0_15px_rgba(251,191,36,0.2)]"
-                                    >
-                                        {t.loginNow[lang]}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {["my", "history", "saved"].includes(tab) && (
-                        <>
-                            {tab === "saved" && (
-                                <div className="flex justify-center gap-4 mb-6 flex-wrap">
-                                    {["leaf", "star", "triangle", "circle", "chai"].map((cat) => (
+                        {/* Settings */}
+                        {tab === "settings" && (
+                            <div className="space-y-5 animate-in fade-in duration-300">
+                                
+                                {/* Language */}
+                                <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800 p-6 rounded-3xl shadow-xl">
+                                    <div className="flex items-center gap-3 text-zinc-400 mb-5">
+                                        <div className="bg-zinc-800 p-2 rounded-lg text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
+                                        <h2 className="text-sm font-bold tracking-wide">{t.language[lang]}</h2>
+                                    </div>
+                                    <div className="flex gap-3 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/50">
                                         <button 
-                                            key={cat} 
-                                            onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} 
-                                            className={`p-1 transition-all duration-300 ${savedCategory === cat ? "scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" : "opacity-60 hover:opacity-100"}`}
+                                            onClick={() => changeLanguage("he")} 
+                                            className={`flex-1 py-2.5 rounded-xl font-bold transition-all duration-300 text-sm ${lang === "he" ? "bg-zinc-800 text-yellow-400 shadow-md" : "text-zinc-500 hover:text-zinc-300"}`}
                                         >
-                                            <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
+                                            עברית
                                         </button>
-                                    ))}
+                                        <button 
+                                            onClick={() => changeLanguage("en")} 
+                                            className={`flex-1 py-2.5 rounded-xl font-bold transition-all duration-300 text-sm ${lang === "en" ? "bg-zinc-800 text-yellow-400 shadow-md" : "text-zinc-500 hover:text-zinc-300"}`}
+                                        >
+                                            English
+                                        </button>
+                                    </div>
                                 </div>
-                            )}
 
-                            {displayPoints.length === 0 ? (
-                                <p className="text-gray-400 text-center mt-10">
-                                    {tab === "saved" && !savedCategory
-                                        ? t.selectCategory[lang]
-                                        : t.noSeeds[lang]
-                                    }
-                                </p>
-                            ) : (
-                                <div className="space-y-4 max-w-2xl mx-auto">
-                                    {displayPoints.map((p) => {
-                                        const pointImages = p.imageUrls && p.imageUrls.length > 0 
-                                            ? p.imageUrls 
-                                            : (p.imageUrl ? [p.imageUrl] : []);
-                                        
-                                        const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
-                                        const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
-
-                                        const isChai = p.category === "chai";
-                                        const participantsCount = isChai ? Math.max(1, allChaiPoints.filter(cp => cp.name === p.name).length) : 0;
-
-                                        return (
-                                        <div key={p.id} className="relative border border-gray-800 bg-gray-900/50 p-4 rounded-xl shadow-lg overflow-hidden">
-                                            <h2 className="font-bold text-xl">{displayName}</h2>
-                                            
-                                            <ImageGallery images={pointImages} />
-                                            
-                                            <p className="text-sm text-gray-300 mt-3 whitespace-pre-wrap">{displayDesc}</p>
-                                            
-                                            <div className="text-xs text-gray-400 mt-3 space-y-1.5 bg-black/40 p-3 rounded-lg border border-gray-800">
-                                                <p>📍 {t.category[lang]} {categoryNames[p.category] || p.category}</p>
-                                                <p>🏠 {t.address[lang]} {p.address || t.none[lang]}</p>
-                                                <p>🌐 {t.website[lang]} {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:underline">{t.visitSite[lang]}</a> : t.none[lang]}</p>
-                                            </div>
-                                            
-                                            {tab === "my" && (
-                                                <div className="flex justify-around mt-4 pt-4 border-t border-gray-800 text-xs text-gray-400">
-                                                    <span className="flex items-center gap-1">👁️ {p._count?.viewedBy || 0} {t.views[lang]}</span>
-                                                    <span className="flex items-center gap-1">
-                                                        <img src="/icons/ui/save/active.png" alt="Saves" className="w-4 h-4 object-contain" />
-                                                        {p._count?.savedBy || 0} {t.saves[lang]}
-                                                    </span>
-                                                    {p.website && <span className="flex items-center gap-1">🔗 {p.linkClicks || 0} {t.clicks[lang]}</span>}
-                                                    
-                                                    {isChai && (
-                                                        <span className="flex items-center gap-1 text-yellow-500 font-bold">
-                                                            🤝 {participantsCount} {t.participants[lang]}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                            
-                                            <div className="flex justify-between items-center mt-5">
-                                                <div className="flex gap-2">
-                                                    {tab === "my" && (
-                                                        <>
-                                                            <button onClick={() => setEditingPoint(p)} className="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm transition">{t.edit[lang]}</button>
-                                                            <button onClick={() => setPointToDelete(p.id)} className="bg-red-900/40 hover:bg-red-900/60 border border-red-800 text-red-200 px-3 sm:px-4 py-2 rounded-lg text-sm transition">{t.delete[lang]}</button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                
-                                                <button 
-                                                    onClick={() => router.push(`/?point=${p.id}`)}
-                                                    className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition shadow-lg"
-                                                >
-                                                    📍 {t.viewOnMap[lang]}
-                                                </button>
+                                {/* Location Services */}
+                                <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800 p-6 rounded-3xl shadow-xl">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3 text-zinc-400">
+                                            <div className="bg-zinc-800 p-2 rounded-lg text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+                                            <div>
+                                                <h2 className="text-sm font-bold tracking-wide">{t.locationTitle[lang]}</h2>
+                                                <p className="text-xs text-zinc-500 mt-0.5">{t.locationDesc[lang]}</p>
                                             </div>
                                         </div>
-                                    )})}
+                                        <button 
+                                            onClick={toggleGps} 
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${gpsEnabled ? 'bg-yellow-500' : 'bg-zinc-700'}`}
+                                            dir="ltr"
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-zinc-900 transition-transform ${gpsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
                                 </div>
-                            )}
-                        </>
-                    )}
-                </>
-            )}
 
+                                {/* Terms & Contact */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <button 
+                                        onClick={() => router.push("/terms")} 
+                                        className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-3xl shadow-lg flex justify-between items-center group hover:border-yellow-500/50 hover:bg-zinc-800/50 transition-all duration-300"
+                                    >
+                                        <div className="flex items-center gap-3 text-zinc-300 group-hover:text-yellow-400 transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                                            <span className="font-bold text-sm">{t.terms[lang]}</span>
+                                        </div>
+                                        <span className="text-zinc-600 group-hover:text-yellow-500 transition-colors">{lang === "he" ? "❮" : "❯"}</span>
+                                    </button>
+                                    
+                                    <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-3xl shadow-lg flex flex-col justify-center">
+                                        <p className="text-zinc-500 text-xs font-bold mb-1">{t.contactUs[lang]}</p>
+                                        <a href="mailto:jseedglobal@gmail.com" className="text-yellow-400 hover:text-yellow-300 font-bold text-sm truncate">
+                                            jseedglobal@gmail.com
+                                        </a>
+                                    </div>
+                                </div>
+
+                                {isLoggedIn ? (
+                                    <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <button 
+                                            onClick={handleLogout} 
+                                            className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-6 py-3.5 rounded-2xl hover:bg-zinc-800 hover:text-white transition-all font-bold flex justify-center items-center gap-2 text-sm shadow-md"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                            {t.logout[lang]}
+                                        </button>
+                                        <button 
+                                            onClick={() => setShowDeleteAccountModal(true)} 
+                                            className="bg-red-500/5 border border-red-900/40 text-red-400 px-6 py-3.5 rounded-2xl hover:bg-red-500/10 hover:border-red-500/50 transition-all font-bold flex justify-center items-center gap-2 text-sm shadow-md"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                            {t.deleteAccount[lang]}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="mt-8">
+                                        <button 
+                                            onClick={() => router.push("/auth")} 
+                                            className="w-full bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black px-6 py-3.5 rounded-2xl transition-all font-bold shadow-[0_4px_14px_0_rgba(251,191,36,0.39)]"
+                                        >
+                                            {t.loginNow[lang]}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Points Lists (My/History/Saved) */}
+                        {["my", "history", "saved"].includes(tab) && (
+                            <>
+                                {tab === "saved" && (
+                                    <div className="flex justify-center gap-3 mb-8 bg-zinc-900/30 p-3 rounded-2xl border border-zinc-800/50 w-fit mx-auto">
+                                        {["leaf", "star", "triangle", "circle", "chai"].map((cat) => (
+                                            <button 
+                                                key={cat} 
+                                                onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} 
+                                                className={`p-2 rounded-xl transition-all duration-300 ${savedCategory === cat ? "bg-zinc-800 shadow-inner border border-zinc-700" : "hover:bg-zinc-800/50 border border-transparent"}`}
+                                            >
+                                                <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-md" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {displayPoints.length === 0 ? (
+                                    <div className="text-center py-16 text-zinc-500 flex flex-col items-center gap-3">
+                                        <span className="text-4xl opacity-50">🌱</span>
+                                        <p>
+                                            {tab === "saved" && !savedCategory
+                                                ? t.selectCategory[lang]
+                                                : t.noSeeds[lang]
+                                            }
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {displayPoints.map((p) => {
+                                            const pointImages = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+                                            const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
+                                            const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
+                                            const isChai = p.category === "chai";
+                                            const participantsCount = isChai ? Math.max(1, allChaiPoints.filter(cp => cp.name === p.name).length) : 0;
+
+                                            return (
+                                            <div key={p.id} className="relative bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 p-5 sm:p-6 rounded-3xl shadow-xl hover:border-yellow-500/20 transition-all group">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <h2 className="font-extrabold text-xl sm:text-2xl text-zinc-100">{displayName}</h2>
+                                                    <span className="bg-zinc-950 border border-zinc-800 text-zinc-400 px-2.5 py-1 rounded-lg text-xs font-mono shrink-0 shadow-inner">
+                                                        #{p.id}
+                                                    </span>
+                                                </div>
+                                                
+                                                <ImageGallery images={pointImages} />
+                                                
+                                                {displayDesc && <p className="text-sm text-zinc-300 mt-4 leading-relaxed whitespace-pre-wrap">{displayDesc}</p>}
+                                                
+                                                <div className="mt-5 space-y-2.5 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/50 text-sm">
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="shrink-0 text-lg">📍</span>
+                                                        <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.category[lang]}</strong> {categoryNames[p.category] || p.category}</span>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="shrink-0 text-lg">🏠</span>
+                                                        <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.address[lang]}</strong> {p.address || t.none[lang]}</span>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <span className="shrink-0 text-lg">🌐</span>
+                                                        <span className="text-zinc-400 pt-0.5">
+                                                            <strong className="text-zinc-300 font-medium">{t.website[lang]}</strong> {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:text-yellow-400 font-medium transition-colors underline decoration-yellow-500/30 underline-offset-4">{t.visitSite[lang]}</a> : t.none[lang]}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                
+                                                {tab === "my" && (
+                                                    <div className="flex flex-wrap justify-between mt-5 bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 text-xs font-medium text-zinc-400 shadow-inner gap-2">
+                                                        <span className="flex items-center gap-1.5"><span className="text-base">👁️</span> {p._count?.viewedBy || 0} {t.views[lang]}</span>
+                                                        <span className="flex items-center gap-1.5">
+                                                            <img src="/icons/ui/save/active.png" alt="Saves" className="w-4 h-4 object-contain opacity-80" />
+                                                            {p._count?.savedBy || 0} {t.saves[lang]}
+                                                        </span>
+                                                        {p.website && <span className="flex items-center gap-1.5"><span className="text-base">🔗</span> {p.linkClicks || 0} {t.clicks[lang]}</span>}
+                                                        
+                                                        {isChai && (
+                                                            <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20">
+                                                                <span className="text-base">🤝</span> {participantsCount} {t.participants[lang]}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-6 gap-3">
+                                                    <div className="flex gap-2 w-full sm:w-auto">
+                                                        {tab === "my" && (
+                                                            <>
+                                                                <button onClick={() => setEditingPoint(p)} className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">{t.edit[lang]}</button>
+                                                                <button onClick={() => setPointToDelete(p.id)} className="flex-1 sm:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">{t.delete[lang]}</button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <button 
+                                                        onClick={() => router.push(`/?point=${p.id}`)}
+                                                        className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 text-black px-6 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition hover:shadow-[0_0_15px_rgba(251,191,36,0.3)] shadow-md"
+                                                    >
+                                                        📍 {t.viewOnMap[lang]}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )})}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* Delete Point Modal */}
             {pointToDelete && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
-                    <div className="bg-gray-900 border border-gray-700 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-white">{t.deleteConfirm[lang]}</h3>
-                        <div className="flex justify-center gap-4">
-                            <button 
-                                onClick={executeDelete} 
-                                disabled={isDeleting}
-                                className="bg-red-500 hover:bg-red-600 text-black px-6 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isDeleting ? t.deleting[lang] : t.yesDelete[lang]}
-                            </button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] px-4">
+                    <div className="bg-zinc-950 border border-zinc-800 p-8 rounded-3xl max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-red-500/20 text-3xl">🗑️</div>
+                        <h3 className="text-lg font-bold text-zinc-100">{t.deleteConfirm[lang]}</h3>
+                        <div className="flex gap-3">
                             <button 
                                 onClick={() => setPointToDelete(null)} 
                                 disabled={isDeleting}
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2.5 rounded-xl font-bold transition disabled:opacity-50"
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3 rounded-xl font-bold transition disabled:opacity-50"
                             >
                                 {t.cancel[lang]}
+                            </button>
+                            <button 
+                                onClick={executeDelete} 
+                                disabled={isDeleting}
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold transition disabled:opacity-50 shadow-lg shadow-red-500/20"
+                            >
+                                {isDeleting ? t.deleting[lang] : t.yesDelete[lang]}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
+            {/* Delete Account Modal */}
             {showDeleteAccountModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
-                    <div className="bg-gray-900 border border-red-800 p-6 rounded-2xl w-[320px] text-center space-y-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-red-400 flex items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            {t.deleteAccount[lang]}
-                        </h3>
-                        <p className="text-sm text-gray-300 leading-tight">{t.deleteAccountConfirm[lang]}</p>
-                        <div className="flex justify-center gap-4">
-                            <button 
-                                onClick={handleDeleteAccount} 
-                                disabled={isDeletingAccount}
-                                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex-1"
-                            >
-                                {isDeletingAccount ? t.deleting[lang] : t.yesDelete[lang]}
-                            </button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] px-4">
+                    <div className="bg-zinc-950 border border-red-900/50 p-8 rounded-3xl max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-red-500/20 text-red-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <h3 className="text-xl font-extrabold text-red-400">{t.deleteAccount[lang]}</h3>
+                        <p className="text-sm text-zinc-400 leading-relaxed px-2">{t.deleteAccountConfirm[lang]}</p>
+                        <div className="flex gap-3">
                             <button 
                                 onClick={() => setShowDeleteAccountModal(false)} 
                                 disabled={isDeletingAccount}
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2.5 rounded-xl font-bold transition disabled:opacity-50 flex-1"
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3 rounded-xl font-bold transition disabled:opacity-50"
                             >
                                 {t.cancel[lang]}
+                            </button>
+                            <button 
+                                onClick={handleDeleteAccount} 
+                                disabled={isDeletingAccount}
+                                className="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold transition disabled:opacity-50 shadow-lg shadow-red-600/20"
+                            >
+                                {isDeletingAccount ? t.deleting[lang] : t.yesDelete[lang]}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
+            {/* Edit Point Modal */}
             {editingPoint && (
                 <PointForm
                     mode="edit"
@@ -612,6 +657,13 @@ export default function MyPointsPage() {
                     }}
                 />
             )}
+            
+            <style dangerouslySetInnerHTML={{__html: `
+                .custom-scrollbar::-webkit-scrollbar { height: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.2); border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(251,191,36,0.4); }
+            `}} />
         </div>
     );
 }
