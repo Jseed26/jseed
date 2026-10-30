@@ -12,8 +12,6 @@ export async function POST(req: Request) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // חוזרים למודל המעודכן שלך שעובד!
-        const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" }); 
         
         const prompt = `
             You are a professional content writer for a mapping application.
@@ -31,22 +29,36 @@ export async function POST(req: Request) {
             5. Output ONLY the description text, nothing else.
         `;
 
-        try {
-            const result = await model.generateContent(prompt);
-            return NextResponse.json({ description: result.response.text().trim() });
-        } catch (aiError: any) {
-            // אם גוגל עמוסים כרגע (503) מחזירים שגיאה מסודרת שתקפוץ ללקוח
-            if (aiError.message?.includes("503") || aiError.message?.includes("overloaded")) {
-                return NextResponse.json(
-                    { error: "busy", message: "השרתים של ה-AI קצת עמוסים כרגע, אנא נסה שוב בעוד מספר שניות." }, 
-                    { status: 503 }
-                );
+        // רשימת המודלים שלנו (לפי סדר עדיפות)
+        const modelsToTry = ["gemini-3.8-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+        let lastError = null;
+
+        for (const modelName of modelsToTry) {
+            try {
+                console.log(`Trying model: ${modelName}...`);
+                const model = genAI.getGenerativeModel({ model: modelName }); 
+                const result = await model.generateContent(prompt);
+                const text = result.response.text().trim();
+                
+                // אם הגענו לכאן, המודל הצליח! נחזיר את התשובה ונסיים את הפונקציה.
+                console.log(`Success with model: ${modelName}`);
+                return NextResponse.json({ description: text });
+                
+            } catch (err: any) {
+                console.warn(`Model ${modelName} failed. Error: ${err.message?.substring(0, 50)}...`);
+                lastError = err; // שומרים את השגיאה ועוברים למודל הבא בלולאה
             }
-            throw aiError; // אם זו שגיאה אחרת, נזרוק אותה החוצה
         }
 
-    } catch (error) {
-        console.error("AI Generate Error:", error);
+        // אם הגענו לפה, זה אומר ש*כל* המודלים נכשלו. נחזיר שגיאה ללקוח.
+        console.error("All models failed. Last error:", lastError);
+        return NextResponse.json(
+            { error: "busy", message: "כל השרתים עמוסים כרגע, נסה שוב." }, 
+            { status: 503 }
+        );
+
+    } catch (error: any) {
+        console.error("AI Generate Fatal Error:", error);
         return NextResponse.json({ error: "Failed to generate description" }, { status: 500 });
     }
 }
