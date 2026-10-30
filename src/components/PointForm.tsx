@@ -8,8 +8,8 @@ type FormState = {
     description: string;
     address: string;
     website: string;
-    images: File[];            
-    existingImages: string[];  
+    images: File[];
+    existingImages: string[];
     category: string;
     parentId?: number | null; 
 };
@@ -84,7 +84,7 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
 
     const [isCompressing, setIsCompressing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isGeneratingAI, setIsGeneratingAI] = useState(false); // 🌟 מזהה מתי ה-AI חושב
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false); 
 
     const [chaiInitiatives, setChaiInitiatives] = useState<string[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -112,88 +112,86 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
 
     const isNameTaken = chaiInitiatives.some(init => init.trim().toLowerCase() === form.name.trim().toLowerCase());
 
-// 🌟 הפונקציה שקוראת לג'ימיני ליצירת תיאור (גרסה חסינה לתקיעות)
-    
-async function handleGenerateDescription() {
-    if (!form.name.trim()) {
-        alert(
-            lang === "he"
-                ? "יש להזין קודם את שם הגרעין."
-                : "Please enter the place name first."
-        );
-        return;
-    }
-
-    setIsGeneratingAI(true);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-    try {
-        const res = await fetch("/api/generate-desc", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: form.name,
-                keywords: form.description,
-                category: form.category,
-                lang,
-            }),
-            signal: controller.signal,
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            console.error("AI API error:", res.status, data);
-
+    async function handleGenerateDescription() {
+        if (!form.name.trim()) {
             alert(
-                data.message ||
-                (lang === "he"
-                    ? `שגיאה ביצירת התיאור (${res.status}).`
-                    : `Description generation failed (${res.status}).`)
+                lang === "he"
+                    ? "יש להזין קודם את שם הגרעין."
+                    : "Please enter the place name first."
             );
             return;
         }
 
-        if (!data.description) {
-            console.error("AI returned no description:", data);
-            alert(
-                lang === "he"
-                    ? "ה-AI לא החזיר תיאור. נסי שוב."
-                    : "The AI returned no description. Please try again."
-            );
-            return;
+        setIsGeneratingAI(true);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+        try {
+            const res = await fetch("/api/generate-desc", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: form.name,
+                    keywords: form.description,
+                    category: form.category,
+                    lang,
+                }),
+                signal: controller.signal,
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                console.error("AI API error:", res.status, data);
+
+                alert(
+                    data.message ||
+                    (lang === "he"
+                        ? `שגיאה ביצירת התיאור (${res.status}).`
+                        : `Description generation failed (${res.status}).`)
+                );
+                return;
+            }
+
+            if (!data.description) {
+                console.error("AI returned no description:", data);
+                alert(
+                    lang === "he"
+                        ? "ה-AI לא החזיר תיאור. נסי שוב."
+                        : "The AI returned no description. Please try again."
+                );
+                return;
+            }
+
+            setForm(prev => ({
+                ...prev,
+                description: data.description,
+            }));
+
+        } catch (error: any) {
+            console.error("Error connecting to AI:", error);
+
+            if (error.name === "AbortError") {
+                alert(
+                    lang === "he"
+                        ? "הבקשה ארכה יותר מדי זמן. נסי שוב."
+                        : "The request timed out. Please try again."
+                );
+            } else {
+                alert(
+                    lang === "he"
+                        ? "לא הצלחנו להתחבר ל-AI. בדקי את השגיאה בטרמינל."
+                        : "Could not connect to AI. Check the server logs."
+                );
+            }
+        } finally {
+            clearTimeout(timeoutId);
+            setIsGeneratingAI(false);
         }
-
-        setForm(prev => ({
-            ...prev,
-            description: data.description,
-        }));
-
-    } catch (error: any) {
-        console.error("Error connecting to AI:", error);
-
-        if (error.name === "AbortError") {
-            alert(
-                lang === "he"
-                    ? "הבקשה ארכה יותר מדי זמן. נסי שוב."
-                    : "The request timed out. Please try again."
-            );
-        } else {
-            alert(
-                lang === "he"
-                    ? "לא הצלחנו להתחבר ל-AI. בדקי את השגיאה בטרמינל."
-                    : "Could not connect to AI. Check the server logs."
-            );
-        }
-    } finally {
-        clearTimeout(timeoutId);
-        setIsGeneratingAI(false);
     }
-}
 
 
     async function handleSubmit() {
@@ -217,8 +215,11 @@ async function handleGenerateDescription() {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-4">
-            <div className="bg-gray-900 text-white p-6 rounded-2xl w-full max-w-[400px] max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 shadow-2xl border border-gray-700" dir={lang === "he" ? "rtl" : "ltr"}>
+        <div 
+            dir={lang === "he" ? "rtl" : "ltr"} // <-- התוספת כאן על הקונטיינר הראשי
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
+        >
+            <div className="bg-gray-900 text-white p-6 rounded-2xl w-full max-w-[400px] max-h-[90vh] overflow-y-auto custom-scrollbar space-y-4 shadow-2xl border border-gray-700">
 
                 <div className="flex justify-between items-center mb-1">
                     <h2 className="text-xl font-bold text-white">
@@ -340,7 +341,6 @@ async function handleGenerateDescription() {
                     />
                 )}
 
-                {/* 🌟 אזור התיאור המשודרג עם כפתור ה-AI */}
                 <div className="relative w-full">
                     <textarea
                         placeholder={tForm.descPlaceholder[lang]}

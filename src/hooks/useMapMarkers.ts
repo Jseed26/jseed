@@ -266,55 +266,57 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let currentSavedCount = point._count?.savedBy || 0;
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
-    // 🌟 משימה 5: הוספנו white-space: pre-wrap לתיאור כדי לשמור על ירידות שורות (כמו מתכון)!
+    // 🌟 הוספנו text-align שדורס את ההגדרות של המפה ומיישר את הטקסט לימין!
     container.innerHTML = `
-      ${headerHtml}
-      ${imageHtml}
-      
-      <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
-        <div style="margin-bottom: 10px;">
-            <strong style="color: #f9fafb; display: block; margin-bottom: 4px;">${t.desc}</strong> 
-            <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
-        </div>
-        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> ${display(point.address)}</div>
-        <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
-        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
-        : "-"
-      }</div>
-      </div>
-      
-      <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+      <div dir="${isHe ? 'rtl' : 'ltr'}" style="width: 100%; height: 100%; text-align: ${isHe ? 'right' : 'left'};">
+        ${headerHtml}
+        ${imageHtml}
         
-        <div style="display: flex; gap: 12px; align-items: center;">
-          <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px;">
-            <img src="${saveIconSrc}" alt="Save" style="width: 18px; height: 18px; object-fit: contain; transition: transform 0.2s;" />
-            <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
-              ${currentSavedCount} ${t.saves}
-            </span>
-          </button>
+        <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
+          <div style="margin-bottom: 10px;">
+              <strong style="color: #f9fafb; display: block; margin-bottom: 4px;">${t.desc}</strong> 
+              <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
+          </div>
+          <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> <span dir="auto">${display(point.address)}</span></div>
+          <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
+          ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
+          : "-"
+        }</div>
+        </div>
+        
+        <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
           
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px;">
+              <img src="${saveIconSrc}" alt="Save" style="width: 18px; height: 18px; object-fit: contain; transition: transform 0.2s;" />
+              <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
+                ${currentSavedCount} ${t.saves}
+              </span>
+            </button>
+            
+            ${isChai ? `
+            <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+              🤝 ${participantsCount}${t.participants}
+            </span>
+            ` : ''}
+          </div>
+
           ${isChai ? `
-          <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-            🤝 ${participantsCount}${t.participants}
-          </span>
+          <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
+          </button>
           ` : ''}
+
         </div>
 
-        ${isChai ? `
-        <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
-        </button>
-        ` : ''}
-
-      </div>
-
-      <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #374151;">
-       <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="${t.nav}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
-        </a>
-        <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 20px;" title="${t.shareTip}">💬</a>
-        <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.copyTip}">🔗</button>
-        <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.reportTip}">🚩</button>
+        <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #374151;">
+         <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="${t.nav}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
+          </a>
+          <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 20px;" title="${t.shareTip}">💬</a>
+          <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.copyTip}">🔗</button>
+          <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.reportTip}">🚩</button>
+        </div>
       </div>
     `;
 
