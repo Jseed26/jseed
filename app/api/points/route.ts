@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
 // ==========================================
-// 🌟 סוכן ההעשרה של JSeed
+// 🌟 סוכן ההעשרה של JSeed (רץ ברקע)
 // ==========================================
 async function enrichPointWithAI(point: any) {
   try {
@@ -22,24 +22,22 @@ async function enrichPointWithAI(point: any) {
       model: "gemini-3.8-flash",
       generationConfig: {
         responseMimeType: "application/json",
+        maxOutputTokens: 300,
       },
     });
 
     const isInitiative = point.category === "chai";
 
     const prompt = `
-      You are an AI assistant for a Jewish mapping app called JSeed.
-      Analyze the following location/initiative and output a strict JSON object with metadata.
-      
+      Analyze this location for JSeed and output a strict JSON object:
       Name: "${point.name}"
       Description: "${point.description || 'No description'}"
       Category: "${point.category}"
       Address: "${point.address || 'No address'}"
-      Coordinates: ${point.latitude}, ${point.longitude}
 
       ${isInitiative
-        ? `This is a community initiative. Extract logical Hebrew search keywords and target audience based on Name and Description.`
-        : `This is a physical place or business. Determine its opening hours, whether it is kosher, open on Shabbat, and child-friendly.`}
+        ? `Extract logical Hebrew search keywords and target audience.`
+        : `Determine opening hours, kosher, open on Shabbat, child-friendly.`}
 
       Return strictly this JSON format:
       {
@@ -252,8 +250,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // תיקון קריטי: המתנה ל-AI כדי ש-Vercel לא יקטע את התהליך
-    await enrichPointWithAI(newPoint).catch(console.error);
+    // 🌟 מריצים את ה-AI ברקע בלי לעכב את החזרת התשובה למשתמש!
+    enrichPointWithAI(newPoint).catch(console.error);
 
     return NextResponse.json(newPoint);
   } catch (error) {
@@ -261,12 +259,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create point" }, { status: 500 });
   }
 }
-
-// ==========================================
-// ⚠️ שימי לב: פונקציות ה-PUT וה-DELETE למטה דורשות קובץ נפרד!
-// יש להעביר אותן ואת פונקציית העזר geocodeAddress (וגם את enrichPointWithAI) 
-// לקובץ חדש בנתיב: app/api/points/[id]/route.ts
-// ==========================================
 
 async function geocodeAddress(address: string) {
   try {
@@ -337,8 +329,8 @@ export async function PUT(req: Request, context: any) {
       },
     });
 
-    // תיקון קריטי: המתנה ל-AI גם כאן
-    await enrichPointWithAI(updated).catch(console.error);
+    // 🌟 גם בעדכון - מריצים את ה-AI ברקע בלי להמתין לו
+    enrichPointWithAI(updated).catch(console.error);
 
     return Response.json(updated);
   } catch (error) {

@@ -163,15 +163,6 @@ export default function Map({
     };
   }, []);
 
-  // 🌟 ביטול Cache למשיכת נקודות חדשות!
-  useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/points", { cache: "no-store" });
-      const data = await res.json();
-      setPoints(Array.isArray(data) ? data : []);
-    }
-    load();
-  }, []);
 
   const loadHistory = async () => {
       try {
