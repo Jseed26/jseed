@@ -1,115 +1,173 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Prisma } from "@prisma/client"; 
+import { Prisma } from "@prisma/client";
 
 export const dynamic = 'force-dynamic';
 
-// פונקציית עזר להשהיה
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+let cachedFlashModels: string[] | null = null;
+
+async function getAvailableFlashModels(apiKey: string): Promise<string[]> {
+  if (cachedFlashModels && cachedFlashModels.length > 0) return cachedFlashModels;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) return ["gemini-3.8-flash"];
+    const data = await res.json();
+    const models: string[] = (data.models || [])
+      .filter((m: any) =>
+        m.supportedGenerationMethods?.includes("generateContent") &&
+        m.name?.includes("flash") &&
+        !m.name?.includes("image") &&
+        !m.name?.includes("tts") &&
+        !m.name?.includes("audio") &&
+        !m.name?.includes("thinking")
+      )
+      .map((m: any) => m.name.replace("models/", ""));
+
+    models.sort((a, b) => {
+      if (a.includes("lite") && !b.includes("lite")) return -1;
+      if (!a.includes("lite") && b.includes("lite")) return 1;
+      if (a === "gemini-3.8-flash") return -1;
+      if (b === "gemini-3.8-flash") return 1;
+      return 0;
+    });
+
+    cachedFlashModels = models.length > 0 ? models : ["gemini-3.8-flash"];
+    return cachedFlashModels;
+  } catch {
+    return ["gemini-3.8-flash"];
+  }
+}
 
 export async function GET() {
   try {
-    // עכשיו ניקח 5 נקודות בכל פעם כדי לחסוך רענונים
-    const pointsToUpdate = await prisma.point.findMany({
-      where: {
-        aiMetadata: { equals: Prisma.DbNull } 
-      },
-      take: 5, 
-    });
-
-    if (pointsToUpdate.length === 0) {
-      return NextResponse.json({ message: "🎉 All points are already enriched! No more work needed." });
-    }
-
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "No GEMINI_API_KEY found in .env" }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3.8-flash",
-      generationConfig: { responseMimeType: "application/json" },
+    // שולפים 8 נקודות שאין להן עדיין מטא-דאטה
+    const pointsToUpdate = await prisma.point.findMany({
+      where: {
+        OR: [
+          { aiMetadata: { equals: Prisma.DbNull } },
+          { aiMetadata: { equals: Prisma.JsonNull } }
+        ]
+      },
+      take: 8,
     });
 
-    let successCount = 0;
-    const errors = [];
+    if (pointsToUpdate.length === 0) {
+      return NextResponse.json({ message: "🎉 כל הנקודות במאגר כבר מועשרות ומעודכנות!" });
+    }
 
-    for (const point of pointsToUpdate) {
-      console.log(`⏳ Processing point ID ${point.id}: "${point.name}"...`);
-      const isInitiative = point.category === "chai";
-      
-      const prompt = `
-        You are an AI assistant for a Jewish mapping app called JSeed.
-        Your job is to analyze the following location/initiative and output a strict JSON object with metadata.
-        
-        Name: "${point.name}"
-        Description: "${point.description || 'No description'}"
-        Category: "${point.category}"
-        Address: "${point.address || 'No address'}"
+    const modelsToTry = await getAvailableFlashModels(apiKey);
 
-        ${isInitiative 
-          ? `This is a local community initiative. DO NOT search the internet. Just read the Name and Description, and extract logical search keywords (in Hebrew) and target audience.` 
-          : `This is a physical place or business. Find its real opening hours, phone number, and whether it is kosher or open on Shabbat.`}
+    // אורזים את כל הנקודות לבקשה אחת מרוכזת כדי לא לחרוג ממכסת ה-Free Tier!
+    const pointsPayload = pointsToUpdate.map(p => ({
+      id: p.id,
+      name: p.name,
+      name_en: p.name_en || "",
+      category: p.category,
+      description: p.description || "",
+      address: p.address || ""
+    }));
 
-        Return exactly this JSON format (no markdown, no extra text):
+    const prompt = `
+      You are an AI assistant for a Jewish mapping app called JSeed.
+      Analyze the following array of locations/initiatives and return a JSON array where each item has the "id" and its "metadata".
+      For each item, include 5-8 logical search keywords in BOTH Hebrew and English (synonyms, type of place, city, kosher/restaurant/synagogue/monument terms).
+
+      Input locations:
+      ${JSON.stringify(pointsPayload)}
+
+      Return strictly a JSON array in this exact format (no markdown, no backticks):
+      [
         {
-          "keywords": ["keyword1", "keyword2", "keyword3"],
-          "openingHours": "string or null",
-          "isOpenOnShabbat": true/false/null,
-          "isKosher": "string with kashrut type or true/false/null",
-          "childFriendly": true/false/null,
-          "environment": "indoor" | "outdoor" | "nature" | "urban" | null,
-          "targetAudience": ["families", "couples", "groups", "solo"]
-        }
-      `;
-
-      let success = false;
-      let retries = 3; // ננסה עד 3 פעמים לכל נקודה במקרה של עומס
-
-      while (retries > 0 && !success) {
-        try {
-          const result = await model.generateContent({
-              contents: [{ role: "user", parts: [{ text: prompt }] }]
-          });
-
-          const responseText = result.response.text();
-          const aiMetadata = JSON.parse(responseText);
-
-          await prisma.point.update({
-              where: { id: point.id },
-              data: { aiMetadata: aiMetadata }
-          });
-
-          successCount++;
-          success = true;
-          console.log(`✅ Successfully enriched point ID ${point.id}!`);
-          
-          // נמתין שנייה אחת בין נקודה לנקודה כדי למנוע יצירת עומס בעצמנו
-          await delay(1000);
-
-        } catch (err: any) {
-          if (err.message.includes("503") || err.message.includes("429")) {
-            retries--;
-            console.log(`⚠️ Server busy (503). Retrying point ${point.id}... (${retries} attempts left)`);
-            await delay(3000); // נמתין 3 שניות ונסה שוב
-          } else {
-            console.error(`❌ Failed to enrich point ID ${point.id}:`, err.message);
-            errors.push({ id: point.id, error: err.message });
-            break; // שגיאה אחרת שאינה עומס - עוצרים את הניסיונות לנקודה זו
+          "id": 123,
+          "metadata": {
+            "keywords": ["מילה1", "מילה2", "keyword1", "keyword2"],
+            "openingHours": "string or null",
+            "isOpenOnShabbat": true,
+            "isKosher": true,
+            "childFriendly": true,
+            "environment": "indoor",
+            "targetAudience": ["families", "couples", "groups", "solo"]
           }
         }
-      }
+      ]
+    `;
 
-      if (!success && retries === 0) {
-         errors.push({ id: point.id, error: "Failed after 3 retries due to server overload." });
+    let batchResults: any[] | null = null;
+
+    for (const modelName of modelsToTry.slice(0, 3)) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000); // 20 שניות לכל הקבוצה יחד
+
+      try {
+        console.log(`⚡ Enriching batch of ${pointsToUpdate.length} points using ${modelName}...`);
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            }),
+          }
+        );
+
+        clearTimeout(timeout);
+        if (!response.ok) {
+          console.warn(`⚠️ Model ${modelName} returned ${response.status}, trying next...`);
+          continue;
+        }
+
+        const data = await response.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (!rawText) continue;
+
+        const cleanJson = rawText.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+        batchResults = JSON.parse(cleanJson);
+        if (Array.isArray(batchResults)) break;
+      } catch (err: any) {
+        clearTimeout(timeout);
+        console.warn(`⚠️ Batch failed on ${modelName}:`, err.message);
       }
     }
 
-    return NextResponse.json({ 
-        message: `Successfully enriched ${successCount} point(s) in this batch. Refresh this page to do the next batch!`,
-        remainingErrors: errors 
+    if (!batchResults || !Array.isArray(batchResults)) {
+      return NextResponse.json(
+        { error: "All models busy, wait 10 seconds and refresh." },
+        { status: 503 }
+      );
+    }
+
+    let successCount = 0;
+    for (const item of batchResults) {
+      if (item?.id && item?.metadata) {
+        await prisma.point.update({
+          where: { id: Number(item.id) },
+          data: { aiMetadata: item.metadata }
+        });
+        successCount++;
+        console.log(`✅ Enriched point ID ${item.id}!`);
+      }
+    }
+
+    const remainingCount = await prisma.point.count({
+      where: {
+        OR: [
+          { aiMetadata: { equals: Prisma.DbNull } },
+          { aiMetadata: { equals: Prisma.JsonNull } }
+        ]
+      }
+    });
+
+    return NextResponse.json({
+      message: `🎉 עודכנו ${successCount} נקודות בקריאה אחת!`,
+      remainingPointsToEnrich: remainingCount
     });
 
   } catch (error: any) {
