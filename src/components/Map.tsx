@@ -155,6 +155,20 @@ export default function Map({
     maptilerLayer.addTo(newMap);
     setMap(newMap);
 
+    // 🌟 משימה 26: זיהוי מדינה וריחוף עדין למדינה של המשתמש בעת טעינת האתר
+    fetch("https://ipapi.co/json/")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.latitude && data.longitude) {
+          // עושים זום חלק לאזור הכללי של המדינה (זום 6 נותן מבט ארצי)
+          newMap.flyTo([data.latitude, data.longitude], 6, {
+            duration: 2.5, // זמן ריחוף באנימציה
+            easeLinearity: 0.25
+          });
+        }
+      })
+      .catch(() => console.log("Auto-zoom to country skipped."));
+
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -162,7 +176,6 @@ export default function Map({
       }
     };
   }, []);
-
 
   const loadHistory = async () => {
       try {

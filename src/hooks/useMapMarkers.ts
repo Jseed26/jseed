@@ -211,7 +211,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       reportSuccess: isHe ? "תודה! הדיווח נשלח למנהלי האתר." : "Thank you! The report has been sent.",
       loginReq: isHe ? "צריך להתחבר כדי לשמור נקודות" : "Please log in to save seeds",
       waText: isHe ? "תראו איזה Seed מצאתי ב-JSeed! 🌱" : "Check out this Seed I found on JSeed! 🌱",
-      participants: isHe ? "משתתפים" : "Participants"
+      participants: isHe ? "משתתפים" : "Participants",
+      zoomInText: isHe ? "הגדל טקסט" : "Increase text size",
+      zoomOutText: isHe ? "הקטן טקסט" : "Decrease text size"
     };
 
     L.DomEvent.disableClickPropagation(container);
@@ -227,7 +229,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
             <img src="/icons/categories/${point.category}/active.png" alt="${point.category}" style="width: 18px; height: 18px; object-fit: contain;" />
           </div>
-          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.3; margin-top: 5px;">
+          <div class="point-title" style="font-weight: bold; font-size: 16px; transition: font-size 0.2s; color: #f9fafb; text-align: ${isHe ? 'right' : 'left'}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.3; margin-top: 5px;">
             ${display(displayName)}
           </div>
         </div>
@@ -266,13 +268,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     let currentSavedCount = point._count?.savedBy || 0;
     const participantsCount = isChai ? points.filter(p => p.category === "chai" && (p.name || "").trim() === (point.name || "").trim()).length : 0;
 
-    // 🌟 הוספנו text-align שדורס את ההגדרות של המפה ומיישר את הטקסט לימין!
     container.innerHTML = `
       <div dir="${isHe ? 'rtl' : 'ltr'}" style="width: 100%; height: 100%; text-align: ${isHe ? 'right' : 'left'};">
         ${headerHtml}
         ${imageHtml}
         
-        <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; color: #d1d5db;">
+        <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; transition: font-size 0.2s; color: #d1d5db;">
           <div style="margin-bottom: 10px;">
               <strong style="color: #f9fafb; display: block; margin-bottom: 4px;">${t.desc}</strong> 
               <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
@@ -301,6 +302,11 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             ` : ''}
           </div>
 
+          <div style="display: flex; gap: 4px;">
+            <button class="zoom-out-text" title="${t.zoomOutText}" style="background: rgba(255,255,255,0.05); border: 1px solid #374151; border-radius: 6px; width: 28px; height: 28px; color: #9ca3af; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">A-</button>
+            <button class="zoom-in-text" title="${t.zoomInText}" style="background: rgba(255,255,255,0.05); border: 1px solid #374151; border-radius: 6px; width: 28px; height: 28px; color: #fbbf24; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">A+</button>
+          </div>
+
           ${isChai ? `
           <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
@@ -319,6 +325,31 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         </div>
       </div>
     `;
+
+    // 🌟 הוספת מנגנון הגדלת והקטנת הטקסט
+    let currentFontSize = 14;
+    const updateFontSize = () => {
+      const descBox = container.querySelector(".point-desc-container") as HTMLElement;
+      const titleBox = container.querySelector(".point-title") as HTMLElement;
+      if (descBox) descBox.style.fontSize = `${currentFontSize}px`;
+      if (titleBox) titleBox.style.fontSize = `${currentFontSize + 2}px`;
+    };
+
+    const zoomInBtn = container.querySelector(".zoom-in-text") as HTMLButtonElement;
+    if (zoomInBtn) {
+      zoomInBtn.onclick = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (currentFontSize < 24) { currentFontSize += 2; updateFontSize(); }
+      };
+    }
+
+    const zoomOutBtn = container.querySelector(".zoom-out-text") as HTMLButtonElement;
+    if (zoomOutBtn) {
+      zoomOutBtn.onclick = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (currentFontSize > 12) { currentFontSize -= 2; updateFontSize(); }
+      };
+    }
 
     const lightBoxTriggers = container.querySelectorAll(".map-lightbox-trigger");
     lightBoxTriggers.forEach((trigger) => {
@@ -699,7 +730,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const mapWidth = map.getSize().x;
           const mapHeight = map.getSize().y;
 
-          // 🌟 משימה 2: פתיחה חכמה של הפופ-אפ לפי כיוון כדי שלא ייחתך!
           let direction = "up"; 
           
           if (pt.y < mapHeight * 0.55) {
