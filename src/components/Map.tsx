@@ -48,7 +48,12 @@ const tMap = {
   editSuccess: { he: "הגרעין עודכן בהצלחה! 🔄", en: "Seed updated successfully! 🔄" },
   pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" },
   cancelPick: { he: "ביטול חזרה", en: "Cancel Picking" },
-  gpsDisabled: { he: "שירותי המיקום כבויים. ניתן להדליקם בהגדרות ב'אזור שלי'.", en: "Location services are disabled in settings." }
+  gpsDisabled: { he: "שירותי המיקום כבויים. ניתן להדליקם בהגדרות ב'אזור שלי'.", en: "Location services are disabled in settings." },
+  suggestionsTitle: { he: "הצעות בשבילך", en: "Suggested for you" },
+  loadingSuggestions: { he: "מחפש רעיונות...", en: "Finding ideas..." },
+  noSuggestions: { he: "לא מצאנו הצעות כרגע", en: "No suggestions right now" },
+  enableLocTip: { he: "לצפייה במרחקים, יש לאפשר גישה למיקום בדפדפן", en: "Allow location access to see distances" },
+  kmAway: { he: "ק״מ ממך", en: "km away" }
 };
 
 export default function Map({
@@ -83,8 +88,14 @@ export default function Map({
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
-
   const [gpsEnabled, setGpsEnabled] = useState(true);
+
+  // 🌟 סטייט חדש: שולט אך ורק על הופעת הנקודה על המפה!
+  const [showLocationMarker, setShowLocationMarker] = useState(false);
+
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     const checkGps = () => {
@@ -98,6 +109,7 @@ export default function Map({
   useEffect(() => {
     if (!gpsEnabled) {
         setIsFollowing(false);
+        setShowLocationMarker(false);
         setUserLocation(null);
         setFilterRadius(null);
     }
@@ -155,14 +167,12 @@ export default function Map({
     maptilerLayer.addTo(newMap);
     setMap(newMap);
 
-    // 🌟 משימה 26: זיהוי מדינה וריחוף עדין למדינה של המשתמש בעת טעינת האתר
     fetch("https://ipapi.co/json/")
       .then(res => res.json())
       .then(data => {
         if (data && data.latitude && data.longitude) {
-          // עושים זום חלק לאזור הכללי של המדינה (זום 6 נותן מבט ארצי)
           newMap.flyTo([data.latitude, data.longitude], 6, {
-            duration: 2.5, // זמן ריחוף באנימציה
+            duration: 2.5,
             easeLinearity: 0.25
           });
         }
@@ -265,6 +275,7 @@ export default function Map({
     const handleLocationError = () => {
       setIsLocating(false);
       setIsFollowing(false);
+      setShowLocationMarker(false);
       alert(tMap.locationError[lang]);
     };
 
@@ -272,6 +283,7 @@ export default function Map({
       setIsLocating(false);
       if (e.latlng.lat === 0 && e.latlng.lng === 0) {
         setIsFollowing(false);
+        setShowLocationMarker(false);
         setUserLocation(null);
         setFilterRadius(null);
         alert(tMap.locationUnstable[lang]);
@@ -279,6 +291,7 @@ export default function Map({
       }
       setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
       setIsFollowing(true);
+      setShowLocationMarker(true); // אם נמצא דרך המפה (כפתור מיקום/רדיוס) - נציג אותו!
     };
 
     const onMove = () => setIsFollowing(false);
@@ -335,10 +348,17 @@ export default function Map({
       }
     });
 
-    if (!map || !userLocation) return;
+    // 🌟 כאן נכנס התנאי החשוב: אל תצייר שום דבר אם showLocationMarker הוא שקר!
+    if (!map || !userLocation || !showLocationMarker) return;
 
+    // 🌟 נקודת מיקום עדינה ומודרנית במקום הנעץ המכוער הקודם
     const userPinIcon = L.divIcon({
-      html: `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="rgba(17,24,39,0.9)" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="transform: translate(-50%, -100%); filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="#fbbf24" stroke="none"/></svg>`,
+      html: `
+        <div style="position: relative; width: 14px; height: 14px; transform: translate(-50%, -50%);">
+          <div style="position: absolute; top: -60%; left: -60%; width: 220%; height: 220%; background-color: rgba(251, 191, 36, 0.25); border-radius: 50%; z-index: 1;"></div>
+          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: #fbbf24; border: 2px solid #111827; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.4); z-index: 2;"></div>
+        </div>
+      `,
       className: "",
       iconSize: [0, 0],
     });
@@ -359,7 +379,7 @@ export default function Map({
       }).addTo(map);
       map.fitBounds(circle.getBounds());
     }
-  }, [map, userLocation, filterRadius]);
+  }, [map, userLocation, filterRadius, showLocationMarker]);
 
   useMapMarkers({
     map,
@@ -370,6 +390,58 @@ export default function Map({
     lang,
     searchQuery,
   });
+
+  const handleOpenSuggestions = async () => {
+    setIsSuggestionsOpen(true);
+    
+    if (suggestions.length === 0) {
+      setIsLoadingSuggestions(true);
+
+      const fetchSuggestionsData = async (lat?: number, lng?: number) => {
+        try {
+          let url = "/api/suggestions";
+          if (lat !== undefined && lng !== undefined) {
+            url += `?lat=${lat}&lng=${lng}`;
+          }
+          const res = await fetch(url);
+          const data = await res.json();
+          setSuggestions(data);
+        } catch (err) {
+          console.error("Failed to fetch suggestions", err);
+        } finally {
+          setIsLoadingSuggestions(false);
+        }
+      };
+
+      if (userLocation) {
+        await fetchSuggestionsData(userLocation.lat, userLocation.lng);
+      } else if (gpsEnabled && "geolocation" in navigator) {
+        // הבקשה שקטה לא תפעיל את המרקר כי לא קראנו ל- setShowLocationMarker(true)
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setUserLocation({ lat: latitude, lng: longitude }); 
+            fetchSuggestionsData(latitude, longitude);
+          },
+          (error) => {
+            console.warn("User denied or GPS failed in suggestions:", error);
+            fetchSuggestionsData(); 
+          },
+          { enableHighAccuracy: true, timeout: 6000 }
+        );
+      } else {
+        await fetchSuggestionsData();
+      }
+    }
+  };
+
+  const handleSuggestionClick = (pointId: number, lat: number, lng: number) => {
+    setIsSuggestionsOpen(false);
+    if (map) {
+      map.setView([lat, lng], 16);
+    }
+    router.push(`/?point=${pointId}`, { scroll: false });
+  };
 
   return (
     <div className={`relative w-full h-full ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
@@ -547,6 +619,7 @@ export default function Map({
           if (isFollowing) {
             map.setView([31.7683, 35.2137], 3);
             setIsFollowing(false);
+            setShowLocationMarker(false); // 🌟 נעלים את הנקודה כשלוחצים "זום אאוט"
           } else {
             setIsLocating(true);
             map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
@@ -612,7 +685,11 @@ export default function Map({
             {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
               <button
                 key={dist}
-                onClick={() => { setFilterRadius(dist); setShowRadiusMenu(false); }}
+                onClick={() => { 
+                  setFilterRadius(dist); 
+                  setShowRadiusMenu(false);
+                  setShowLocationMarker(true); // 🌟 נראה את הנקודה כדי להבין את מרכז הרדיוס!
+                }}
                 className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
               >
                 {tMap.upTo[lang]} {dist} {tMap.km[lang]}
@@ -621,6 +698,97 @@ export default function Map({
           </div>
         )}
       </div>
-    </div >
+
+      {/* 🌟 כפתור ההצעות */}
+      <button
+        onClick={handleOpenSuggestions}
+        className={`absolute bottom-6 ${lang === 'he' ? 'right-[24px]' : 'right-[24px]'} z-[400] bg-gray-900 border border-yellow-500 text-yellow-500 p-2.5 rounded-full shadow-lg hover:bg-gray-800 hover:scale-105 transition-all`}
+        title={tMap.suggestionsTitle[lang]}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      </button>
+
+      {/* 🌟 תפריט ההצעות - עיצוב כרטיסיות יוקרתי */}
+      {isSuggestionsOpen && (
+        <div dir={lang === 'he' ? 'rtl' : 'ltr'} className={`absolute top-4 bottom-4 ${lang === 'he' ? 'right-4' : 'left-4'} z-[500] w-[calc(100%-2rem)] md:w-[22rem] bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl flex flex-col overflow-hidden`}>
+          <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80">
+            <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
+            <button onClick={() => setIsSuggestionsOpen(false)} className="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-full p-1.5 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-5">
+            {isLoadingSuggestions ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                <p className="font-medium">{tMap.loadingSuggestions[lang]}</p>
+              </div>
+            ) : suggestions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center px-4">
+                <p className="font-medium">{tMap.noSuggestions[lang]}</p>
+              </div>
+            ) : (
+              <>
+                {!userLocation && gpsEnabled && (
+                  <div className="text-sm text-center font-medium text-gray-400 bg-gray-800/80 p-3 rounded-xl mb-2 border border-gray-700">
+                    📍 {tMap.enableLocTip[lang]}
+                  </div>
+                )}
+                {suggestions.map((point) => {
+                  const pointName = lang === 'he' ? point.name : (point.name_en || point.name);
+                  const pointDesc = lang === 'he' ? point.description : (point.description_en || point.description);
+                  
+                  return (
+                    <div 
+                      key={point.id} 
+                      onClick={() => handleSuggestionClick(point.id, point.latitude, point.longitude)}
+                      className="group relative flex flex-col bg-gray-800/80 rounded-2xl overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
+                    >
+                      <div className="w-full h-40 bg-gray-950 relative">
+                        {point.imageUrls && point.imageUrls.length > 0 ? (
+                          <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                             <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                          </div>
+                        )}
+                        
+                        {point.distanceKm !== undefined && (
+                          <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-yellow-400 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-yellow-500/30 shadow-lg flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            {point.distanceKm.toFixed(1)} {tMap.kmAway[lang]}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-4 flex flex-col gap-1.5">
+                        <h4 className="text-base font-bold text-white line-clamp-1">{pointName}</h4>
+                        
+                        {point.address && (
+                          <p className="text-xs text-gray-400 flex items-center gap-1">
+                            📍 <span className="line-clamp-1">{point.address}</span>
+                          </p>
+                        )}
+                        
+                        {pointDesc && (
+                          <p className="text-sm text-gray-300 line-clamp-2 mt-1 leading-relaxed">
+                            {pointDesc}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
