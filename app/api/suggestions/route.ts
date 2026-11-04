@@ -47,16 +47,16 @@ export async function GET(req: Request) {
       suggestedPoints = [...allPoints];
     }
 
-    // 🌟 פיצול וסידור: קודם נקודות עם תמונות, ואז נקודות ללא תמונות!
+    // מפצלים לנקודות עם ובלי תמונות
     let withImages = suggestedPoints.filter(p => (p.imageUrls && p.imageUrls.length > 0) || p.imageUrl);
     let withoutImages = suggestedPoints.filter(p => !((p.imageUrls && p.imageUrls.length > 0) || p.imageUrl));
 
-    // ערבוב רנדומלי פנימי של כל קבוצה (כדי שלא נראה תמיד את אותן תמונות)
+    // מערבבים כל קבוצה בנפרד
     withImages = withImages.sort(() => 0.5 - Math.random());
     withoutImages = withoutImages.sort(() => 0.5 - Math.random());
 
-    // מחברים את שתי הקבוצות (תמונות קודם) ולוקחים 20 תוצאות
-    const finalShuffled = [...withImages, ...withoutImages].slice(0, 20);
+    // 🌟 מחזירים את כל התוצאות (קודם עם תמונות), ללא חיתוך של .slice(0, 20)!
+    const finalShuffled = [...withImages, ...withoutImages];
     
     return NextResponse.json(finalShuffled);
 

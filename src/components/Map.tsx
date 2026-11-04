@@ -93,8 +93,9 @@ export default function Map({
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
-  // 🌟 סטייט להצעות + סטייט לשמירת הנקודה שנבחרה לפופ-אפ הפנימי
-  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(true);
+  const [hasStarted, setHasStarted] = useState(false);
+  
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
@@ -137,6 +138,22 @@ export default function Map({
   }, [searchParams, router]);
 
   useEffect(() => {
+    const fetchSuggestions = async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        const res = await fetch("/api/suggestions"); 
+        const data = await res.json();
+        setSuggestions(data);
+      } catch (err) {
+        console.error("Failed to fetch suggestions", err);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
+    fetchSuggestions();
+  }, []);
+
+  useEffect(() => {
     if (!mapRef.current) return;
     if (mapInstanceRef.current) return;
 
@@ -168,18 +185,6 @@ export default function Map({
 
     maptilerLayer.addTo(newMap);
     setMap(newMap);
-
-    fetch("https://ipapi.co/json/")
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.latitude && data.longitude) {
-          newMap.flyTo([data.latitude, data.longitude], 6, {
-            duration: 2.5,
-            easeLinearity: 0.25
-          });
-        }
-      })
-      .catch(() => console.log("Auto-zoom to country skipped."));
 
     return () => {
       if (mapInstanceRef.current) {
@@ -246,10 +251,36 @@ export default function Map({
     return () => window.removeEventListener("points-updated", refresh);
   }, [isLoggedIn]);
 
+  const startUserJourney = () => {
+    if (hasStarted) return;
+    
+    setHasStarted(true);
+    setIsSuggestionsOpen(false);
+
+    if (mapInstanceRef.current) {
+      fetch("https://ipapi.co/json/")
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.latitude && data.longitude && mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo([data.latitude, data.longitude], 6, {
+              duration: 2.5,
+              easeLinearity: 0.25
+            });
+          }
+        })
+        .catch(() => console.log("Auto-zoom to country skipped."));
+    }
+  };
+
   useEffect(() => {
     if (!map) return;
 
     const handleClick = (e: L.LeafletMouseEvent) => {
+      if (!hasStarted) {
+        startUserJourney();
+        return; 
+      }
+
       if (isPickingLocation && draftFormState) {
           setModal({
               lat: e.latlng.lat,
@@ -309,7 +340,7 @@ export default function Map({
       map.off("locationfound", handleLocationFound);
       map.off("movestart", onMove);
     };
-  }, [map, isCompassMode, activeCategory, isLoggedIn, lang, isPickingLocation, draftFormState]);
+  }, [map, isCompassMode, activeCategory, isLoggedIn, lang, isPickingLocation, draftFormState, hasStarted]);
 
   useEffect(() => {
     const handleDirectAdd = (e: any) => {
@@ -391,32 +422,27 @@ export default function Map({
     searchQuery,
   });
 
-  const fetchSuggestions = async () => {
-    setIsLoadingSuggestions(true);
-    try {
-      const res = await fetch("/api/suggestions"); 
-      const data = await res.json();
-      setSuggestions(data);
-    } catch (err) {
-      console.error("Failed to fetch suggestions", err);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
-
   const toggleSuggestions = () => {
+    if (!hasStarted) {
+      startUserJourney();
+      return;
+    }
+
     const newState = !isSuggestionsOpen;
     setIsSuggestionsOpen(newState);
     if (newState && suggestions.length === 0) {
-      fetchSuggestions();
+       setIsLoadingSuggestions(true);
+       fetch("/api/suggestions")
+        .then(res => res.json())
+        .then(data => setSuggestions(data))
+        .catch(console.error)
+        .finally(() => setIsLoadingSuggestions(false));
     }
-    // כשהמגירה נסגרת, מאפסים את הפירוט הפנימי כדי שמחר נראה את הפיד
     if (!newState) {
       setSelectedSuggestion(null);
     }
   };
 
-  // 🌟 לחיצה על נקודה תפתח לה את מסך המידע הפנימי במגירה!
   const handleSuggestionClick = (point: any) => {
     setSelectedSuggestion(point);
     fetch("/api/history", {
@@ -427,10 +453,8 @@ export default function Map({
   };
 
   const isHe = lang === 'he';
-  // 🌟 המגירה יוצאת מהצד הנכון
-  const drawerTransform = isSuggestionsOpen 
-    ? "translateX(0)" 
-    : isHe ? "translateX(100%)" : "translateX(-100%)";
+  const drawerWidthClass = !hasStarted ? "w-[75%] md:w-[350px]" : "w-[95%]";
+  const drawerTransform = isSuggestionsOpen ? "translateX(0)" : isHe ? "translateX(100%)" : "translateX(-100%)";
 
   return (
     <div className={`relative w-full h-full overflow-hidden ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
@@ -595,114 +619,115 @@ export default function Map({
         />
       )}
 
-      <button
-        onClick={() => {
-          if (!map) return;
-          if (!gpsEnabled) {
-              alert(tMap.gpsDisabled[lang]);
-              return;
-          }
-          if (isLocating) return;
-
-          if (isFollowing) {
-            map.setView([31.7683, 35.2137], 3);
-            setIsFollowing(false);
-            setShowLocationMarker(false);
-          } else {
-            setIsLocating(true);
-            map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
-          }
-        }}
-        className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
-        title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
-      >
-        {isLocating ? (
-          <svg className="animate-spin h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        ) : isFollowing ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 11l19-9-9 19-2-8-8-2z" />
-          </svg>
-        )}
-      </button>
-
-      <div className="absolute bottom-6 left-[68px] z-[400] flex flex-col-reverse items-start gap-2">
-        <button
-          onClick={() => {
-            if (!gpsEnabled) {
-                alert(tMap.gpsDisabled[lang]);
-                return;
-            }
-            if (!userLocation && map) {
-              if (!isLocating) {
-                setIsLocating(true);
-                map.locate({ enableHighAccuracy: true });
+      {hasStarted && (
+        <>
+          <button
+            onClick={() => {
+              if (!map) return;
+              if (!gpsEnabled) {
+                  alert(tMap.gpsDisabled[lang]);
+                  return;
               }
-              alert(tMap.locating[lang]);
-              return;
-            }
-            setShowRadiusMenu(!showRadiusMenu);
-          }}
-          className={`p-2 rounded-full shadow-lg transition-colors border ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60 text-gray-500" : filterRadius
-            ? "bg-yellow-500 border-yellow-400 text-black"
-            : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
-            }`}
-          title={tMap.filterDist[lang]}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
+              if (isLocating) return;
 
-        {showRadiusMenu && userLocation && gpsEnabled && (
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
+              if (isFollowing) {
+                map.setView([31.7683, 35.2137], 3);
+                setIsFollowing(false);
+                setShowLocationMarker(false);
+              } else {
+                setIsLocating(true);
+                map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
+              }
+            }}
+            className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
+            title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
+          >
+            {isLocating ? (
+              <svg className="animate-spin h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : isFollowing ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 11l19-9-9 19-2-8-8-2z" />
+              </svg>
+            )}
+          </button>
+
+          <div className="absolute bottom-6 left-[68px] z-[400] flex flex-col-reverse items-start gap-2">
             <button
-              onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}
-              className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
+              onClick={() => {
+                if (!gpsEnabled) {
+                    alert(tMap.gpsDisabled[lang]);
+                    return;
+                }
+                if (!userLocation && map) {
+                  if (!isLocating) {
+                    setIsLocating(true);
+                    map.locate({ enableHighAccuracy: true });
+                  }
+                  alert(tMap.locating[lang]);
+                  return;
+                }
+                setShowRadiusMenu(!showRadiusMenu);
+              }}
+              className={`p-2 rounded-full shadow-lg transition-colors border ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60 text-gray-500" : filterRadius
+                ? "bg-yellow-500 border-yellow-400 text-black"
+                : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
+                }`}
+              title={tMap.filterDist[lang]}
             >
-              {tMap.noFilter[lang]}
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </button>
 
-            {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
-              <button
-                key={dist}
-                onClick={() => { 
-                  setFilterRadius(dist); 
-                  setShowRadiusMenu(false);
-                  setShowLocationMarker(true);
-                }}
-                className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
-              >
-                {tMap.upTo[lang]} {dist} {tMap.km[lang]}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+            {showRadiusMenu && userLocation && gpsEnabled && (
+              <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
+                <button
+                  onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}
+                  className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
+                >
+                  {tMap.noFilter[lang]}
+                </button>
 
-      {/* =========================================
-          🌟 המגירה הגדולה (95% רוחב)
-          ========================================= */}
+                {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
+                  <button
+                    key={dist}
+                    onClick={() => { 
+                      setFilterRadius(dist); 
+                      setShowRadiusMenu(false);
+                      setShowLocationMarker(true);
+                    }}
+                    className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
+                  >
+                    {tMap.upTo[lang]} {dist} {tMap.km[lang]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* 🌟 המגירה הגדולה */}
       <div 
-        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} w-[95%] transition-transform duration-500 ease-in-out pointer-events-none`}
+        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} ${drawerWidthClass} transition-all duration-500 ease-in-out pointer-events-none`}
         style={{ transform: drawerTransform }}
       >
         <div dir={isHe ? 'rtl' : 'ltr'} className={`w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col pointer-events-auto relative border-${isHe ? 'l' : 'r'} border-gray-700/50`}>
           
-          {/* תצוגה 1: רשימת ההצעות - 1 עמודות בטלפון, 3 במחשב! */}
           {!selectedSuggestion ? (
             <>
-              <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80">
+              <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80 shrink-0">
                 <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-5">
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {isLoadingSuggestions ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
@@ -713,7 +738,8 @@ export default function Map({
                     <p className="font-medium">{tMap.noSuggestions[lang]}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  // 🌟 הגדלתי את הכרטיסיות: העיצוב החדש יציג את הכל בטור אחד בנייד (כדי שיהיו ענקיים ויראו 1.5 מסך) ובמחשב 3 טורים 
+                  <div className={`grid gap-6 ${!hasStarted ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
                     {suggestions.map((point) => {
                       const pointName = isHe ? point.name : (point.name_en || point.name);
                       const pointDesc = isHe ? point.description : (point.description_en || point.description);
@@ -722,23 +748,24 @@ export default function Map({
                       return (
                         <div 
                           key={point.id} 
-                          onClick={() => handleSuggestionClick(point)} // 🌟 מחליף פנימית למסך פירוט!
-                          className="group relative flex flex-col bg-gray-800/80 rounded-2xl overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
+                          onClick={() => handleSuggestionClick(point)}
+                          className="group relative flex flex-col bg-gray-800/80 rounded-[28px] overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
                         >
-                          <div className={`w-full ${hasImage ? 'h-40' : 'h-24'} bg-gray-950 relative`}>
+                          {/* 🌟 התמונה ענקית עכשיו - 60vh כדי לתפוס הרבה מהמסך */}
+                          <div className={`w-full ${hasImage ? 'h-[45vh] md:h-52' : 'h-32'} bg-gray-950 relative shrink-0`}>
                             {hasImage ? (
                               <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                 <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-10 h-10 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                                 <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
                               </div>
                             )}
                           </div>
 
-                          <div className="p-4 flex flex-col gap-1.5">
-                            <h4 className="text-base font-bold text-white line-clamp-1">{pointName}</h4>
+                          <div className="p-5 flex flex-col gap-2">
+                            <h4 className="text-xl font-bold text-white line-clamp-2 leading-tight">{pointName}</h4>
                             {pointDesc && (
-                              <p className="text-sm text-gray-300 line-clamp-2 mt-1 leading-relaxed">
+                              <p className="text-base text-gray-300 line-clamp-3 mt-1 leading-relaxed">
                                 {pointDesc}
                               </p>
                             )}
@@ -751,11 +778,10 @@ export default function Map({
               </div>
             </>
           ) : (
-            /* תצוגה 2: מסך פירוט פנימי לנקודה שנבחרה בתוך המגירה! */
             <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
               <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-gray-800/90 backdrop-blur-md border-b border-gray-700 shadow-md shrink-0">
                 <button 
-                  onClick={() => setSelectedSuggestion(null)} // כפתור "חזרה לרשימה"
+                  onClick={() => setSelectedSuggestion(null)}
                   className="flex items-center gap-2 text-yellow-500 font-bold hover:text-yellow-400 transition"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -816,9 +842,11 @@ export default function Map({
                     )}
                   </div>
                   
-                  {/* 🌟 הכפתור קח אותי לנקודה שמטיס את המפה ופותח את הפופ-אפ! */}
                   <button 
                     onClick={() => {
+                      if (!hasStarted) {
+                        setHasStarted(true);
+                      }
                       setIsSuggestionsOpen(false);
                       setTimeout(() => setSelectedSuggestion(null), 300);
                       if (map) {
@@ -836,9 +864,6 @@ export default function Map({
           )}
         </div>
 
-        {/* =========================================
-            🌟 הלשונית החיצונית (הידית הזהובה המציצה) 
-            ========================================= */}
         <div 
           onClick={toggleSuggestions}
           className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'left-[-20px]' : 'right-[-20px]'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-lg flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
@@ -851,11 +876,7 @@ export default function Map({
         </div>
       </div>
 
-      {/* =========================================
-          🌟 ה-5% הנותרים (החלק האפור) 
-          יושב בצד הנגדי למגירה וסוגר אותה!
-          ========================================= */}
-      {isSuggestionsOpen && (
+      {isSuggestionsOpen && hasStarted && (
         <div 
           className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[5%] z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
           onClick={() => {
