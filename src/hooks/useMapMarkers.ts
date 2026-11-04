@@ -239,10 +239,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    const imagesList = point.imageUrls && point.imageUrls.length > 0
-      ? point.imageUrls
+    const imagesList = point.imageUrls && point.imageUrls.length > 0 
+      ? point.imageUrls 
       : (point.imageUrl ? [point.imageUrl] : []);
-
+    
     const imagesJsonStr = JSON.stringify(imagesList).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
     let imageHtml = "";
@@ -283,9 +283,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           </div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> <span dir="auto">${display(point.address)}</span></div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
-        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
-        : "-"
-      }</div>
+          ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
+          : "-"
+        }</div>
         </div>
         
         <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
@@ -356,38 +356,88 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const sendCommentBtn = container.querySelector(".send-comment-btn") as HTMLButtonElement;
 
     let commentsLoaded = false;
+    let currentUserId: string | null = null;
+
+    const checkSession = async () => {
+        if (currentUserId !== null) return;
+        try {
+            const res = await fetch("/api/auth/session");
+            const session = await res.json();
+            if (session?.user?.id) currentUserId = session.user.id;
+        } catch (e) {}
+    };
 
     const fetchComments = async () => {
+      await checkSession();
       try {
         const res = await fetch(`/api/comments?pointId=${point.id}`);
         if (res.ok) {
           const data = await res.json();
-          commentsCountSpan.innerText = data.length;
+          commentsCountSpan.innerText = String(data.length);
           commentsList.innerHTML = "";
-
+          
           if (data.length === 0) {
             commentsList.innerHTML = `<div style="color: #9ca3af; font-size: 11px; text-align: center; padding: 4px;">אין עדיין תגובות. היה הראשון להגיב!</div>`;
           } else {
             data.forEach((c: any) => {
               const item = document.createElement("div");
               item.style.cssText = "background: #111827; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 11px;";
+              
+              const isOwner = currentUserId && c.userId === currentUserId;
+              const dateStr = new Date(c.createdAt).toLocaleDateString('he-IL');
+
               item.innerHTML = `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
                   <strong style="color: #fbbf24;">${c.user?.name || 'משתמש'}</strong>
-                  <span style="color: #6b7280; font-size: 9px;">${new Date(c.createdAt).toLocaleDateString('he-IL')}</span>
+                  <span style="color: #6b7280; font-size: 9px;">${dateStr}</span>
                 </div>
-                <div style="color: #e5e7eb; word-break: break-word;">${c.content}</div>
+                <div class="comment-content" style="color: #e5e7eb; word-break: break-word; margin-bottom: 4px;">${c.content}</div>
+                ${isOwner ? `
+                  <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #374151; padding-top: 4px; margin-top: 4px;">
+                    <button class="edit-comment-btn" data-id="${c.id}" data-content="${c.content.replace(/"/g, '&quot;')}" style="background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 10px; padding: 0;">ערוך</button>
+                    <button class="delete-comment-btn" data-id="${c.id}" style="background: none; border: none; color: #f87171; cursor: pointer; font-size: 10px; padding: 0;">מחק</button>
+                  </div>
+                ` : ''}
               `;
+              
+              if (isOwner) {
+                const delBtn = item.querySelector(".delete-comment-btn") as HTMLButtonElement;
+                delBtn.onclick = async (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    if (confirm("האם אתה בטוח שברצונך למחוק את התגובה?")) {
+                        try {
+                            const delRes = await fetch(`/api/comments?id=${c.id}`, { method: "DELETE" });
+                            if (delRes.ok) fetchComments();
+                        } catch (err) {
+                            alert("שגיאה במחיקה");
+                        }
+                    }
+                };
+
+                const editBtn = item.querySelector(".edit-comment-btn") as HTMLButtonElement;
+                editBtn.onclick = (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const newContent = prompt("ערוך את התגובה:", editBtn.getAttribute("data-content") || "");
+                    if (newContent && newContent.trim() !== "" && newContent !== c.content) {
+                        fetch(`/api/comments`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ commentId: c.id, content: newContent })
+                        }).then(res => {
+                            if (res.ok) fetchComments();
+                            else alert("שגיאה בעריכה");
+                        }).catch(() => alert("שגיאה בעריכה"));
+                    }
+                };
+              }
+
               commentsList.appendChild(item);
             });
           }
         }
-      } catch (err) {
-        commentsList.innerHTML = `<div style="color: #ef4444; font-size: 11px; text-align: center;">שגיאה בטעינת תגובות</div>`;
-      }
+      } catch (err) {}
     };
 
-    // טעינת כמות תגובות ראשונית בלבד
     fetch(`/api/comments?pointId=${point.id}`)
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) commentsCountSpan.innerText = String(data.length); })
@@ -407,6 +457,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     }
 
     const postComment = async () => {
+      await checkSession();
       const content = commentInput.value.trim();
       if (!content) return;
 
@@ -420,7 +471,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
         if (res.ok) {
           commentInput.value = "";
-          fetchComments(); // רענון הרשימה
+          fetchComments(); 
         } else {
           alert(t.loginReq);
         }
@@ -432,21 +483,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     };
 
     if (sendCommentBtn) {
-      sendCommentBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        postComment();
-      };
+      sendCommentBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); postComment(); };
     }
-
     if (commentInput) {
       commentInput.onclick = (e) => e.stopPropagation();
-      commentInput.onkeydown = (e) => {
-        e.stopPropagation();
-        if (e.key === "Enter") postComment();
-      };
+      commentInput.onkeydown = (e) => { e.stopPropagation(); if (e.key === "Enter") postComment(); };
     }
-
 
     // 🌟 הוספת מנגנון הגדלת והקטנת הטקסט
     let currentFontSize = 14;

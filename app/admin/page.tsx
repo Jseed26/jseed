@@ -47,7 +47,7 @@ export default async function AdminDashboard({
     const sortMode = resolvedSearchParams?.sort || "";
     const filterCat = resolvedSearchParams?.cat || "";
     const showUserId = resolvedSearchParams?.showUser || "";
-    
+
     // 🌟 סוג הטווח והאופסט (היסטוריה אחורה)
     const rangeType = resolvedSearchParams?.rangeType || "week"; // week, month, year
     const offset = parseInt(resolvedSearchParams?.offset || "0", 10) || 0;
@@ -105,25 +105,29 @@ export default async function AdminDashboard({
     const onlineVisitors = await prisma.visitor.count({ where: { updatedAt: { gte: fiveMinutesAgo } } });
     const totalOnlineNow = onlineUsers + onlineVisitors;
 
-    // 🌟 שליפת גרעינים
+    // 🌟 שליפת גרעינים (כולל תגובות!)
     const allPointsWithStats = await prisma.point.findMany({
         include: {
             user: { select: { id: true, name: true, email: true } },
-            viewedBy: { 
+            viewedBy: {
                 where: { viewedAt: { gte: startDate, lt: endDate } },
-                select: { userId: true, viewedAt: true } 
+                select: { userId: true, viewedAt: true }
             },
-            savedBy: { 
+            savedBy: {
                 where: { savedAt: { gte: startDate, lt: endDate } },
-                select: { userId: true, savedAt: true } 
+                select: { userId: true, savedAt: true }
             },
+            comments: {
+                include: { user: { select: { name: true } } },
+                orderBy: { createdAt: "desc" }
+            }
         },
         orderBy: { createdAt: "desc" }
     });
 
     const pointsInDateRange = allPointsWithStats.filter(p => p.createdAt >= startDate && p.createdAt < endDate);
     const totalPointsCount = pointsInDateRange.length;
-    
+
     let totalViewsAll = 0;
     let totalSavesAll = 0;
     let totalClicksAll = 0;
@@ -148,7 +152,7 @@ export default async function AdminDashboard({
         if (p.createdAt >= startDate && p.createdAt < endDate) {
             categoryStatsMap[cat].pointsCount += 1;
         }
-        
+
         categoryStatsMap[cat].views += vCount;
         categoryStatsMap[cat].saves += sCount;
         categoryStatsMap[cat].clicks += cCount;
@@ -173,7 +177,7 @@ export default async function AdminDashboard({
     // 🌟 בניית הגרף
     const dayNamesHe = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
     const chartData: { label: string; dateStr: string; count: number; fullDate: Date }[] = [];
-    
+
     let currentDayForChart = new Date(startDate);
     currentDayForChart.setHours(0, 0, 0, 0);
     const endDayForChart = new Date(endDate);
@@ -198,7 +202,7 @@ export default async function AdminDashboard({
 
         currentDayForChart.setDate(currentDayForChart.getDate() + 1);
     }
-    
+
     const maxDailyCount = Math.max(...chartData.map(d => d.count), 1);
 
     // 🌟 יצירת נתוני מדינות 
@@ -206,7 +210,7 @@ export default async function AdminDashboard({
         where: userDateFilter,
         select: { country: true }
     });
-    
+
     const countryCounts: Record<string, number> = {};
     usersInDateRange.forEach(u => {
         const c = u.country || "לא ידוע";
@@ -272,6 +276,20 @@ export default async function AdminDashboard({
         const pointId = Number(formData.get("pointId"));
         if (pointId) {
             await prisma.point.delete({ where: { id: pointId } });
+            revalidatePath("/admin");
+        }
+    }
+
+    // פונקציה למחיקת תגובה מהאדמין
+    async function deleteCommentAction(formData: FormData) {
+        "use server";
+        const currentSession = await auth();
+        const adminCheck = await prisma.user.findUnique({ where: { id: currentSession?.user?.id } });
+        if (!adminCheck?.isAdmin) return;
+
+        const commentId = Number(formData.get("commentId"));
+        if (commentId) {
+            await prisma.comment.delete({ where: { id: commentId } });
             revalidatePath("/admin");
         }
     }
@@ -406,7 +424,7 @@ export default async function AdminDashboard({
                     <h2 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
                         <span>🌍</span> תפוצת משתמשים לפי מדינות ({labelHe} נבחר)
                     </h2>
-                    
+
                     {top5Countries.length === 0 ? (
                         <p className="text-gray-400 text-sm">אין נתוני משתמשים בטווח זמן זה.</p>
                     ) : (
@@ -420,7 +438,7 @@ export default async function AdminDashboard({
                                     </div>
                                 ))}
                             </div>
-                            
+
                             {otherCountries.length > 0 && (
                                 <details className="mt-4 border-t border-gray-800/60 pt-3 text-sm group">
                                     <summary className="cursor-pointer text-gray-400 hover:text-blue-400 font-bold select-none transition">
@@ -511,7 +529,7 @@ export default async function AdminDashboard({
                 <div id="seed-explorer" className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-yellow-400">🔍 דירוג גרעינים</h2>
+                            <h2 className="text-xl font-bold text-yellow-400">🔍 דירוג גרעינים ותגובות</h2>
                             <p className="text-xs text-gray-400 mt-0.5">הנתונים המופיעים כאן חושבו רק לתקופה שבחרת.</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -589,6 +607,37 @@ export default async function AdminDashboard({
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* 👇 אזור התגובות לכל גרעין 👇 */}
+                                        {p.comments && p.comments.length > 0 ? (
+                                            <details className="mt-4 border-t border-gray-800/80 pt-3 group outline-none">
+                                                <summary className="text-xs text-yellow-500 font-bold cursor-pointer hover:text-yellow-400 transition outline-none select-none flex items-center gap-1">
+                                                    💬 צפה בתגובות ({p.comments.length}) <span className="text-[10px] opacity-70 group-open:rotate-180 transition-transform">▼</span>
+                                                </summary>
+                                                <div className="mt-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                                    {p.comments.map(c => (
+                                                        <div key={c.id} className="bg-black/40 p-2.5 rounded-lg border border-gray-800 flex justify-between items-start gap-3 hover:border-gray-700 transition">
+                                                            <div>
+                                                                <div className="text-[11px] text-gray-500 mb-0.5">
+                                                                    <strong className="text-gray-300">{c.user?.name || "ללא שם"}</strong> • {new Date(c.createdAt).toLocaleDateString('he-IL')} {new Date(c.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                                <div className="text-sm text-gray-200">{c.content}</div>
+                                                            </div>
+                                                            <form action={deleteCommentAction}>
+                                                                <input type="hidden" name="commentId" value={c.id} />
+                                                                <button type="submit" className="text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-900/50 p-1.5 rounded-md text-xs transition" title="מחק תגובה זו">
+                                                                    🗑️ מחיקה
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </details>
+                                        ) : (
+                                            <div className="mt-4 border-t border-gray-800/50 pt-3 text-xs text-gray-600 flex items-center gap-1">
+                                                💬 אין עדיין תגובות לגרעין זה
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -639,7 +688,7 @@ export default async function AdminDashboard({
                 </div>
 
             </div>
-            
+
             {/* 🌟 מודאל פרטי משתמש (מוצג כאשר יש showUser ב-URL) */}
             {modalUser && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -647,7 +696,7 @@ export default async function AdminDashboard({
                         <Link href={getCloseModalUrl()} className="absolute top-4 left-4 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 p-2 rounded-full leading-none transition">
                             ✕
                         </Link>
-                        
+
                         <div className="flex items-center gap-4 mb-6 border-b border-gray-800 pb-5">
                             <div className="text-5xl">{getFlagEmoji(modalUser.country)}</div>
                             <div>
@@ -655,11 +704,11 @@ export default async function AdminDashboard({
                                 <p className="text-gray-300">{modalUser.email}</p>
                             </div>
                         </div>
-                        
+
                         <div className="mb-4 flex items-center justify-between">
                             <h4 className="text-lg font-bold text-white">גרעינים שהעלה ({modalUser.points.length})</h4>
                         </div>
-                        
+
                         {modalUser.points.length === 0 ? (
                             <p className="text-gray-500 text-sm bg-black/30 p-4 rounded-xl border border-gray-800 text-center">
                                 משתמש זה עדיין לא העלה גרעינים.
@@ -685,7 +734,8 @@ export default async function AdminDashboard({
                 </div>
             )}
 
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.3); border-radius: 4px; }
