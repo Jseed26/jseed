@@ -2,11 +2,14 @@ import { prisma } from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
-  const { name, email, password } = await req.json();
+  const { name, email: rawEmail, password } = await req.json();
 
-  if (!email || !password || !name) {
+  if (!rawEmail || !password || !name) {
     return Response.json({ error: "missing data" }, { status: 400 });
   }
+
+  // 🌟 הופכים הכל לאותיות קטנות כדי למנוע כפילויות!
+  const email = rawEmail.toLowerCase(); 
 
   const existing = await prisma.user.findUnique({
     where: { email },

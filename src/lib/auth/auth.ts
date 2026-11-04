@@ -59,30 +59,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     ],
 
     callbacks: {
-        async signIn({ user, account }) {
-            // בדיקת אבטחה להתחברות דרך גוגל וגיטהאב בלבד
-            if (account?.provider === "google" || account?.provider === "github") {
-                if (!user.email) return false;
+        async signIn({ user, account, profile }) {
+            if (account?.provider === 'google' || account?.provider === 'github') {
+                if (user.email) {
+                    const lowerEmail = user.email.toLowerCase();
 
-                const existingUser = await prisma.user.findUnique({
-                    where: { email: user.email },
-                });
+                    // מושכים את השם שהמשתמש הקליד אצלנו מתוך העוגיות
+                    const cookieStore = cookies();
+                    const desiredName = cookieStore.get("jseed_desired_name")?.value;
 
-                // אם המשתמש לא קיים במערכת - כלומר הוא מנסה להירשם עכשיו!
-                if (!existingUser) {
-                    try {
-                        const cookieStore = await cookies();
-                        const termsAccepted = cookieStore.get("jseed_terms_accepted")?.value;
-
-                        // אם הוא הגיע ממסך התחברות (בלי עוגייה) נחסום אותו
-                        if (termsAccepted !== "true") {
-                            // זורקים חזרה לעמוד עם שגיאה
-                            return "/auth?error=OAuthNotRegistered";
+                    // מעדכנים את המשתמש הקיים/החדש במסד עם אותיות קטנות ועם השם הרצוי
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: {
+                            email: lowerEmail,
+                            ...(desiredName ? { name: decodeURIComponent(desiredName) } : {})
                         }
-                    } catch (e) {
-                        // אם יש בעיה בקריאת עוגיות, נחסום ליתר ביטחון
-                        return "/auth?error=OAuthNotRegistered";
-                    }
+                    });
                 }
             }
             return true;

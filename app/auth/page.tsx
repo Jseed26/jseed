@@ -202,12 +202,12 @@ export default function AuthPage() {
         }
     }
 
-    async function handleLogin() {
+async function handleLogin() {
         setError(null);
         setLoading(true);
 
         const res = await signIn("credentials", {
-            email,
+            email: email.toLowerCase(), // 🌟 מבטיח שגם בהתחברות נשלח רק אותיות קטנות
             password,
             redirect: false,
         });
@@ -223,10 +223,21 @@ export default function AuthPage() {
     }
 
     function handleSocialLogin(provider: string) {
-        if (mode === "register" && !isTermsMissing) {
+        if (mode === "register") {
+            if (isTermsMissing) return;
+
+            // 🌟 דורשים להכניס שם במפורש גם אם נרשמים עם גוגל/גיטהאב
+            if (name.trim().length < 2) {
+                setError(tAuth.errName[lang]);
+                return;
+            }
+
             document.cookie = "jseed_terms_accepted=true; path=/; max-age=300";
+            // 🌟 שומרים את השם שהמשתמש בחר בעוגייה כדי שהשרת ישתמש בו ולא בשם של גוגל
+            document.cookie = `jseed_desired_name=${encodeURIComponent(name.trim())}; path=/; max-age=300`;
         } else {
             document.cookie = "jseed_terms_accepted=; path=/; max-age=0";
+            document.cookie = "jseed_desired_name=; path=/; max-age=0";
         }
         
         signIn(provider, { callbackUrl: "/" });

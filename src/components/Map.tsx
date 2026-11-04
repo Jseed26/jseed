@@ -26,8 +26,8 @@ type ModalState = {
   prefilledCategory?: string;
   draftData?: any;
   parentId?: number | null;
-  mode?: "create" | "edit"; 
-  pointId?: number; 
+  mode?: "create" | "edit";
+  pointId?: number;
 } | null;
 
 const tMap = {
@@ -73,7 +73,7 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
-  
+
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [draftFormState, setDraftFormState] = useState<any>(null);
 
@@ -95,14 +95,14 @@ export default function Map({
 
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
-  
+
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
+  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null);
 
   useEffect(() => {
     const checkGps = () => {
-        setGpsEnabled(localStorage.getItem("jseed_gps_disabled") !== "true");
+      setGpsEnabled(localStorage.getItem("jseed_gps_disabled") !== "true");
     };
     checkGps();
     window.addEventListener("gps-setting-changed", checkGps);
@@ -111,10 +111,10 @@ export default function Map({
 
   useEffect(() => {
     if (!gpsEnabled) {
-        setIsFollowing(false);
-        setShowLocationMarker(false);
-        setUserLocation(null);
-        setFilterRadius(null);
+      setIsFollowing(false);
+      setShowLocationMarker(false);
+      setUserLocation(null);
+      setFilterRadius(null);
     }
   }, [gpsEnabled]);
 
@@ -132,7 +132,7 @@ export default function Map({
             setIsPickingLocation(true);
             router.replace('/', { scroll: false });
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }, [searchParams, router]);
@@ -141,7 +141,7 @@ export default function Map({
     const fetchSuggestions = async () => {
       setIsLoadingSuggestions(true);
       try {
-        const res = await fetch("/api/suggestions"); 
+        const res = await fetch("/api/suggestions");
         const data = await res.json();
         setSuggestions(data);
       } catch (err) {
@@ -162,7 +162,7 @@ export default function Map({
     const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
     const newMap = L.map(container, {
-      center: [31.5, 10.8], 
+      center: [31.5, 10.8],
       zoom: isMobile ? 2 : 2.5,
       minZoom: isMobile ? 2 : 2.5,
       maxZoom: 18,
@@ -195,13 +195,13 @@ export default function Map({
   }, []);
 
   const loadHistory = async () => {
-      try {
-        const res = await fetch("/api/history");
-        if (res.ok) {
-          const data = await res.json();
-          setViewedIds(data.map((p: Point) => p.id));
-        }
-      } catch (err) { }
+    try {
+      const res = await fetch("/api/history");
+      if (res.ok) {
+        const data = await res.json();
+        setViewedIds(data.map((p: Point) => p.id));
+      }
+    } catch (err) { }
   };
 
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function Map({
 
   const startUserJourney = () => {
     if (hasStarted) return;
-    
+
     setHasStarted(true);
     setIsSuggestionsOpen(false);
 
@@ -278,22 +278,22 @@ export default function Map({
     const handleClick = (e: L.LeafletMouseEvent) => {
       if (!hasStarted) {
         startUserJourney();
-        return; 
+        return;
       }
 
       if (isPickingLocation && draftFormState) {
-          setModal({
-              lat: e.latlng.lat,
-              lng: e.latlng.lng,
-              prefilledCategory: draftFormState.category,
-              draftData: draftFormState,
-              parentId: draftFormState.parentId,
-              mode: draftFormState.editPointId ? "edit" : "create",
-              pointId: draftFormState.editPointId
-          });
-          setIsPickingLocation(false);
-          setDraftFormState(null);
-          return;
+        setModal({
+          lat: e.latlng.lat,
+          lng: e.latlng.lng,
+          prefilledCategory: draftFormState.category,
+          draftData: draftFormState,
+          parentId: draftFormState.parentId,
+          mode: draftFormState.editPointId ? "edit" : "create",
+          pointId: draftFormState.editPointId
+        });
+        setIsPickingLocation(false);
+        setDraftFormState(null);
+        return;
       }
 
       if (!isCompassMode) return;
@@ -431,8 +431,8 @@ export default function Map({
     const newState = !isSuggestionsOpen;
     setIsSuggestionsOpen(newState);
     if (newState && suggestions.length === 0) {
-       setIsLoadingSuggestions(true);
-       fetch("/api/suggestions")
+      setIsLoadingSuggestions(true);
+      fetch("/api/suggestions")
         .then(res => res.json())
         .then(data => setSuggestions(data))
         .catch(console.error)
@@ -449,11 +449,11 @@ export default function Map({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pointId: point.id }),
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const isHe = lang === 'he';
-  const drawerWidthClass = !hasStarted ? "w-[75%] md:w-[350px]" : "w-[95%]";
+  const drawerWidthClass = !hasStarted ? "w-[20%] md:w-[350px]" : "w-[20%]";
   const drawerTransform = isSuggestionsOpen ? "translateX(0)" : isHe ? "translateX(100%)" : "translateX(-100%)";
 
   return (
@@ -481,27 +481,27 @@ export default function Map({
       )}
 
       {isPickingLocation && (
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-2 pointer-events-auto">
-              <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
-                {tMap.pickLocationMsg[lang]}
-              </div>
-              <button 
-                  onClick={() => {
-                      setIsPickingLocation(false);
-                      setModal({
-                          lat: draftFormState.lat || 31.768,
-                          lng: draftFormState.lng || 35.213,
-                          draftData: draftFormState,
-                          parentId: draftFormState.parentId,
-                          mode: draftFormState.editPointId ? "edit" : "create",
-                          pointId: draftFormState.editPointId
-                      });
-                  }}
-                  className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
-              >
-                  ✕ {tMap.cancelPick[lang]}
-              </button>
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-2 pointer-events-auto">
+          <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
+            {tMap.pickLocationMsg[lang]}
           </div>
+          <button
+            onClick={() => {
+              setIsPickingLocation(false);
+              setModal({
+                lat: draftFormState.lat || 31.768,
+                lng: draftFormState.lng || 35.213,
+                draftData: draftFormState,
+                parentId: draftFormState.parentId,
+                mode: draftFormState.editPointId ? "edit" : "create",
+                pointId: draftFormState.editPointId
+              });
+            }}
+            className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
+          >
+            ✕ {tMap.cancelPick[lang]}
+          </button>
+        </div>
       )}
 
       {modal && !isPickingLocation && (
@@ -517,23 +517,23 @@ export default function Map({
             website: modal.draftData?.website,
             images: modal.draftData?.images,
             existingImages: modal.draftData?.existingImages,
-            parentId: modal.parentId || modal.draftData?.parentId 
+            parentId: modal.parentId || modal.draftData?.parentId
           }}
           onClose={() => {
-              setModal(null);
-              if (modal.mode === "edit") router.push("/my-points");
+            setModal(null);
+            if (modal.mode === "edit") router.push("/my-points");
           }}
           onPickLocation={(currentFormState) => {
-              setDraftFormState({
-                  ...currentFormState,
-                  lat: modal.lat, 
-                  lng: modal.lng,
-                  address: "", 
-                  parentId: modal.parentId,
-                  editPointId: modal.pointId
-              });
-              setModal(null);
-              setIsPickingLocation(true);
+            setDraftFormState({
+              ...currentFormState,
+              lat: modal.lat,
+              lng: modal.lng,
+              address: "",
+              parentId: modal.parentId,
+              editPointId: modal.pointId
+            });
+            setModal(null);
+            setIsPickingLocation(true);
           }}
           onSubmit={async ({ form }) => {
             if (status !== "authenticated") return;
@@ -585,7 +585,7 @@ export default function Map({
 
             const isEditing = modal.mode === "edit";
             if (isEditing && form.existingImages && form.existingImages.length > 0) {
-               form.existingImages.forEach(url => formData.append("existingImages", url));
+              form.existingImages.forEach(url => formData.append("existingImages", url));
             }
 
             const endpoint = isEditing ? `/api/points/${modal.pointId}` : "/api/points";
@@ -604,16 +604,16 @@ export default function Map({
             setDraftFormState(null);
 
             if (isEditing) {
-               window.dispatchEvent(new Event("points-updated"));
-               localStorage.removeItem("jseed_edit_draft"); 
-               router.push("/my-points"); 
+              window.dispatchEvent(new Event("points-updated"));
+              localStorage.removeItem("jseed_edit_draft");
+              router.push("/my-points");
             } else {
-               setPoints((prev) => [...prev, data]);
-               setViewedIds((prev) => [...prev, data.id]);
-               if (map) map.setView([finalLat, finalLng], 16);
-               
-               setSuccessToast(tMap.thankYouMsg[lang]);
-               setTimeout(() => setSuccessToast(null), 3000); 
+              setPoints((prev) => [...prev, data]);
+              setViewedIds((prev) => [...prev, data.id]);
+              if (map) map.setView([finalLat, finalLng], 16);
+
+              setSuccessToast(tMap.thankYouMsg[lang]);
+              setTimeout(() => setSuccessToast(null), 3000);
             }
           }}
         />
@@ -625,8 +625,8 @@ export default function Map({
             onClick={() => {
               if (!map) return;
               if (!gpsEnabled) {
-                  alert(tMap.gpsDisabled[lang]);
-                  return;
+                alert(tMap.gpsDisabled[lang]);
+                return;
               }
               if (isLocating) return;
 
@@ -662,8 +662,8 @@ export default function Map({
             <button
               onClick={() => {
                 if (!gpsEnabled) {
-                    alert(tMap.gpsDisabled[lang]);
-                    return;
+                  alert(tMap.gpsDisabled[lang]);
+                  return;
                 }
                 if (!userLocation && map) {
                   if (!isLocating) {
@@ -698,8 +698,8 @@ export default function Map({
                 {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
                   <button
                     key={dist}
-                    onClick={() => { 
-                      setFilterRadius(dist); 
+                    onClick={() => {
+                      setFilterRadius(dist);
                       setShowRadiusMenu(false);
                       setShowLocationMarker(true);
                     }}
@@ -715,18 +715,18 @@ export default function Map({
       )}
 
       {/* 🌟 המגירה הגדולה */}
-      <div 
+      <div
         className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} ${drawerWidthClass} transition-all duration-500 ease-in-out pointer-events-none`}
         style={{ transform: drawerTransform }}
       >
         <div dir={isHe ? 'rtl' : 'ltr'} className={`w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col pointer-events-auto relative border-${isHe ? 'l' : 'r'} border-gray-700/50`}>
-          
+
           {!selectedSuggestion ? (
             <>
               <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80 shrink-0">
                 <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {isLoadingSuggestions ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
@@ -746,8 +746,8 @@ export default function Map({
                       const hasImage = point.imageUrls && point.imageUrls.length > 0;
 
                       return (
-                        <div 
-                          key={point.id} 
+                        <div
+                          key={point.id}
                           onClick={() => handleSuggestionClick(point)}
                           className="group relative flex flex-col bg-gray-800/80 rounded-[28px] overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
                         >
@@ -757,7 +757,7 @@ export default function Map({
                               <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                 <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                                <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
                               </div>
                             )}
                           </div>
@@ -780,7 +780,7 @@ export default function Map({
           ) : (
             <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
               <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-gray-800/90 backdrop-blur-md border-b border-gray-700 shadow-md shrink-0">
-                <button 
+                <button
                   onClick={() => setSelectedSuggestion(null)}
                   className="flex items-center gap-2 text-yellow-500 font-bold hover:text-yellow-400 transition"
                 >
@@ -815,20 +815,20 @@ export default function Map({
                   </div>
 
                   <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
-                     {isHe ? selectedSuggestion.description : (selectedSuggestion.description_en || selectedSuggestion.description) || "אין תיאור לגרעין זה."}
+                    {isHe ? selectedSuggestion.description : (selectedSuggestion.description_en || selectedSuggestion.description) || "אין תיאור לגרעין זה."}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mt-2">
-                    <a 
+                    <a
                       href={`https://waze.com/ul?ll=${selectedSuggestion.latitude},${selectedSuggestion.longitude}&navigate=yes`}
                       target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 bg-[#05c8f6]/10 border border-[#05c8f6]/30 text-[#05c8f6] font-bold py-2.5 rounded-xl hover:bg-[#05c8f6]/20 transition"
                     >
                       🚀 {tMap.navigate[lang]}
                     </a>
-                    
+
                     {selectedSuggestion.website ? (
-                      <a 
+                      <a
                         href={selectedSuggestion.website}
                         target="_blank" rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-bold py-2.5 rounded-xl hover:bg-yellow-500/20 transition"
@@ -841,8 +841,8 @@ export default function Map({
                       </div>
                     )}
                   </div>
-                  
-                  <button 
+
+                  <button
                     onClick={() => {
                       if (!hasStarted) {
                         setHasStarted(true);
@@ -864,7 +864,7 @@ export default function Map({
           )}
         </div>
 
-        <div 
+        <div
           onClick={toggleSuggestions}
           className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'left-[-20px]' : 'right-[-20px]'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-lg flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
         >
@@ -877,11 +877,12 @@ export default function Map({
       </div>
 
       {isSuggestionsOpen && hasStarted && (
-        <div 
-          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[85%] z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
+        <div
+          // שימי לב לשינוי כאן ל w-[90%]
+          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[80%] z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
           onClick={() => {
             setIsSuggestionsOpen(false);
-            setTimeout(() => setSelectedSuggestion(null), 300); 
+            setTimeout(() => setSelectedSuggestion(null), 300);
           }}
         >
           <div className="bg-gray-900/50 p-1 rounded-md text-gray-400 border border-gray-600/50">

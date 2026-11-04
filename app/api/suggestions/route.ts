@@ -12,7 +12,7 @@ export async function GET(req: Request) {
       include: { _count: { select: { savedBy: true, viewedBy: true } } },
     });
 
-    let suggestedPoints = [];
+    let finalPoints = [];
 
     if (session?.user?.id) {
       const userId = session.user.id;
@@ -36,29 +36,32 @@ export async function GET(req: Request) {
         .sort((a, b) => b[1] - a[1])
         .map(entry => entry[0]);
 
-      suggestedPoints = allPoints.filter(p => 
-        favoriteCategories.includes(p.category) && !interactedIds.has(p.id)
-      );
+      // 🌟 השינוי הגדול: אנחנו לא חותכים שום דבר! 
+      // קבוצה א': גרעינים מומלצים שעדיין לא ראינו
+      const recommended = allPoints.filter(p => favoriteCategories.includes(p.category) && !interactedIds.has(p.id));
+      // קבוצה ב': כל שאר הגרעינים (אלה שכבר ראינו, או מקטגוריות אחרות)
+      const theRest = allPoints.filter(p => !(favoriteCategories.includes(p.category) && !interactedIds.has(p.id)));
 
-      if (suggestedPoints.length === 0) {
-        suggestedPoints = allPoints.filter(p => !interactedIds.has(p.id));
-      }
+      // מערבבים כל קבוצה בפני עצמה
+      recommended.sort(() => 0.5 - Math.random());
+      theRest.sort(() => 0.5 - Math.random());
+
+      // מחברים את שתי הקבוצות (המומלצים למעלה, כל השאר למטה)
+      finalPoints = [...recommended, ...theRest];
     } else {
-      suggestedPoints = [...allPoints];
+      // משתמש לא מחובר רואה את כל הגרעינים מעורבבים
+      finalPoints = [...allPoints].sort(() => 0.5 - Math.random());
     }
 
-    // מפצלים לנקודות עם ובלי תמונות
-    let withImages = suggestedPoints.filter(p => (p.imageUrls && p.imageUrls.length > 0) || p.imageUrl);
-    let withoutImages = suggestedPoints.filter(p => !((p.imageUrls && p.imageUrls.length > 0) || p.imageUrl));
+    // מפצלים לנקודות עם ובלי תמונות (תוך כדי שמירה על הסדר של האלגוריתם!)
+    const withImages = finalPoints.filter(p => (p.imageUrls && p.imageUrls.length > 0) || p.imageUrl);
+    const withoutImages = finalPoints.filter(p => !((p.imageUrls && p.imageUrls.length > 0) || p.imageUrl));
 
-    // מערבבים כל קבוצה בנפרד
-    withImages = withImages.sort(() => 0.5 - Math.random());
-    withoutImages = withoutImages.sort(() => 0.5 - Math.random());
-
-    // 🌟 מחזירים את כל התוצאות (קודם עם תמונות), ללא חיתוך של .slice(0, 20)!
-    const finalShuffled = [...withImages, ...withoutImages];
+    // 🌟 מחזירים את כל הגרעינים בעולם ללא שום חיתוך. 
+    // גרעינים עם תמונה תמיד יופיעו קודם, ובתוכם המומלצים יהיו למעלה!
+    const finalSorted = [...withImages, ...withoutImages];
     
-    return NextResponse.json(finalShuffled);
+    return NextResponse.json(finalSorted);
 
   } catch (error) {
     console.error("Suggestions API Error:", error);
