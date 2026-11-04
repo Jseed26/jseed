@@ -49,11 +49,9 @@ const tMap = {
   pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" },
   cancelPick: { he: "ביטול חזרה", en: "Cancel Picking" },
   gpsDisabled: { he: "שירותי המיקום כבויים. ניתן להדליקם בהגדרות ב'אזור שלי'.", en: "Location services are disabled in settings." },
-  suggestionsTitle: { he: "הצעות בשבילך", en: "Suggested for you" },
-  loadingSuggestions: { he: "מחפש רעיונות...", en: "Finding ideas..." },
+  suggestionsTitle: { he: "לגלות עולמות", en: "Discover Worlds" },
+  loadingSuggestions: { he: "טוען רעיונות...", en: "Loading ideas..." },
   noSuggestions: { he: "לא מצאנו הצעות כרגע", en: "No suggestions right now" },
-  enableLocTip: { he: "לצפייה במרחקים, יש לאפשר גישה למיקום בדפדפן", en: "Allow location access to see distances" },
-  kmAway: { he: "ק״מ ממך", en: "km away" }
 };
 
 export default function Map({
@@ -89,10 +87,9 @@ export default function Map({
   const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [showRadiusMenu, setShowRadiusMenu] = useState(false);
   const [gpsEnabled, setGpsEnabled] = useState(true);
-
-  // 🌟 סטייט חדש: שולט אך ורק על הופעת הנקודה על המפה!
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
+  // 🌟 סטייט להצעות 
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -291,7 +288,7 @@ export default function Map({
       }
       setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
       setIsFollowing(true);
-      setShowLocationMarker(true); // אם נמצא דרך המפה (כפתור מיקום/רדיוס) - נציג אותו!
+      setShowLocationMarker(true);
     };
 
     const onMove = () => setIsFollowing(false);
@@ -348,10 +345,8 @@ export default function Map({
       }
     });
 
-    // 🌟 כאן נכנס התנאי החשוב: אל תצייר שום דבר אם showLocationMarker הוא שקר!
     if (!map || !userLocation || !showLocationMarker) return;
 
-    // 🌟 נקודת מיקום עדינה ומודרנית במקום הנעץ המכוער הקודם
     const userPinIcon = L.divIcon({
       html: `
         <div style="position: relative; width: 14px; height: 14px; transform: translate(-50%, -50%);">
@@ -391,47 +386,24 @@ export default function Map({
     searchQuery,
   });
 
-  const handleOpenSuggestions = async () => {
-    setIsSuggestionsOpen(true);
-    
-    if (suggestions.length === 0) {
-      setIsLoadingSuggestions(true);
+  const fetchSuggestions = async () => {
+    setIsLoadingSuggestions(true);
+    try {
+      const res = await fetch("/api/suggestions"); 
+      const data = await res.json();
+      setSuggestions(data);
+    } catch (err) {
+      console.error("Failed to fetch suggestions", err);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
 
-      const fetchSuggestionsData = async (lat?: number, lng?: number) => {
-        try {
-          let url = "/api/suggestions";
-          if (lat !== undefined && lng !== undefined) {
-            url += `?lat=${lat}&lng=${lng}`;
-          }
-          const res = await fetch(url);
-          const data = await res.json();
-          setSuggestions(data);
-        } catch (err) {
-          console.error("Failed to fetch suggestions", err);
-        } finally {
-          setIsLoadingSuggestions(false);
-        }
-      };
-
-      if (userLocation) {
-        await fetchSuggestionsData(userLocation.lat, userLocation.lng);
-      } else if (gpsEnabled && "geolocation" in navigator) {
-        // הבקשה שקטה לא תפעיל את המרקר כי לא קראנו ל- setShowLocationMarker(true)
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            setUserLocation({ lat: latitude, lng: longitude }); 
-            fetchSuggestionsData(latitude, longitude);
-          },
-          (error) => {
-            console.warn("User denied or GPS failed in suggestions:", error);
-            fetchSuggestionsData(); 
-          },
-          { enableHighAccuracy: true, timeout: 6000 }
-        );
-      } else {
-        await fetchSuggestionsData();
-      }
+  const toggleSuggestions = () => {
+    const newState = !isSuggestionsOpen;
+    setIsSuggestionsOpen(newState);
+    if (newState && suggestions.length === 0) {
+      fetchSuggestions();
     }
   };
 
@@ -443,8 +415,14 @@ export default function Map({
     router.push(`/?point=${pointId}`, { scroll: false });
   };
 
+  const isHe = lang === 'he';
+  // אם סגור - זורקים הכל החוצה. אם פתוח - חוזר למיקום ה-0 הראשי.
+  const drawerTransform = isSuggestionsOpen 
+    ? "translateX(0)" 
+    : isHe ? "translateX(100%)" : "translateX(-100%)";
+
   return (
-    <div className={`relative w-full h-full ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
+    <div className={`relative w-full h-full overflow-hidden ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
       <div
         ref={mapRef}
         className="w-full h-full min-h-[50vh] rounded-2xl overflow-hidden bg-black relative"
@@ -606,7 +584,6 @@ export default function Map({
         />
       )}
 
-      {/* GPS Button */}
       <button
         onClick={() => {
           if (!map) return;
@@ -619,7 +596,7 @@ export default function Map({
           if (isFollowing) {
             map.setView([31.7683, 35.2137], 3);
             setIsFollowing(false);
-            setShowLocationMarker(false); // 🌟 נעלים את הנקודה כשלוחצים "זום אאוט"
+            setShowLocationMarker(false);
           } else {
             setIsLocating(true);
             map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
@@ -644,7 +621,6 @@ export default function Map({
         )}
       </button>
 
-      {/* Radius Menu */}
       <div className="absolute bottom-6 left-[68px] z-[400] flex flex-col-reverse items-start gap-2">
         <button
           onClick={() => {
@@ -688,7 +664,7 @@ export default function Map({
                 onClick={() => { 
                   setFilterRadius(dist); 
                   setShowRadiusMenu(false);
-                  setShowLocationMarker(true); // 🌟 נראה את הנקודה כדי להבין את מרכז הרדיוס!
+                  setShowLocationMarker(true);
                 }}
                 className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
               >
@@ -699,23 +675,16 @@ export default function Map({
         )}
       </div>
 
-      {/* 🌟 כפתור ההצעות */}
-      <button
-        onClick={handleOpenSuggestions}
-        className={`absolute bottom-6 ${lang === 'he' ? 'right-[24px]' : 'right-[24px]'} z-[400] bg-gray-900 border border-yellow-500 text-yellow-500 p-2.5 rounded-full shadow-lg hover:bg-gray-800 hover:scale-105 transition-all`}
-        title={tMap.suggestionsTitle[lang]}
+      {/* 🌟 המגירה החדשה - רוחב של 85% מהמסך + ידית דקה ללא כיתוב */}
+      <div 
+        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} w-[85%] transition-transform duration-500 ease-in-out pointer-events-none`}
+        style={{ transform: drawerTransform }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-        </svg>
-      </button>
-
-      {/* 🌟 תפריט ההצעות - עיצוב כרטיסיות יוקרתי */}
-      {isSuggestionsOpen && (
-        <div dir={lang === 'he' ? 'rtl' : 'ltr'} className={`absolute top-4 bottom-4 ${lang === 'he' ? 'right-4' : 'left-4'} z-[500] w-[calc(100%-2rem)] md:w-[22rem] bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl flex flex-col overflow-hidden`}>
+        {/* תוכן המגירה - כעת תופס את כל רוחב ה-85% */}
+        <div dir={isHe ? 'rtl' : 'ltr'} className="w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col pointer-events-auto relative">
           <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80">
             <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
-            <button onClick={() => setIsSuggestionsOpen(false)} className="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-full p-1.5 transition">
+            <button onClick={toggleSuggestions} className="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-full p-1.5 transition md:hidden">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -733,15 +702,10 @@ export default function Map({
                 <p className="font-medium">{tMap.noSuggestions[lang]}</p>
               </div>
             ) : (
-              <>
-                {!userLocation && gpsEnabled && (
-                  <div className="text-sm text-center font-medium text-gray-400 bg-gray-800/80 p-3 rounded-xl mb-2 border border-gray-700">
-                    📍 {tMap.enableLocTip[lang]}
-                  </div>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {suggestions.map((point) => {
-                  const pointName = lang === 'he' ? point.name : (point.name_en || point.name);
-                  const pointDesc = lang === 'he' ? point.description : (point.description_en || point.description);
+                  const pointName = isHe ? point.name : (point.name_en || point.name);
+                  const pointDesc = isHe ? point.description : (point.description_en || point.description);
                   
                   return (
                     <div 
@@ -755,13 +719,6 @@ export default function Map({
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                              <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
-                          </div>
-                        )}
-                        
-                        {point.distanceKm !== undefined && (
-                          <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-yellow-400 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-yellow-500/30 shadow-lg flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                            {point.distanceKm.toFixed(1)} {tMap.kmAway[lang]}
                           </div>
                         )}
                       </div>
@@ -784,8 +741,36 @@ export default function Map({
                     </div>
                   );
                 })}
-              </>
+              </div>
             )}
+          </div>
+        </div>
+
+        {/* 🌟 הלשונית החיצונית - דקה ואלגנטית, ללא טקסט, כמו ידית! */}
+        <div 
+          onClick={toggleSuggestions}
+          className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'right-full' : 'left-full'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-[${isHe ? '-4px' : '4px'}_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
+        >
+          {/* אייקון קטן של חץ או קווים כדי לסמן שזו ידית */}
+          <div className={`flex flex-col gap-1 ${isHe ? 'mr-0.5' : 'ml-0.5'}`}>
+            <div className="w-1 h-1 bg-black/60 rounded-full"></div>
+            <div className="w-1 h-1 bg-black/60 rounded-full"></div>
+            <div className="w-1 h-1 bg-black/60 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🌟 האזור השקוף הסוגר את המגירה כשלוחצים עליו (15% הנותרים) */}
+      {isSuggestionsOpen && (
+        <div 
+          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[15%] z-[490] bg-black/40 backdrop-blur-sm cursor-pointer transition-opacity flex items-center justify-center`}
+          onClick={() => setIsSuggestionsOpen(false)}
+        >
+          {/* כפתור אפור/שקוף שרומז "לחץ לחזרה למפה" */}
+          <div className="bg-gray-800/80 rounded-full p-3 shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isHe ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
+            </svg>
           </div>
         </div>
       )}
