@@ -19,7 +19,7 @@ const getPersistedViewed = () => {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('jseed_viewed_points');
     if (stored) {
-      try { return new Set<number>(JSON.parse(stored)); } catch (e) {}
+      try { return new Set<number>(JSON.parse(stored)); } catch (e) { }
     }
   }
   return new Set<number>();
@@ -70,36 +70,36 @@ function createGroupedIcon(category: string, isViewed: boolean, zoom: number, co
 }
 
 function createArc(startLat: number, startLng: number, endLat: number, endLng: number) {
-    const latlngs: L.LatLngExpression[] = [];
-    const numPoints = 50; 
-    
-    const midLat = (startLat + endLat) / 2;
-    const midLng = (startLng + endLng) / 2;
-    
-    const dLat = endLat - startLat;
-    const dLng = endLng - startLng;
-    const distance = Math.sqrt(dLat * dLat + dLng * dLng);
-    
-    const curveOffset = distance * 0.2; 
-    
-    const perpLat = -dLng;
-    const perpLng = dLat;
-    const length = Math.sqrt(perpLat * perpLat + perpLng * perpLng);
-    
-    const controlLat = midLat + (perpLat / length) * curveOffset;
-    const controlLng = midLng + (perpLng / length) * curveOffset;
+  const latlngs: L.LatLngExpression[] = [];
+  const numPoints = 50;
 
-    for (let i = 0; i <= numPoints; i++) {
-        const t = i / numPoints;
-        const u = 1 - t;
-        
-        const lat = u * u * startLat + 2 * u * t * controlLat + t * t * endLat;
-        const lng = u * u * startLng + 2 * u * t * controlLng + t * t * endLng;
-        
-        latlngs.push([lat, lng]);
-    }
-    
-    return latlngs;
+  const midLat = (startLat + endLat) / 2;
+  const midLng = (startLng + endLng) / 2;
+
+  const dLat = endLat - startLat;
+  const dLng = endLng - startLng;
+  const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+
+  const curveOffset = distance * 0.2;
+
+  const perpLat = -dLng;
+  const perpLng = dLat;
+  const length = Math.sqrt(perpLat * perpLat + perpLng * perpLng);
+
+  const controlLat = midLat + (perpLat / length) * curveOffset;
+  const controlLng = midLng + (perpLng / length) * curveOffset;
+
+  for (let i = 0; i <= numPoints; i++) {
+    const t = i / numPoints;
+    const u = 1 - t;
+
+    const lat = u * u * startLat + 2 * u * t * controlLat + t * t * endLat;
+    const lng = u * u * startLng + 2 * u * t * controlLng + t * t * endLng;
+
+    latlngs.push([lat, lng]);
+  }
+
+  return latlngs;
 }
 
 export function useMapMarkers({ map, points, activeCategory, viewedIds = [], savedIds = [], lang = "he", searchQuery = "" }: Props) {
@@ -213,14 +213,17 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       waText: isHe ? "תראו איזה Seed מצאתי ב-JSeed! 🌱" : "Check out this Seed I found on JSeed! 🌱",
       participants: isHe ? "משתתפים" : "Participants",
       zoomInText: isHe ? "הגדל טקסט" : "Increase text size",
-      zoomOutText: isHe ? "הקטן טקסט" : "Decrease text size"
+      zoomOutText: isHe ? "הקטן טקסט" : "Decrease text size",
+      commentsTitle: isHe ? "תגובות" : "Comments",
+      addCommentPlaceholder: isHe ? "הכתוב תגובה..." : "Write a comment...",
+      send: isHe ? "שלח" : "Send",
+      loginToComment: isHe ? "יש להתחבר כדי להגיב" : "Log in to comment"
     };
 
     L.DomEvent.disableClickPropagation(container);
     L.DomEvent.disableScrollPropagation(container);
 
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
-
     const isChai = point.category === "chai";
 
     const headerHtml = `
@@ -236,10 +239,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    const imagesList = point.imageUrls && point.imageUrls.length > 0 
-      ? point.imageUrls 
+    const imagesList = point.imageUrls && point.imageUrls.length > 0
+      ? point.imageUrls
       : (point.imageUrl ? [point.imageUrl] : []);
-    
+
     const imagesJsonStr = JSON.stringify(imagesList).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
     let imageHtml = "";
@@ -251,13 +254,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       imageHtml = `
         <div class="point-image-container" style="position: relative; width: 100%; aspect-ratio: 9/16; max-height: 280px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
           ${imagesList.map((src, i) => `
-            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100\%; height: 100\%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
+            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
           `).join('')}
           <button class="carousel-prev-${point.id}" style="position: absolute; ${isHe ? 'left' : 'right'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❮' : '❯'}</button>
           <button class="carousel-next-${point.id}" style="position: absolute; ${isHe ? 'right' : 'left'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❯' : '❮'}</button>
           <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: ${isHe ? 'row-reverse' : 'row'};">
             ${imagesList.map((_, i) => `
-              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50\%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
+              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
             `).join('')}
           </div>
         </div>
@@ -280,9 +283,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           </div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> <span dir="auto">${display(point.address)}</span></div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
-          ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
-          : "-"
-        }</div>
+        ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
+        : "-"
+      }</div>
         </div>
         
         <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
@@ -315,16 +318,135 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
         </div>
 
-        <div style="display: flex; justify-content: space-around; margin-top: 12px; padding-top: 10px; border-top: 1px solid #374151;">
+        <!-- 🌟 אזור תגובות חדש ויפהפה -->
+        <div style="margin-top: 10px; border-top: 1px solid #374151; padding-top: 8px;">
+          <button class="toggle-comments-btn" style="background: rgba(255,255,255,0.05); border: 1px solid #374151; color: #fbbf24; border-radius: 8px; width: 100%; padding: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            💬 ${t.commentsTitle} (<span class="comments-count">...</span>)
+          </button>
+          
+          <div class="comments-section" style="display: none; margin-top: 8px; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 6px;">
+            <div class="comments-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+              <div style="color: #9ca3af; font-size: 12px; text-align: center;">טוען תגובות...</div>
+            </div>
+            
+            <div style="display: flex; gap: 4px;">
+              <input type="text" class="new-comment-input" placeholder="${t.addCommentPlaceholder}" style="flex: 1; background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 12px; color: white; outline: none;" />
+              <button class="send-comment-btn" style="background: #fbbf24; border: none; color: black; font-weight: bold; padding: 0 10px; border-radius: 6px; font-size: 12px; cursor: pointer;">${t.send}</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid #374151;">
          <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="${t.nav}">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
-          </a>
+         </a>
           <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 20px;" title="${t.shareTip}">💬</a>
           <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.copyTip}">🔗</button>
           <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.reportTip}">🚩</button>
         </div>
       </div>
     `;
+
+    // 🌟 לוגיקה לטעינה והצגה של תגובות
+    const toggleCommentsBtn = container.querySelector(".toggle-comments-btn") as HTMLButtonElement;
+    const commentsSection = container.querySelector(".comments-section") as HTMLElement;
+    const commentsList = container.querySelector(".comments-list") as HTMLElement;
+    const commentsCountSpan = container.querySelector(".comments-count") as HTMLSpanElement;
+    const commentInput = container.querySelector(".new-comment-input") as HTMLInputElement;
+    const sendCommentBtn = container.querySelector(".send-comment-btn") as HTMLButtonElement;
+
+    let commentsLoaded = false;
+
+    const fetchComments = async () => {
+      try {
+        const res = await fetch(`/api/comments?pointId=${point.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          commentsCountSpan.innerText = data.length;
+          commentsList.innerHTML = "";
+
+          if (data.length === 0) {
+            commentsList.innerHTML = `<div style="color: #9ca3af; font-size: 11px; text-align: center; padding: 4px;">אין עדיין תגובות. היה הראשון להגיב!</div>`;
+          } else {
+            data.forEach((c: any) => {
+              const item = document.createElement("div");
+              item.style.cssText = "background: #111827; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 11px;";
+              item.innerHTML = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                  <strong style="color: #fbbf24;">${c.user?.name || 'משתמש'}</strong>
+                  <span style="color: #6b7280; font-size: 9px;">${new Date(c.createdAt).toLocaleDateString('he-IL')}</span>
+                </div>
+                <div style="color: #e5e7eb; word-break: break-word;">${c.content}</div>
+              `;
+              commentsList.appendChild(item);
+            });
+          }
+        }
+      } catch (err) {
+        commentsList.innerHTML = `<div style="color: #ef4444; font-size: 11px; text-align: center;">שגיאה בטעינת תגובות</div>`;
+      }
+    };
+
+    // טעינת כמות תגובות ראשונית בלבד
+    fetch(`/api/comments?pointId=${point.id}`)
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) commentsCountSpan.innerText = String(data.length); })
+      .catch(() => commentsCountSpan.innerText = "0");
+
+    if (toggleCommentsBtn && commentsSection) {
+      toggleCommentsBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = commentsSection.style.display === "block";
+        commentsSection.style.display = isOpen ? "none" : "block";
+        if (!isOpen && !commentsLoaded) {
+          fetchComments();
+          commentsLoaded = true;
+        }
+      };
+    }
+
+    const postComment = async () => {
+      const content = commentInput.value.trim();
+      if (!content) return;
+
+      sendCommentBtn.setAttribute("disabled", "true");
+      try {
+        const res = await fetch("/api/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pointId: point.id, content })
+        });
+
+        if (res.ok) {
+          commentInput.value = "";
+          fetchComments(); // רענון הרשימה
+        } else {
+          alert(t.loginReq);
+        }
+      } catch (err) {
+        alert(t.loginReq);
+      } finally {
+        sendCommentBtn.removeAttribute("disabled");
+      }
+    };
+
+    if (sendCommentBtn) {
+      sendCommentBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        postComment();
+      };
+    }
+
+    if (commentInput) {
+      commentInput.onclick = (e) => e.stopPropagation();
+      commentInput.onkeydown = (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") postComment();
+      };
+    }
+
 
     // 🌟 הוספת מנגנון הגדלת והקטנת הטקסט
     let currentFontSize = 14;
@@ -496,7 +618,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             category: "chai",
             lat: point.latitude,
             lng: point.longitude,
-            parentId: point.id 
+            parentId: point.id
           }
         }));
       };
@@ -533,7 +655,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       const rootPointsMap = new Map<string, Point>();
       Object.entries(chaiGroups).forEach(([nameKey, group]) => {
         if (group.length > 0) {
-          group.sort((a, b) => Number(a.id) - Number(b.id)); 
+          group.sort((a, b) => Number(a.id) - Number(b.id));
           rootPointsMap.set(nameKey, group[0]);
         }
       });
@@ -544,7 +666,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
           if (child.parentId) {
             parent = pointsMap.get(child.parentId);
-          } 
+          }
           else {
             const nameKey = (child.name || "").trim().toLowerCase();
             const root = rootPointsMap.get(nameKey);
@@ -555,12 +677,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
           if (parent) {
             if (parent.latitude !== child.latitude || parent.longitude !== child.longitude) {
-              
+
               const arcLatLngs = createArc(parent.latitude, parent.longitude, child.latitude, child.longitude);
 
               const thread = L.polyline(arcLatLngs, {
                 color: '#fbbf24',
-                weight: 1.5, 
+                weight: 1.5,
                 opacity: 0.8,
                 lineCap: 'round',
                 lineJoin: 'round',
@@ -730,15 +852,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const mapWidth = map.getSize().x;
           const mapHeight = map.getSize().y;
 
-          let direction = "up"; 
-          
+          let direction = "up";
+
           if (pt.y < mapHeight * 0.55) {
-             direction = "down"; 
+            direction = "down";
           }
           if (pt.x > mapWidth * 0.65) {
-             direction = "left";
+            direction = "left";
           } else if (pt.x < mapWidth * 0.35) {
-             direction = "right";
+            direction = "right";
           }
 
           popupContentWrapper.className = `jseed-custom-modal jseed-modal-${direction}`;
@@ -756,7 +878,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             }
           }
           marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
-          
+
           marker.openPopup();
         });
 
@@ -781,9 +903,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const popup = targetMarker.getPopup();
           const content = popup?.getContent();
           if (content) {
-             const wrapper = content as HTMLElement;
-             wrapper.className = "jseed-custom-modal jseed-modal-up";
-             targetMarker.openPopup();
+            const wrapper = content as HTMLElement;
+            wrapper.className = "jseed-custom-modal jseed-modal-up";
+            targetMarker.openPopup();
           }
         }, 500);
         window.history.replaceState({}, '', window.location.pathname);

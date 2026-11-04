@@ -28,6 +28,7 @@ model User {
   notifications Notification[]
   platform      String?   @default("WEB")
   country       String?
+  comments Comment[]
 }
 
 model Account {
@@ -93,6 +94,7 @@ model Point {
   children       Point[]  @relation("PointToPoint")
   // 🌟 העמודה החדשה שלנו למוח ה-AI המורחב! 🌟
   aiMetadata     Json?
+  comments Comment[]
 }
 
 model ViewedPoint {
@@ -146,4 +148,16 @@ model PasswordResetToken {
   expires DateTime
 
   @@unique([email, token])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  
+  pointId   Int
+  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
