@@ -26,7 +26,7 @@ const CATEGORY_META: Record<string, { label: string; subLabel: string; icon: str
 export default async function AdminDashboard({
     searchParams
 }: {
-    searchParams: Promise<{ q?: string; sort?: string; cat?: string; rangeType?: string; offset?: string }>
+    searchParams: Promise<{ q?: string; sort?: string; cat?: string; rangeType?: string; offset?: string; showUser?: string }>
 }) {
     const session = await auth();
 
@@ -46,6 +46,7 @@ export default async function AdminDashboard({
     const searchQuery = resolvedSearchParams?.q?.trim() || "";
     const sortMode = resolvedSearchParams?.sort || "";
     const filterCat = resolvedSearchParams?.cat || "";
+    const showUserId = resolvedSearchParams?.showUser || "";
     
     // 🌟 סוג הטווח והאופסט (היסטוריה אחורה)
     const rangeType = resolvedSearchParams?.rangeType || "week"; // week, month, year
@@ -63,6 +64,19 @@ export default async function AdminDashboard({
     // מסננים לפי תאריך יצירה ועדכון
     const pointDateFilter = { createdAt: { gte: startDate, lt: endDate } };
     const userDateFilter = { updatedAt: { gte: startDate, lt: endDate } };
+
+    // 🌟 שליפת פרטי משתמש ספציפי למודאל (אם נבחר)
+    let modalUser = null;
+    if (showUserId) {
+        modalUser = await prisma.user.findUnique({
+            where: { id: showUserId },
+            include: {
+                points: {
+                    orderBy: { createdAt: "desc" }
+                }
+            }
+        });
+    }
 
     // 🌟 סטטיסטיקות משתמשים וזמנים
     const totalUsers = await prisma.user.count({ where: userDateFilter });
@@ -91,7 +105,7 @@ export default async function AdminDashboard({
     const onlineVisitors = await prisma.visitor.count({ where: { updatedAt: { gte: fiveMinutesAgo } } });
     const totalOnlineNow = onlineUsers + onlineVisitors;
 
-    // 🌟 שליפת גרעינים (רק שמירות וצפיות מהתקופה הזו נספרות)
+    // 🌟 שליפת גרעינים
     const allPointsWithStats = await prisma.point.findMany({
         include: {
             user: { select: { id: true, name: true, email: true } },
@@ -156,7 +170,7 @@ export default async function AdminDashboard({
         return { ...item, meta: CATEGORY_META[k], uniqueUsers: item.uniqueUsersSet.size, percentage };
     });
 
-    // 🌟 בניית הגרף (מחזור על הימים בטווח)
+    // 🌟 בניית הגרף
     const dayNamesHe = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
     const chartData: { label: string; dateStr: string; count: number; fullDate: Date }[] = [];
     
@@ -265,6 +279,7 @@ export default async function AdminDashboard({
     // פונקציות ליצירת קישורים (URL Builders)
     const getRangeUrl = (newRange: string) => `/admin?rangeType=${newRange}&offset=0&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
     const getOffsetUrl = (newOffset: number) => `/admin?rangeType=${rangeType}&offset=${newOffset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
+    const getCloseModalUrl = () => `/admin?rangeType=${rangeType}&offset=${offset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
 
     const avgTimeRingPercent = Math.min(100, Math.round((Number(avgSessionMins) / 15) * 100));
 
@@ -285,7 +300,6 @@ export default async function AdminDashboard({
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-                    {/* חצי ניווט היסטוריה אחורה וקדימה */}
                     <div className="flex items-center gap-2 shrink-0">
                         <Link href={getOffsetUrl(offset + 1)} className="bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm font-bold" title={`ל${labelHe} הקודם`}>
                             ← הקודם
@@ -321,9 +335,7 @@ export default async function AdminDashboard({
             </div>
 
             <div className="max-w-7xl mx-auto space-y-8">
-                {/* ========================================== */}
                 {/* 🌟 שורה 1: מדדי ליבה מרכזיים */}
-                {/* ========================================== */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                     <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-green-500/40 p-5 rounded-2xl relative shadow-[0_0_25px_rgba(34,197,94,0.08)] flex flex-col justify-between">
                         <div className="flex justify-between items-center">
@@ -389,9 +401,7 @@ export default async function AdminDashboard({
                     </div>
                 </div>
 
-                {/* ========================================== */}
                 {/* 🌟 שורה 2: חלונית מדינות (Top 5 + All) */}
-                {/* ========================================== */}
                 <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-blue-500/30 rounded-2xl p-6 shadow-xl">
                     <h2 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
                         <span>🌍</span> תפוצת משתמשים לפי מדינות ({labelHe} נבחר)
@@ -431,9 +441,7 @@ export default async function AdminDashboard({
                     )}
                 </div>
 
-                {/* ========================================== */}
                 {/* 🌟 שורה 3: קטגוריות וגרף דינמי */}
-                {/* ========================================== */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-7 bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl flex flex-col justify-between overflow-hidden">
                         <div>
@@ -477,8 +485,6 @@ export default async function AdminDashboard({
                             <h2 className="text-lg font-bold text-yellow-400">גרף אינטראקציות יומי</h2>
                             <p className="text-xs text-gray-400 mb-6">צפיות ושמירות לאורך התקופה ({chartData.length} ימים)</p>
                         </div>
-
-                        {/* תוספת: overflow-x-auto לגרף כדי לאפשר גלילה במקרה של שנה שלמה */}
                         <div className="flex items-end justify-start gap-1 h-56 pt-8 pb-2 px-1 border-b border-gray-800 overflow-x-auto overflow-y-hidden snap-x custom-scrollbar">
                             {chartData.map((day, idx) => {
                                 const heightPercent = Math.max(8, Math.round((day.count / maxDailyCount) * 100));
@@ -501,9 +507,7 @@ export default async function AdminDashboard({
                     </div>
                 </div>
 
-                {/* ========================================== */}
                 {/* 🌟 שורה 4: מנוע חיפוש ודירוג גרעינים (Data Explorer) */}
-                {/* ========================================== */}
                 <div id="seed-explorer" className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                         <div>
@@ -561,7 +565,14 @@ export default async function AdminDashboard({
                                                     </div>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400 pt-1">
                                                         <div>📍 {p.address || "סומן במפה"}</div>
-                                                        <div>👤 {p.user?.name || "ללא שם"}</div>
+                                                        {p.userId ? (
+                                                            <Link href={`?rangeType=${rangeType}&offset=${offset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}&showUser=${p.userId}#seed-explorer`} className="hover:text-yellow-400 transition flex items-center flex-wrap gap-1">
+                                                                <span>👤 {p.user?.name || "ללא שם"}</span>
+                                                                {p.user?.email && <span className="text-gray-500">({p.user.email})</span>}
+                                                            </Link>
+                                                        ) : (
+                                                            <div>👤 ללא שם (אורח)</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -585,9 +596,7 @@ export default async function AdminDashboard({
                     )}
                 </div>
 
-                {/* ========================================== */}
                 {/* 🌟 שורה 5: טבלת משתמשים */}
-                {/* ========================================== */}
                 <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
                     <h2 className="text-xl font-bold text-yellow-400 mb-4">👥 משתמשים פעילים בתקופה</h2>
                     <div className="overflow-x-auto border border-gray-800 rounded-xl">
@@ -595,7 +604,7 @@ export default async function AdminDashboard({
                             <thead>
                                 <tr className="bg-black/60 border-b border-gray-800 text-yellow-500 text-xs">
                                     <th className="p-4">סטטוס</th>
-                                    <th className="p-4">שם</th>
+                                    <th className="p-4">שם ומייל</th>
                                     <th className="p-4 text-center">מדינה</th>
                                     <th className="p-4">פלטפורמה</th>
                                     <th className="p-4 text-center">גרעינים שיצר</th>
@@ -612,7 +621,12 @@ export default async function AdminDashboard({
                                                 <span className="text-gray-500 text-xs">לא מקוון</span>
                                             )}
                                         </td>
-                                        <td className="p-4 font-bold text-white">{u.name || "ללא שם"}</td>
+                                        <td className="p-4">
+                                            <Link href={`?rangeType=${rangeType}&offset=${offset}&showUser=${u.id}`} className="hover:text-yellow-400 transition block">
+                                                <div className="font-bold text-white">{u.name || "ללא שם"}</div>
+                                                {u.email && <div className="text-gray-500 text-[10px]">{u.email}</div>}
+                                            </Link>
+                                        </td>
                                         <td className="p-4 text-center text-xl">{getFlagEmoji(u.country)}</td>
                                         <td className="p-4 text-xs">{u.platform === "PWA" ? "📱 אפליקציה" : "💻 אתר"}</td>
                                         <td className="p-4 text-center font-bold text-white">{u._count.points}</td>
@@ -626,8 +640,53 @@ export default async function AdminDashboard({
 
             </div>
             
+            {/* 🌟 מודאל פרטי משתמש (מוצג כאשר יש showUser ב-URL) */}
+            {modalUser && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-[#141418] border border-yellow-500/50 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl relative p-6 custom-scrollbar">
+                        <Link href={getCloseModalUrl()} className="absolute top-4 left-4 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 p-2 rounded-full leading-none transition">
+                            ✕
+                        </Link>
+                        
+                        <div className="flex items-center gap-4 mb-6 border-b border-gray-800 pb-5">
+                            <div className="text-5xl">{getFlagEmoji(modalUser.country)}</div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-yellow-400">{modalUser.name || "ללא שם"}</h3>
+                                <p className="text-gray-300">{modalUser.email}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="mb-4 flex items-center justify-between">
+                            <h4 className="text-lg font-bold text-white">גרעינים שהעלה ({modalUser.points.length})</h4>
+                        </div>
+                        
+                        {modalUser.points.length === 0 ? (
+                            <p className="text-gray-500 text-sm bg-black/30 p-4 rounded-xl border border-gray-800 text-center">
+                                משתמש זה עדיין לא העלה גרעינים.
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                {modalUser.points.map(mp => (
+                                    <div key={mp.id} className="bg-black/50 border border-gray-800 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-yellow-500/30 transition">
+                                        <div>
+                                            <div className="font-bold text-white text-sm">{mp.name}</div>
+                                            <div className="text-xs text-gray-500 mt-1">נוצר ב: {new Date(mp.createdAt).toLocaleDateString('he-IL')}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-xs bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-lg text-gray-300">
+                                                {CATEGORY_META[mp.category]?.label || mp.category}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{__html: `
-                .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+                .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.3); border-radius: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(251,191,36,0.6); }

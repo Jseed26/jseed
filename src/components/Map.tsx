@@ -878,7 +878,7 @@ export default function Map({
 
       {isSuggestionsOpen && hasStarted && (
         <div 
-          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[5%] z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
+          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[85%] z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
           onClick={() => {
             setIsSuggestionsOpen(false);
             setTimeout(() => setSelectedSuggestion(null), 300); 
