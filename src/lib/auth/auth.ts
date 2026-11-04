@@ -65,7 +65,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     const lowerEmail = user.email.toLowerCase();
 
                     // מושכים את השם שהמשתמש הקליד אצלנו מתוך העוגיות
-                    const cookieStore = cookies();
+                    // שׂימי את זה:
+                    const cookieStore = await cookies();
                     const desiredName = cookieStore.get("jseed_desired_name")?.value;
 
                     // מעדכנים את המשתמש הקיים/החדש במסד עם אותיות קטנות ועם השם הרצוי
