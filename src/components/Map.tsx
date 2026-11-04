@@ -52,6 +52,10 @@ const tMap = {
   suggestionsTitle: { he: "לגלות עולמות", en: "Discover Worlds" },
   loadingSuggestions: { he: "טוען רעיונות...", en: "Loading ideas..." },
   noSuggestions: { he: "לא מצאנו הצעות כרגע", en: "No suggestions right now" },
+  backToList: { he: "חזרה להצעות", en: "Back to list" },
+  navigate: { he: "ניווט לשם", en: "Navigate there" },
+  visitLink: { he: "לאתר הבית", en: "Visit Website" },
+  takeMeThere: { he: "קח אותי לנקודה", en: "Take me to point" }
 };
 
 export default function Map({
@@ -89,10 +93,11 @@ export default function Map({
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
-  // 🌟 סטייט להצעות 
+  // 🌟 סטייט להצעות + סטייט לשמירת הנקודה שנבחרה לפופ-אפ הפנימי
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
 
   useEffect(() => {
     const checkGps = () => {
@@ -405,18 +410,24 @@ export default function Map({
     if (newState && suggestions.length === 0) {
       fetchSuggestions();
     }
+    // כשהמגירה נסגרת, מאפסים את הפירוט הפנימי כדי שמחר נראה את הפיד
+    if (!newState) {
+      setSelectedSuggestion(null);
+    }
   };
 
-  const handleSuggestionClick = (pointId: number, lat: number, lng: number) => {
-    setIsSuggestionsOpen(false);
-    if (map) {
-      map.setView([lat, lng], 16);
-    }
-    router.push(`/?point=${pointId}`, { scroll: false });
+  // 🌟 לחיצה על נקודה תפתח לה את מסך המידע הפנימי במגירה!
+  const handleSuggestionClick = (point: any) => {
+    setSelectedSuggestion(point);
+    fetch("/api/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pointId: point.id }),
+    }).catch(() => {});
   };
 
   const isHe = lang === 'he';
-  // אם סגור - זורקים הכל החוצה. אם פתוח - חוזר למיקום ה-0 הראשי.
+  // 🌟 המגירה יוצאת מהצד הנכון
   const drawerTransform = isSuggestionsOpen 
     ? "translateX(0)" 
     : isHe ? "translateX(100%)" : "translateX(-100%)";
@@ -675,83 +686,163 @@ export default function Map({
         )}
       </div>
 
-      {/* 🌟 המגירה החדשה - רוחב של 85% מהמסך + ידית דקה ללא כיתוב */}
+      {/* =========================================
+          🌟 המגירה הגדולה (95% רוחב)
+          ========================================= */}
       <div 
-        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} w-[85%] transition-transform duration-500 ease-in-out pointer-events-none`}
+        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} w-[95%] transition-transform duration-500 ease-in-out pointer-events-none`}
         style={{ transform: drawerTransform }}
       >
-        {/* תוכן המגירה - כעת תופס את כל רוחב ה-85% */}
-        <div dir={isHe ? 'rtl' : 'ltr'} className="w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col pointer-events-auto relative">
-          <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80">
-            <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
-            <button onClick={toggleSuggestions} className="text-gray-400 hover:text-white bg-gray-700/50 hover:bg-gray-600 rounded-full p-1.5 transition md:hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div dir={isHe ? 'rtl' : 'ltr'} className={`w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col pointer-events-auto relative border-${isHe ? 'l' : 'r'} border-gray-700/50`}>
           
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-5">
-            {isLoadingSuggestions ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
-                <p className="font-medium">{tMap.loadingSuggestions[lang]}</p>
+          {/* תצוגה 1: רשימת ההצעות - 1 עמודות בטלפון, 3 במחשב! */}
+          {!selectedSuggestion ? (
+            <>
+              <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80">
+                <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
               </div>
-            ) : suggestions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center px-4">
-                <p className="font-medium">{tMap.noSuggestions[lang]}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {suggestions.map((point) => {
-                  const pointName = isHe ? point.name : (point.name_en || point.name);
-                  const pointDesc = isHe ? point.description : (point.description_en || point.description);
-                  
-                  return (
-                    <div 
-                      key={point.id} 
-                      onClick={() => handleSuggestionClick(point.id, point.latitude, point.longitude)}
-                      className="group relative flex flex-col bg-gray-800/80 rounded-2xl overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
-                    >
-                      <div className="w-full h-40 bg-gray-950 relative">
-                        {point.imageUrls && point.imageUrls.length > 0 ? (
-                          <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                             <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
-                          </div>
-                        )}
-                      </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-5">
+                {isLoadingSuggestions ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                    <p className="font-medium">{tMap.loadingSuggestions[lang]}</p>
+                  </div>
+                ) : suggestions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center px-4">
+                    <p className="font-medium">{tMap.noSuggestions[lang]}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {suggestions.map((point) => {
+                      const pointName = isHe ? point.name : (point.name_en || point.name);
+                      const pointDesc = isHe ? point.description : (point.description_en || point.description);
+                      const hasImage = point.imageUrls && point.imageUrls.length > 0;
 
-                      <div className="p-4 flex flex-col gap-1.5">
-                        <h4 className="text-base font-bold text-white line-clamp-1">{pointName}</h4>
-                        
-                        {point.address && (
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            📍 <span className="line-clamp-1">{point.address}</span>
-                          </p>
-                        )}
-                        
-                        {pointDesc && (
-                          <p className="text-sm text-gray-300 line-clamp-2 mt-1 leading-relaxed">
-                            {pointDesc}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                      return (
+                        <div 
+                          key={point.id} 
+                          onClick={() => handleSuggestionClick(point)} // 🌟 מחליף פנימית למסך פירוט!
+                          className="group relative flex flex-col bg-gray-800/80 rounded-2xl overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
+                        >
+                          <div className={`w-full ${hasImage ? 'h-40' : 'h-24'} bg-gray-950 relative`}>
+                            {hasImage ? (
+                              <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                                 <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-10 h-10 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="p-4 flex flex-col gap-1.5">
+                            <h4 className="text-base font-bold text-white line-clamp-1">{pointName}</h4>
+                            {pointDesc && (
+                              <p className="text-sm text-gray-300 line-clamp-2 mt-1 leading-relaxed">
+                                {pointDesc}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            /* תצוגה 2: מסך פירוט פנימי לנקודה שנבחרה בתוך המגירה! */
+            <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
+              <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-gray-800/90 backdrop-blur-md border-b border-gray-700 shadow-md shrink-0">
+                <button 
+                  onClick={() => setSelectedSuggestion(null)} // כפתור "חזרה לרשימה"
+                  className="flex items-center gap-2 text-yellow-500 font-bold hover:text-yellow-400 transition"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isHe ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
+                  </svg>
+                  {tMap.backToList[lang]}
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="w-full h-64 bg-black relative shrink-0">
+                  {selectedSuggestion.imageUrls && selectedSuggestion.imageUrls.length > 0 ? (
+                    <img src={selectedSuggestion.imageUrls[0]} className="w-full h-full object-cover" alt="Point" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                      <img src={`/icons/categories/${selectedSuggestion.category}/active.png`} alt="category" className="w-16 h-16 opacity-50" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-5 flex flex-col gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white leading-tight">
+                      {isHe ? selectedSuggestion.name : (selectedSuggestion.name_en || selectedSuggestion.name)}
+                    </h2>
+                    {selectedSuggestion.address && (
+                      <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                        📍 {selectedSuggestion.address}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
+                     {isHe ? selectedSuggestion.description : (selectedSuggestion.description_en || selectedSuggestion.description) || "אין תיאור לגרעין זה."}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <a 
+                      href={`https://waze.com/ul?ll=${selectedSuggestion.latitude},${selectedSuggestion.longitude}&navigate=yes`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 bg-[#05c8f6]/10 border border-[#05c8f6]/30 text-[#05c8f6] font-bold py-2.5 rounded-xl hover:bg-[#05c8f6]/20 transition"
+                    >
+                      🚀 {tMap.navigate[lang]}
+                    </a>
+                    
+                    {selectedSuggestion.website ? (
+                      <a 
+                        href={selectedSuggestion.website}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-bold py-2.5 rounded-xl hover:bg-yellow-500/20 transition"
+                      >
+                        🔗 {tMap.visitLink[lang]}
+                      </a>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 bg-gray-800 border border-gray-700 text-gray-500 font-bold py-2.5 rounded-xl cursor-not-allowed">
+                        🔗 לא צורף קישור
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* 🌟 הכפתור קח אותי לנקודה שמטיס את המפה ופותח את הפופ-אפ! */}
+                  <button 
+                    onClick={() => {
+                      setIsSuggestionsOpen(false);
+                      setTimeout(() => setSelectedSuggestion(null), 300);
+                      if (map) {
+                        map.setView([selectedSuggestion.latitude, selectedSuggestion.longitude], 16);
+                      }
+                      router.push(`/?point=${selectedSuggestion.id}`, { scroll: false });
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-yellow-500 text-black font-bold py-2.5 rounded-xl hover:bg-yellow-400 transition shadow-lg mt-3"
+                  >
+                    🗺️ {tMap.takeMeThere[lang]}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 🌟 הלשונית החיצונית - דקה ואלגנטית, ללא טקסט, כמו ידית! */}
+        {/* =========================================
+            🌟 הלשונית החיצונית (הידית הזהובה המציצה) 
+            ========================================= */}
         <div 
           onClick={toggleSuggestions}
-          className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'right-full' : 'left-full'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-[${isHe ? '-4px' : '4px'}_0_15px_rgba(0,0,0,0.5)] flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
+          className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'left-[-20px]' : 'right-[-20px]'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-lg flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
         >
-          {/* אייקון קטן של חץ או קווים כדי לסמן שזו ידית */}
           <div className={`flex flex-col gap-1 ${isHe ? 'mr-0.5' : 'ml-0.5'}`}>
             <div className="w-1 h-1 bg-black/60 rounded-full"></div>
             <div className="w-1 h-1 bg-black/60 rounded-full"></div>
@@ -760,15 +851,20 @@ export default function Map({
         </div>
       </div>
 
-      {/* 🌟 האזור השקוף הסוגר את המגירה כשלוחצים עליו (15% הנותרים) */}
+      {/* =========================================
+          🌟 ה-5% הנותרים (החלק האפור) 
+          יושב בצד הנגדי למגירה וסוגר אותה!
+          ========================================= */}
       {isSuggestionsOpen && (
         <div 
-          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[15%] z-[490] bg-black/40 backdrop-blur-sm cursor-pointer transition-opacity flex items-center justify-center`}
-          onClick={() => setIsSuggestionsOpen(false)}
+          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} w-[5%] z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
+          onClick={() => {
+            setIsSuggestionsOpen(false);
+            setTimeout(() => setSelectedSuggestion(null), 300); 
+          }}
         >
-          {/* כפתור אפור/שקוף שרומז "לחץ לחזרה למפה" */}
-          <div className="bg-gray-800/80 rounded-full p-3 shadow-lg border border-gray-600 hover:bg-gray-700 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-gray-900/50 p-1 rounded-md text-gray-400 border border-gray-600/50">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isHe ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
             </svg>
           </div>
