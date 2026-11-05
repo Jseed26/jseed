@@ -49,7 +49,7 @@ const tMap = {
   pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" },
   cancelPick: { he: "ביטול חזרה", en: "Cancel Picking" },
   gpsDisabled: { he: "שירותי המיקום כבויים. ניתן להדליקם בהגדרות ב'אזור שלי'.", en: "Location services are disabled in settings." },
-  suggestionsTitle: { he: "SEEDS", en: "SEEDS" }, 
+  suggestionsTitle: { he: "SEEDS", en: "SEEDS" },
   loadingSuggestions: { he: "טוען רעיונות...", en: "Loading ideas..." },
   noSuggestions: { he: "לא מצאנו הצעות כרגע", en: "No suggestions right now" },
   backToList: { he: "חזרה להצעות", en: "Back to list" },
@@ -93,15 +93,13 @@ export default function Map({
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
-  // 🌟 סטייט למגירה
+  // 🌟 סטייט למגירה - מתחיל כרגיל פתוח למחצה (peek)
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('peek');
   const [hasStarted, setHasStarted] = useState(false);
   
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
-  
-  // 🌟 רפרנס להכלת ה-Popup שנוצר מ-useMapMarkers
   const suggestionNodeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -139,21 +137,24 @@ export default function Map({
     }
   }, [searchParams, router]);
 
-  // משיכת ההצעות מיד בפתיחה
+  // 🌟 לוגיקת SessionStorage חכמה! נטענת פעם אחת בלבד 
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      setIsLoadingSuggestions(true);
-      try {
-        const res = await fetch("/api/suggestions"); 
-        const data = await res.json();
-        setSuggestions(data);
-      } catch (err) {
-        console.error("Failed to fetch suggestions", err);
-      } finally {
-        setIsLoadingSuggestions(false);
+    if (typeof window !== "undefined") {
+      const isStarted = sessionStorage.getItem("jseed_app_started") === "true";
+      if (isStarted) {
+        // אם חזרנו לדף - סוגרים את המגירה ורושמים שהתחלנו
+        setHasStarted(true);
+        setDrawerMode('closed');
+      } else {
+        // אם זו הפעם הראשונה אי פעם - נמשוך רעיונות כדי להציג מיד ב-peek!
+        setIsLoadingSuggestions(true);
+        fetch("/api/suggestions")
+          .then(res => res.json())
+          .then(data => setSuggestions(data))
+          .catch(console.error)
+          .finally(() => setIsLoadingSuggestions(false));
       }
-    };
-    fetchSuggestions();
+    }
   }, []);
 
   useEffect(() => {
@@ -188,6 +189,18 @@ export default function Map({
 
     maptilerLayer.addTo(newMap);
     setMap(newMap);
+
+    // 🌟 אם חזרנו לדף (כבר התחלנו), נמקד את המפה ישר במדינה בלי "לטוס" לאט!
+    if (typeof window !== "undefined" && sessionStorage.getItem("jseed_app_started") === "true") {
+      fetch("https://ipapi.co/json/")
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.latitude && data.longitude) {
+            newMap.setView([data.latitude, data.longitude], 6);
+          }
+        })
+        .catch(() => {});
+    }
 
     return () => {
       if (mapInstanceRef.current) {
@@ -254,9 +267,13 @@ export default function Map({
     return () => window.removeEventListener("points-updated", refresh);
   }, [isLoggedIn]);
 
+  // 🌟 מתחיל את המסע ושומר ב-SessionStorage כדי שלא יקפוץ שוב בעתיד!
   const startUserJourney = () => {
     setHasStarted(true);
     setDrawerMode('closed');
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("jseed_app_started", "true");
+    }
     
     if (mapInstanceRef.current) {
       fetch("https://ipapi.co/json/")
@@ -418,7 +435,6 @@ export default function Map({
     }
   }, [map, userLocation, filterRadius, showLocationMarker]);
 
-  // 🌟 משיכת פונקציית יצירת ה-Popup המקורית מתוך ההוק
   const { createPopupNode } = useMapMarkers({
     map,
     points: filteredPoints,
@@ -431,7 +447,7 @@ export default function Map({
 
   const handleSuggestionClick = (point: any) => {
     if (!hasStarted) {
-      setHasStarted(true);
+      startUserJourney();
       setDrawerMode('open');
     }
     setSelectedSuggestion(point);
@@ -442,7 +458,6 @@ export default function Map({
     }).catch(() => {});
   };
 
-  // 🌟 ברגע ש-selectedSuggestion מתעדכן, אנחנו מייצרים את הפופ-אפ המקורי ושותלים אותו בדיב ששמרנו ב-Ref!
   useEffect(() => {
     if (selectedSuggestion && suggestionNodeRef.current && map) {
       const isSaved = savedIds.includes(selectedSuggestion.id);
@@ -454,10 +469,10 @@ export default function Map({
 
   const isHe = lang === 'he';
 
- // 🌟 חישובי רוחב המגירה - Peek זה 20% בנייד ו-30% במחשב. Open זה 95% בנייד ו-80% במחשב.
+  // 🌟 העדכון לנייד! peek זה עכשיו רק 20% במובייל כדי שלא יסתיר, אבל 30% במחשב.
   const drawerWidthClass = drawerMode === 'peek' 
-    ? "w-[30%] md:w-[30%]" 
-    : "w-[95%] md:w-[75%]";
+    ? "w-[35%] md:w-[30%]" 
+    : "w-[95%] md:w-[65%]";
   
   let drawerTransform = "translateX(0)";
   if (drawerMode === 'closed') {
@@ -727,7 +742,6 @@ export default function Map({
         )}
       </div>
 
-      {/* 🌟 המגירה הגדולה */}
       <div 
         className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} ${drawerWidthClass} transition-all duration-500 ease-in-out pointer-events-none`}
         style={{ transform: drawerTransform }}
@@ -790,7 +804,6 @@ export default function Map({
                 </div>
               </>
             ) : (
-              // 🌟 מסך הפירוט: משתמשים בפונקציית הפופ-אפ המקורית!
               <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
                 <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-gray-800/90 backdrop-blur-md border-b border-gray-700 shadow-md shrink-0">
                   <button 
@@ -805,13 +818,11 @@ export default function Map({
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-5 pb-8">
-                  {/* הדיב שלתוכו נוצק את התוכן מהפונקציה המקורית */}
                   <div 
                     ref={suggestionNodeRef} 
                     className="bg-[#111827] border border-gray-700 rounded-2xl p-4 shadow-2xl relative"
                   ></div>
 
-                  {/* הכפתור החדש - בלי מסגרת, עם אייקון נעץ */}
                   <div className="flex justify-center mt-5 mb-2">
                     <button 
                       onClick={() => {
@@ -838,7 +849,10 @@ export default function Map({
 
         <div 
           onClick={() => {
-            if (drawerMode === 'closed' || drawerMode === 'peek') setDrawerMode('open');
+            if (drawerMode === 'closed' || drawerMode === 'peek') {
+              setDrawerMode('open');
+              if (!hasStarted) startUserJourney();
+            }
             else setDrawerMode('closed');
           }}
           className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'left-[-20px]' : 'right-[-20px]'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-lg flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
