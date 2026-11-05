@@ -14,7 +14,6 @@ type Props = {
   searchQuery?: string;
 };
 
-// שמירה נצחית של הצבע הכתום בזיכרון המכשיר (localStorage)
 const getPersistedViewed = () => {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('jseed_viewed_points');
@@ -92,13 +91,10 @@ function createArc(startLat: number, startLng: number, endLat: number, endLng: n
   for (let i = 0; i <= numPoints; i++) {
     const t = i / numPoints;
     const u = 1 - t;
-
     const lat = u * u * startLat + 2 * u * t * controlLat + t * t * endLat;
     const lng = u * u * startLng + 2 * u * t * controlLng + t * t * endLng;
-
     latlngs.push([lat, lng]);
   }
-
   return latlngs;
 }
 
@@ -113,63 +109,24 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       style.id = styleId;
       style.innerHTML = `
         .leaflet-popup.headless-popup { margin: 0 !important; }
-        .headless-popup .leaflet-popup-content-wrapper {
-            background: transparent !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            overflow: visible !important;
-        }
+        .headless-popup .leaflet-popup-content-wrapper { background: transparent !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
         .headless-popup .leaflet-popup-tip-container { display: none !important; }
-        .headless-popup .leaflet-popup-content {
-            margin: 0 !important;
-            width: 0 !important;
-            height: 0 !important;
-            overflow: visible !important;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .jseed-custom-modal {
-            position: absolute;
-            background: #111827;
-            border: 1px solid #374151;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            color: white;
-            z-index: 1000;
-            cursor: default;
-            width: 400px;
-            max-height: 65vh; 
-            overflow-y: auto; 
-            overflow-x: hidden;
-        }
-        
+        .headless-popup .leaflet-popup-content { margin: 0 !important; width: 0 !important; height: 0 !important; overflow: visible !important; display: flex; justify-content: center; align-items: center; }
+        .jseed-custom-modal { position: absolute; background: #111827; border: 1px solid #374151; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); color: white; z-index: 1000; cursor: default; width: 400px; max-height: 65vh; overflow-y: auto; overflow-x: hidden; }
         .jseed-custom-modal::-webkit-scrollbar { width: 6px; }
         .jseed-custom-modal::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 8px; }
         .jseed-custom-modal::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.4); border-radius: 8px; }
-
-        @media (max-width: 450px) {
-            .jseed-custom-modal { width: 320px; }
-        }
-
+        @media (max-width: 450px) { .jseed-custom-modal { width: 320px; } }
         .jseed-modal-tip { position: absolute; width: 0; height: 0; border-style: solid; }
         .jseed-modal-up { bottom: 25px; left: 0; transform: translateX(-50%); }
         .jseed-modal-up .jseed-modal-tip { bottom: -8px; left: 50%; transform: translateX(-50%); border-width: 8px 8px 0 8px; border-color: #111827 transparent transparent transparent; }
-
         .jseed-modal-down { top: 25px; left: 0; transform: translateX(-50%); }
         .jseed-modal-down .jseed-modal-tip { top: -8px; left: 50%; transform: translateX(-50%); border-width: 0 8px 8px 8px; border-color: transparent transparent #111827 transparent; }
-
         .jseed-modal-left { top: 0; right: 25px; transform: translateY(-50%); }
         .jseed-modal-left .jseed-modal-tip { right: -8px; top: 50%; transform: translateY(-50%); border-width: 8px 0 8px 8px; border-color: transparent transparent transparent #111827; }
-
         .jseed-modal-right { top: 0; left: 25px; transform: translateY(-50%); }
         .jseed-modal-right .jseed-modal-tip { left: -8px; top: 50%; transform: translateY(-50%); border-width: 8px 8px 8px 0; border-color: transparent #111827 transparent transparent; }
-
-        .golden-thread-line {
-            filter: drop-shadow(0px 0px 6px rgba(251, 191, 36, 1));
-        }
+        .golden-thread-line { filter: drop-shadow(0px 0px 6px rgba(251, 191, 36, 1)); }
       `;
       document.head.appendChild(style);
     }
@@ -178,9 +135,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
   useEffect(() => {
     if (!map) return;
     layerRef.current = L.layerGroup().addTo(map);
-    return () => {
-      layerRef.current?.remove();
-    };
+    return () => { layerRef.current?.remove(); };
   }, [map]);
 
   function createPopupNode(point: Point, isSaved: boolean, mapInstance: L.Map) {
@@ -189,7 +144,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const isMobile = window.innerWidth < 450;
     const textMaxHeight = isMobile ? "200px" : "350px";
-
     const isHe = lang === "he";
     container.dir = isHe ? "rtl" : "ltr";
 
@@ -226,7 +180,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
     const isChai = point.category === "chai";
 
-    const headerHtml = `
+const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 30px' : '0 30px 0 15px'};">
           <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
@@ -239,10 +193,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       </div>
     `;
 
-    const imagesList = point.imageUrls && point.imageUrls.length > 0 
-      ? point.imageUrls 
-      : (point.imageUrl ? [point.imageUrl] : []);
-    
+    const imagesList = point.imageUrls && point.imageUrls.length > 0 ? point.imageUrls : (point.imageUrl ? [point.imageUrl] : []);
     const imagesJsonStr = JSON.stringify(imagesList).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
     let imageHtml = "";
@@ -253,15 +204,11 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     } else if (imagesList.length > 1) {
       imageHtml = `
         <div class="point-image-container" style="position: relative; width: 100%; aspect-ratio: 9/16; max-height: 280px; border-radius: 8px; overflow: hidden; margin-bottom: 8px; background: #000;">
-          ${imagesList.map((src, i) => `
-            <img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />
-          `).join('')}
+          ${imagesList.map((src, i) => `<img class="carousel-slide-${point.id} map-lightbox-trigger" data-images="${imagesJsonStr}" data-index="${i}" src="${src}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; display: ${i === 0 ? 'block' : 'none'}; cursor: pointer;" title="לחץ להגדלה" />`).join('')}
           <button class="carousel-prev-${point.id}" style="position: absolute; ${isHe ? 'left' : 'right'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❮' : '❯'}</button>
           <button class="carousel-next-${point.id}" style="position: absolute; ${isHe ? 'right' : 'left'}: 4px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 10px;">${isHe ? '❯' : '❮'}</button>
           <div style="position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 10; flex-direction: ${isHe ? 'row-reverse' : 'row'};">
-            ${imagesList.map((_, i) => `
-              <div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>
-            `).join('')}
+            ${imagesList.map((_, i) => `<div class="carousel-dot-${point.id}" data-index="${i}" style="width: 6px; height: 6px; border-radius: 50%; background: ${i === 0 ? '#ffffff' : 'rgba(255,255,255,0.4)'}; cursor: pointer;"></div>`).join('')}
           </div>
         </div>
       `;
@@ -278,82 +225,74 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         
         <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? 'right' : 'left'}: 5px; font-size: 14px; transition: font-size 0.2s; color: #d1d5db;">
           <div style="margin-bottom: 10px;">
-              <strong style="color: #f9fafb; display: block; margin-bottom: 4px;">${t.desc}</strong> 
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <strong style="color: #f9fafb;">${t.desc}</strong> 
+                  <div style="display: flex; gap: 8px;">
+                    <button class="zoom-out-text" title="${t.zoomOutText}" style="background: none; border: none; color: #9ca3af; font-weight: bold; font-size: 14px; cursor: pointer; padding: 0;">A-</button>
+                    <button class="zoom-in-text" title="${t.zoomInText}" style="background: none; border: none; color: #fbbf24; font-weight: bold; font-size: 14px; cursor: pointer; padding: 0;">A+</button>
+                  </div>
+              </div>
               <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
           </div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> <span dir="auto">${display(point.address)}</span></div>
-          <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website
-          ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>`
-          : "-"
-        }</div>
+          <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>` : "-"}</div>
         </div>
         
-        <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
-          
-          <div style="display: flex; gap: 12px; align-items: center;">
+        <!-- כפתורי שמירות -->
+        <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 16px; align-items: center;">
             <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px;">
-              <img src="${saveIconSrc}" alt="Save" style="width: 18px; height: 18px; object-fit: contain; transition: transform 0.2s;" />
+              <img src="${saveIconSrc}" alt="Save" style="width: 16px; height: 16px; object-fit: contain; transition: transform 0.2s;" />
               <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
                 ${currentSavedCount} ${t.saves}
               </span>
             </button>
-            
-            ${isChai ? `
-            <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-              🤝 ${participantsCount}${t.participants}
-            </span>
-            ` : ''}
-          </div>
-
-          <div style="display: flex; gap: 4px;">
-            <button class="zoom-out-text" title="${t.zoomOutText}" style="background: rgba(255,255,255,0.05); border: 1px solid #374151; border-radius: 6px; width: 28px; height: 28px; color: #9ca3af; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">A-</button>
-            <button class="zoom-in-text" title="${t.zoomInText}" style="background: rgba(255,255,255,0.05); border: 1px solid #374151; border-radius: 6px; width: 28px; height: 28px; color: #fbbf24; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">A+</button>
           </div>
 
           ${isChai ? `
-          <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
-          </button>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">🤝 ${participantsCount}${t.participants}</span>
+            <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg></button>
+          </div>
           ` : ''}
-
         </div>
 
-        <!-- 🌟 אזור תגובות חדש ויפהפה -->
-        <div style="margin-top: 10px; border-top: 1px solid #374151; padding-top: 8px;">
-          <button class="toggle-comments-btn" style="background: rgba(255,255,255,0.05); border: 1px solid #374151; color: #fbbf24; border-radius: 8px; width: 100%; padding: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            💬 ${t.commentsTitle} (<span class="comments-count">...</span>)
-          </button>
+        <!-- כפתור תגובות (שורה מתחת לשמירות) -->
+        <div style="margin-top: 4px; display: flex; align-items: center;">
+            <button class="toggle-comments-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px; color: #9ca3af; font-size: 12px; font-weight: bold; transition: color 0.2s;">
+              💬 <span class="comments-count">טוען תגובות...</span>
+            </button>
+        </div>
+
+        <!-- אזור התגובות נפתח למטה -->
+        <div class="comments-section" style="display: none; margin-top: 8px; max-height: 160px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;">
+          <div class="comments-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+          </div>
           
-          <div class="comments-section" style="display: none; margin-top: 8px; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 6px;">
-            <div class="comments-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
-              <div style="color: #9ca3af; font-size: 12px; text-align: center;">טוען תגובות...</div>
-            </div>
-            
-            <div style="display: flex; gap: 4px;">
-              <input type="text" class="new-comment-input" placeholder="${t.addCommentPlaceholder}" style="flex: 1; background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 12px; color: white; outline: none;" />
-              <button class="send-comment-btn" style="background: #fbbf24; border: none; color: black; font-weight: bold; padding: 0 10px; border-radius: 6px; font-size: 12px; cursor: pointer;">${t.send}</button>
-            </div>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" class="new-comment-input" placeholder="${t.addCommentPlaceholder}" style="flex: 1; background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 6px 10px; font-size: 12px; color: white; outline: none;" />
+            <button class="send-comment-btn" style="background: none; border: none; color: #fbbf24; font-weight: bold; font-size: 13px; cursor: pointer; padding: 0 4px;">${t.send}</button>
           </div>
         </div>
 
+        <!-- אייקונים קטנים יותר בסוף -->
         <div style="display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid #374151;">
          <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="${t.nav}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
          </a>
-          <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 20px;" title="${t.shareTip}">💬</a>
-          <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.copyTip}">🔗</button>
-          <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 20px; padding: 0;" title="${t.reportTip}">🚩</button>
+          <a class="wa-share-btn" href="#" target="_blank" style="text-decoration: none; font-size: 16px;" title="${t.shareTip}">🟢</a>
+          <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 16px; padding: 0;" title="${t.copyTip}">🔗</button>
+          <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 16px; padding: 0;" title="${t.reportTip}">🚩</button>
         </div>
       </div>
     `;
 
-    // 🌟 לוגיקה לטעינה והצגה של תגובות
     const toggleCommentsBtn = container.querySelector(".toggle-comments-btn") as HTMLButtonElement;
     const commentsSection = container.querySelector(".comments-section") as HTMLElement;
     const commentsList = container.querySelector(".comments-list") as HTMLElement;
-    const commentsCountSpan = container.querySelector(".comments-count") as HTMLSpanElement;
     const commentInput = container.querySelector(".new-comment-input") as HTMLInputElement;
     const sendCommentBtn = container.querySelector(".send-comment-btn") as HTMLButtonElement;
+    const commentsCountSpan = container.querySelector(".comments-count") as HTMLSpanElement;
 
     let commentsLoaded = false;
     let currentUserId: string | null = null;
@@ -373,7 +312,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         const res = await fetch(`/api/comments?pointId=${point.id}`);
         if (res.ok) {
           const data = await res.json();
-          commentsCountSpan.innerText = String(data.length);
+          commentsCountSpan.innerText = `${data.length} ${t.commentsTitle}`;
           commentsList.innerHTML = "";
           
           if (data.length === 0) {
@@ -381,7 +320,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           } else {
             data.forEach((c: any) => {
               const item = document.createElement("div");
-              item.style.cssText = "background: #111827; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 11px;";
+              item.style.cssText = "background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 11px;";
               
               const isOwner = currentUserId && c.userId === currentUserId;
               const dateStr = new Date(c.createdAt).toLocaleDateString('he-IL');
@@ -438,10 +377,11 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       } catch (err) {}
     };
 
+    // קריאה ראשונית פשוטה רק למספר התגובות
     fetch(`/api/comments?pointId=${point.id}`)
       .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) commentsCountSpan.innerText = String(data.length); })
-      .catch(() => commentsCountSpan.innerText = "0");
+      .then(data => { if (Array.isArray(data)) commentsCountSpan.innerText = `${data.length} ${t.commentsTitle}`; })
+      .catch(() => commentsCountSpan.innerText = `0 ${t.commentsTitle}`);
 
     if (toggleCommentsBtn && commentsSection) {
       toggleCommentsBtn.onclick = (e) => {
@@ -449,6 +389,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         e.stopPropagation();
         const isOpen = commentsSection.style.display === "block";
         commentsSection.style.display = isOpen ? "none" : "block";
+        toggleCommentsBtn.style.color = isOpen ? "#9ca3af" : "#fbbf24";
         if (!isOpen && !commentsLoaded) {
           fetchComments();
           commentsLoaded = true;
@@ -490,7 +431,6 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       commentInput.onkeydown = (e) => { e.stopPropagation(); if (e.key === "Enter") postComment(); };
     }
 
-    // 🌟 הוספת מנגנון הגדלת והקטנת הטקסט
     let currentFontSize = 14;
     const updateFontSize = () => {
       const descBox = container.querySelector(".point-desc-container") as HTMLElement;
@@ -521,12 +461,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
         const target = e.target as HTMLElement;
         const imgsJson = target.getAttribute("data-images") || "[]";
         const idx = parseInt(target.getAttribute("data-index") || "0");
-
         try {
           const imgsArray = JSON.parse(imgsJson);
-          window.dispatchEvent(new CustomEvent("open-map-lightbox", {
-            detail: { images: imgsArray, index: idx }
-          }));
+          window.dispatchEvent(new CustomEvent("open-map-lightbox", { detail: { images: imgsArray, index: idx } }));
         } catch (err) { }
       });
     });
@@ -544,23 +481,20 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       };
 
       if (btnPrev) btnPrev.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         currentIndex = (currentIndex > 0) ? currentIndex - 1 : imagesList.length - 1;
         showSlide(currentIndex);
       };
 
       if (btnNext) btnNext.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         currentIndex = (currentIndex < imagesList.length - 1) ? currentIndex + 1 : 0;
         showSlide(currentIndex);
       };
 
       dots.forEach(dot => {
         dot.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+          e.preventDefault(); e.stopPropagation();
           const target = e.target as HTMLElement;
           currentIndex = parseInt(target.getAttribute("data-index") || "0");
           showSlide(currentIndex);
@@ -578,8 +512,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const copyBtn = container.querySelector(".copy-link-btn") as HTMLButtonElement;
     if (copyBtn) {
       copyBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         navigator.clipboard.writeText(shareUrl);
         alert(t.copiedMsg);
       };
@@ -588,8 +521,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const reportBtn = container.querySelector(".report-btn") as HTMLButtonElement;
     if (reportBtn) {
       reportBtn.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         const reason = prompt(t.reportMsg);
         if (reason) {
           try {
@@ -599,9 +531,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               body: JSON.stringify({ pointId: point.id, reason })
             });
             alert(t.reportSuccess);
-          } catch (err) {
-            alert(t.reportSuccess);
-          }
+          } catch (err) { alert(t.reportSuccess); }
         }
       };
     }
@@ -611,8 +541,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     if (btn) {
       btn.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         const img = btn.querySelector("img");
         if (img) img.style.transform = "scale(0.8)";
         try {
@@ -629,14 +558,12 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             }
             if (data.saved) currentSavedCount += 1;
             else currentSavedCount -= 1;
-
             if (countText) countText.innerText = `${currentSavedCount} ${t.saves}`;
           } else {
             if (img) img.style.transform = "scale(1)";
             alert(t.loginReq);
           }
         } catch (err) {
-          console.error("Failed to toggle save point:", err);
           if (img) img.style.transform = "scale(1)";
         }
       };
@@ -644,31 +571,22 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const linkBtn = container.querySelector(".point-website-link") as HTMLAnchorElement;
     if (linkBtn) {
-      linkBtn.onclick = (e) => {
-        fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(console.error);
-      };
+      linkBtn.onclick = () => { fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(console.error); };
     }
 
     const addChaiBtn = container.querySelector(".add-chai-btn") as HTMLButtonElement;
     if (addChaiBtn) {
       addChaiBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         window.dispatchEvent(new CustomEvent("open-direct-add-form", {
-          detail: {
-            name: point.name,
-            category: "chai",
-            lat: point.latitude,
-            lng: point.longitude,
-            parentId: point.id
-          }
+          detail: { name: point.name, category: "chai", lat: point.latitude, lng: point.longitude, parentId: point.id }
         }));
       };
     }
 
     return container;
   }
-
+  
   useEffect(() => {
     if (!map || !layerRef.current) return;
 
@@ -705,32 +623,19 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       points.forEach(child => {
         if (child.category === "chai") {
           let parent: Point | undefined = undefined;
-
           if (child.parentId) {
             parent = pointsMap.get(child.parentId);
-          }
-          else {
+          } else {
             const nameKey = (child.name || "").trim().toLowerCase();
             const root = rootPointsMap.get(nameKey);
             if (root && root.id !== child.id) {
               parent = root;
             }
           }
-
           if (parent) {
             if (parent.latitude !== child.latitude || parent.longitude !== child.longitude) {
-
               const arcLatLngs = createArc(parent.latitude, parent.longitude, child.latitude, child.longitude);
-
-              const thread = L.polyline(arcLatLngs, {
-                color: '#fbbf24',
-                weight: 1.5,
-                opacity: 0.8,
-                lineCap: 'round',
-                lineJoin: 'round',
-                className: 'golden-thread-line'
-              });
-
+              const thread = L.polyline(arcLatLngs, { color: '#fbbf24', weight: 1.5, opacity: 0.8, lineCap: 'round', lineJoin: 'round', className: 'golden-thread-line' });
               layerRef.current?.addLayer(thread);
             }
           }
@@ -744,13 +649,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
       const lat = Number(point.latitude).toFixed(4);
       const lng = Number(point.longitude).toFixed(4);
       const locKey = `${lat},${lng}`;
-
-      if (!groupedByLocation[locKey]) {
-        groupedByLocation[locKey] = {};
-      }
-      if (!groupedByLocation[locKey][point.category]) {
-        groupedByLocation[locKey][point.category] = [];
-      }
+      if (!groupedByLocation[locKey]) { groupedByLocation[locKey] = {}; }
+      if (!groupedByLocation[locKey][point.category]) { groupedByLocation[locKey][point.category] = []; }
       groupedByLocation[locKey][point.category].push(point);
     });
 
@@ -808,21 +708,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           innerContent.appendChild(createPopupNode(singlePoint, isSaved, map));
         } else {
           let currentIndex = 0;
-
           const renderCurrentPoint = () => {
             innerContent.innerHTML = "";
-
             const currentPoint = pointsInCat[currentIndex];
             const pId = Number(currentPoint.id);
             const isSaved = savedIds.includes(currentPoint.id);
 
             if (!globalClickedPoints.has(pId)) {
               persistViewedPoint(pId);
-              fetch("/api/history", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pointId: pId }),
-              }).catch(console.error);
+              fetch("/api/history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pointId: pId }) }).catch(console.error);
             }
 
             const navBar = document.createElement("div");
@@ -856,16 +750,8 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
               return btn;
             };
 
-            const prevBtn = createBtn(lang === "he" ? "❯" : "❮", () => {
-              currentIndex = (currentIndex > 0) ? currentIndex - 1 : count - 1;
-              renderCurrentPoint();
-            });
-
-            const nextBtn = createBtn(lang === "he" ? "❮" : "❯", () => {
-              currentIndex = (currentIndex < count - 1) ? currentIndex + 1 : 0;
-              renderCurrentPoint();
-            });
-
+            const prevBtn = createBtn(lang === "he" ? "❯" : "❮", () => { currentIndex = (currentIndex > 0) ? currentIndex - 1 : count - 1; renderCurrentPoint(); });
+            const nextBtn = createBtn(lang === "he" ? "❮" : "❯", () => { currentIndex = (currentIndex < count - 1) ? currentIndex + 1 : 0; renderCurrentPoint(); });
             const label = document.createElement("span");
             label.innerText = lang === "he" ? `נקודה ${currentIndex + 1} מתוך ${count}` : `Point ${currentIndex + 1} of ${count}`;
             label.style.fontSize = "12px";
@@ -879,15 +765,10 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             innerContent.appendChild(navBar);
             innerContent.appendChild(createPopupNode(currentPoint, isSaved, map));
           };
-
           renderCurrentPoint();
         }
 
-        marker.bindPopup(popupContentWrapper, {
-          closeButton: false,
-          className: "headless-popup",
-          autoPan: false
-        });
+        marker.bindPopup(popupContentWrapper, { closeButton: false, className: "headless-popup", autoPan: false });
 
         marker.on("click", () => {
           const pt = map.latLngToContainerPoint(marker.getLatLng());
@@ -895,15 +776,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           const mapHeight = map.getSize().y;
 
           let direction = "up";
-
-          if (pt.y < mapHeight * 0.55) {
-            direction = "down";
-          }
-          if (pt.x > mapWidth * 0.65) {
-            direction = "left";
-          } else if (pt.x < mapWidth * 0.35) {
-            direction = "right";
-          }
+          if (pt.y < mapHeight * 0.55) direction = "down";
+          if (pt.x > mapWidth * 0.65) direction = "left";
+          else if (pt.x < mapWidth * 0.35) direction = "right";
 
           popupContentWrapper.className = `jseed-custom-modal jseed-modal-${direction}`;
 
@@ -912,23 +787,15 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
             const pId = Number(pointsInCat[0].id);
             if (!globalClickedPoints.has(pId)) {
               persistViewedPoint(pId);
-              fetch("/api/history", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pointId: pId }),
-              }).catch(console.error);
+              fetch("/api/history", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pointId: pId }) }).catch(console.error);
             }
           }
           marker.setIcon(createGroupedIcon(category, true, currentZoom, count));
-
           marker.openPopup();
         });
 
         layerRef.current?.addLayer(marker);
-
-        pointsInCat.forEach(p => {
-          markersRef.current[p.id] = marker;
-        });
+        pointsInCat.forEach(p => { markersRef.current[p.id] = marker; });
       });
     });
 
@@ -956,16 +823,13 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
 
     const handleZoomEnd = () => {
       const currentZoom = map.getZoom();
-
       Object.values(groupedByLocation).forEach(categoriesGroup => {
         Object.entries(categoriesGroup).forEach(([category, pointsInCat]) => {
           const count = pointsInCat.length;
           const firstId = pointsInCat[0].id;
           const marker = markersRef.current[firstId];
           if (marker) {
-            const isAnyViewed = pointsInCat.some(p =>
-              viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id))
-            );
+            const isAnyViewed = pointsInCat.some(p => viewedIds.map(Number).includes(Number(p.id)) || globalClickedPoints.has(Number(p.id)));
             marker.setIcon(createGroupedIcon(category, isAnyViewed, currentZoom, count));
           }
         });
@@ -973,10 +837,9 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     };
 
     map.on("zoomend", handleZoomEnd);
-
-    return () => {
-      map.off("zoomend", handleZoomEnd);
-    };
+    return () => { map.off("zoomend", handleZoomEnd); };
 
   }, [map, points, activeCategory, viewedIds, savedIds, lang, searchQuery]);
+
+  return { createPopupNode };
 }

@@ -481,7 +481,7 @@ export default function MyPointsPage() {
                                                 
                                                 <div className="mt-5 space-y-2.5 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/50 text-sm">
                                                     <div className="flex items-start gap-3">
-                                                        <span className="shrink-0 text-lg">📍</span>
+                                                        <span className="shrink-0 text-lg">🏷️</span>
                                                         <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.category[lang]}</strong> {categoryNames[p.category] || p.category}</span>
                                                     </div>
                                                     <div className="flex items-start gap-3">
