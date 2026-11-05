@@ -454,8 +454,9 @@ export default function Map({
 
   const isHe = lang === 'he';
 
+ // 🌟 חישובי רוחב המגירה - Peek זה 20% בנייד ו-30% במחשב. Open זה 95% בנייד ו-80% במחשב.
   const drawerWidthClass = drawerMode === 'peek' 
-    ? "w-[85%] md:w-[30%]" 
+    ? "w-[20%] md:w-[30%]" 
     : "w-[95%] md:w-[80%]";
   
   let drawerTransform = "translateX(0)";

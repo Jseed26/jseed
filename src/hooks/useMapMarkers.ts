@@ -238,29 +238,34 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>` : "-"}</div>
         </div>
         
-        <!-- כפתורי שמירות -->
-        <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; gap: 16px; align-items: center;">
+        <!-- נתוני שמירות ותגובות -->
+        <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+          
+          <!-- שורת שמירות -->
+          <div style="display: flex; justify-content: space-between; align-items: center;">
             <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px;">
               <img src="${saveIconSrc}" alt="Save" style="width: 16px; height: 16px; object-fit: contain; transition: transform 0.2s;" />
               <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
                 ${currentSavedCount} ${t.saves}
               </span>
             </button>
+            
+            ${isChai ? `
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">🤝 ${participantsCount}${t.participants}</span>
+              <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg></button>
+            </div>
+            ` : ''}
           </div>
 
-          ${isChai ? `
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">🤝 ${participantsCount}${t.participants}</span>
-            <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg></button>
+          <!-- שורת תגובות (שורה מתחת) -->
+          <div style="display: flex; align-items: center;">
+              <button class="toggle-comments-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px; color: #9ca3af; font-size: 12px; font-weight: bold; transition: color 0.2s;">
+                <img src="/icons/ui/comments/comments.png" alt="Comments" style="width: 16px; height: 16px; object-fit: contain;" />
+                <span class="comments-count">${t.commentsTitle}</span>
+              </button>
           </div>
-          ` : ''}
         </div>
-
-        <!-- כפתור תגובות (שורה מתחת לשמירות) -->
-        <button class="toggle-comments-btn" style="...">
-            💬 <span class="comments-count">${t.commentsTitle}</span>
-        </button>
 
         <!-- אזור התגובות נפתח למטה -->
         <div class="comments-section" style="display: none; margin-top: 8px; max-height: 160px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;">
