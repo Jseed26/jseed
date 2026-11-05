@@ -8,7 +8,6 @@ export const dynamic = 'force-dynamic';
 
 const hasHebrew = (str: string) => /[\u0590-\u05FF]/.test(str);
 
-// שמירת המודלים המהירים בזיכרון השרת
 let cachedFlashModels: string[] | null = null;
 
 async function getAvailableFlashModels(apiKey: string): Promise<string[]> {
@@ -43,7 +42,6 @@ async function getAvailableFlashModels(apiKey: string): Promise<string[]> {
   }
 }
 
-// פונקציית תרגום מוגנת עם סטופר של 2.5 שניות כדי שלעולם לא תתקע את השמירה
 async function safeTranslate(text: string, to: "en" | "he"): Promise<string> {
   if (!text || !text.trim()) return text;
   try {
@@ -57,9 +55,6 @@ async function safeTranslate(text: string, to: "en" | "he"): Promise<string> {
   }
 }
 
-// ==========================================
-// 🌟 סוכן ההעשרה של JSeed (רץ ברקע עם מודלים מהירים)
-// ==========================================
 async function enrichPointWithAI(point: any) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -125,7 +120,6 @@ async function enrichPointWithAI(point: any) {
           data: { aiMetadata }
         });
 
-        console.log(`✅ Background AI Enrichment succeeded for point ${point.id} using ${modelName}`);
         return aiMetadata;
       } catch {
         clearTimeout(timeout);
@@ -138,9 +132,6 @@ async function enrichPointWithAI(point: any) {
   }
 }
 
-// ==========================================
-// 🌟 מנוע החיפוש המקומי החכם והמדורג
-// ==========================================
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const qRaw = searchParams.get("q")?.trim() || "";
@@ -225,14 +216,12 @@ export async function GET(req: Request) {
 
         let score = 0;
 
-        // התאמה מלאה לשם או לביטוי המדויק
         if ((point.name || "").toLowerCase().includes(queryLower) || (point.name_en || "").toLowerCase().includes(queryLower)) {
           score += 50;
         } else if (searchableText.includes(queryLower)) {
           score += 30;
         }
 
-        // בונוסים לפי כוונת משתמש
         if (asksForShabbat && (meta.isOpenOnShabbat === true || searchableText.includes("שבת") || point.category === "leaf" || point.category === "star")) {
           score += 15;
         }
@@ -243,7 +232,6 @@ export async function GET(req: Request) {
           score += 15;
         }
 
-        // בדיקת כל מילה בחיפוש
         for (let i = 0; i < rawWords.length; i++) {
           const rawW = rawWords[i];
           const cleanW = strippedWords[i] || rawW;
@@ -293,7 +281,6 @@ export async function POST(req: Request) {
     let final_desc_he = description;
     let final_desc_en = description;
 
-    // ⚡ תרגום השם והתיאור במקביל עם הגנת Timeout של 2.5 שניות
     const [translatedName, translatedDesc] = await Promise.all([
       name ? safeTranslate(name, hasHebrew(name) ? "en" : "he") : Promise.resolve(name),
       description ? safeTranslate(description, hasHebrew(description) ? "en" : "he") : Promise.resolve(description)
@@ -330,7 +317,6 @@ export async function POST(req: Request) {
     let finalLongitude = longitude;
     const hasAddress = address && address.trim().length > 3;
 
-    // אם כבר נשלחו קואורדינטות תקינות מהלקוח, לא נעכב את השמירה בעוד קריאה ל-Nominatim
     if (hasAddress && (!finalLatitude || !finalLongitude)) {
       try {
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`, {
@@ -365,57 +351,58 @@ export async function POST(req: Request) {
       },
     });
 
-    // אם מדובר בהצטרפות ליוזמה קיימת – שליחת התראה למשתתפים
-    if (parentId) {
+    // 🌟 🌟 🌟 מנגנון שליחת התראות לכל משתתפי היוזמה (בקטגוריה chai) 🌟 🌟 🌟
+    if (category === "chai") {
       try {
-        const initiative = await prisma.point.findUnique({
-          where: { id: parentId },
-          select: {
-            id: true,
-            name: true,
-            userId: true,
-            children: {
-              select: {
-                userId: true,
-              },
-            },
+        // נמצא את כל הנקודות ששייכות לאותה יוזמה (לפי parentId או לפי שם זהה)
+        const relatedPoints = await prisma.point.findMany({
+          where: {
+            category: "chai",
+            OR: [
+              ...(parentId ? [{ id: parentId }, { parentId: parentId }] : []),
+              { name: { equals: name, mode: "insensitive" } }
+            ]
           },
+          select: { userId: true }
         });
 
-        if (initiative) {
-          // אוספים את היוזם ואת כל המשתתפים הקיימים
-          const participantIds = [
-            initiative.userId,
-            ...initiative.children.map((child) => child.userId),
-          ];
+        // נאסוף את כל ה-userId הייחודיים של מי שהשתתף ביוזמה
+        const participantUserIds = new Set<string>();
+        relatedPoints.forEach(p => {
+          if (p.userId) participantUserIds.add(p.userId);
+        });
 
-          // מסירים כפילויות ואת המשתמש שהצטרף עכשיו
-          const uniqueParticipantIds = [
-            ...new Set(
-              participantIds.filter(
-                (id): id is string =>
-                  Boolean(id) && id !== session.user.id
-              )
-            ),
-          ];
+        // נוסיף גם את היוצר המקורי של יוזמת האב אם קיים
+        if (parentId) {
+          const parentPoint = await prisma.point.findUnique({
+            where: { id: parentId },
+            select: { userId: true }
+          });
+          if (parentPoint?.userId) participantUserIds.add(parentPoint.userId);
+        }
 
-          // שולחים התראה לכל המשתתפים
-          if (uniqueParticipantIds.length > 0) {
-            await prisma.notification.createMany({
-              data: uniqueParticipantIds.map((userId) => ({
-                userId,
-                message: `מישהו נוסף הצטרף ליוזמה "${initiative.name}" 🌱`,
-                isRead: false,
-              })),
+        // ניצור התראה לכל מי שמשתתף ביוזמה, חוץ מהמשתמש הנוכחי שהוסיף את הנקודה
+        const notificationsData = [];
+        for (const uid of participantUserIds) {
+          if (uid !== session.user.id) {
+            notificationsData.push({
+              userId: uid,
+              message: `מישהו נוסף הצטרף ליוזמה "${name}"! 🌱`,
+              isRead: false
             });
           }
         }
-      } catch (notificationError) {
-        console.error("Failed to send initiative notifications:", notificationError);
+
+        if (notificationsData.length > 0) {
+          await prisma.notification.createMany({
+            data: notificationsData
+          });
+        }
+      } catch (notifErr) {
+        console.error("Failed to send initiative notifications:", notifErr);
       }
     }
 
-    // 🌟 מריצים את ה-AI ברקע בלי לעכב את החזרת התשובה למשתמש!
     enrichPointWithAI(newPoint).catch(console.error);
 
     return NextResponse.json(newPoint);
@@ -471,12 +458,12 @@ export async function PUT(req: Request, context: any) {
     let isMapPicked = false;
 
     if (reqLat && reqLat !== "null" && reqLat !== "undefined") {
-      latitude = Number(reqLat);
-      isMapPicked = true;
+        latitude = Number(reqLat);
+        isMapPicked = true;
     }
     if (reqLng && reqLng !== "null" && reqLng !== "undefined") {
-      longitude = Number(reqLng);
-      isMapPicked = true;
+        longitude = Number(reqLng);
+        isMapPicked = true;
     }
 
     if (address && address !== existing.address && address !== "" && !isMapPicked) {
@@ -494,7 +481,6 @@ export async function PUT(req: Request, context: any) {
       },
     });
 
-    // 🌟 גם בעדכון - מריצים את ה-AI ברקע בלי להמתין לו
     enrichPointWithAI(updated).catch(console.error);
 
     return Response.json(updated);
