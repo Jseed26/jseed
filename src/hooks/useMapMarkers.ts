@@ -180,7 +180,7 @@ export function useMapMarkers({ map, points, activeCategory, viewedIds = [], sav
     const display = (val: string | null | undefined) => (val && val.trim() !== "" ? val : "-");
     const isChai = point.category === "chai";
 
-const headerHtml = `
+    const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
         <div style="display: flex; align-items: flex-start; gap: 8px; padding: ${isHe ? '0 15px 0 30px' : '0 30px 0 15px'};">
           <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
@@ -258,11 +258,9 @@ const headerHtml = `
         </div>
 
         <!-- כפתור תגובות (שורה מתחת לשמירות) -->
-        <div style="margin-top: 4px; display: flex; align-items: center;">
-            <button class="toggle-comments-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px; color: #9ca3af; font-size: 12px; font-weight: bold; transition: color 0.2s;">
-              💬 <span class="comments-count">טוען תגובות...</span>
-            </button>
-        </div>
+        <button class="toggle-comments-btn" style="...">
+            💬 <span class="comments-count">${t.commentsTitle}</span>
+        </button>
 
         <!-- אזור התגובות נפתח למטה -->
         <div class="comments-section" style="display: none; margin-top: 8px; max-height: 160px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;">
@@ -298,12 +296,12 @@ const headerHtml = `
     let currentUserId: string | null = null;
 
     const checkSession = async () => {
-        if (currentUserId !== null) return;
-        try {
-            const res = await fetch("/api/auth/session");
-            const session = await res.json();
-            if (session?.user?.id) currentUserId = session.user.id;
-        } catch (e) {}
+      if (currentUserId !== null) return;
+      try {
+        const res = await fetch("/api/auth/session");
+        const session = await res.json();
+        if (session?.user?.id) currentUserId = session.user.id;
+      } catch (e) { }
     };
 
     const fetchComments = async () => {
@@ -314,14 +312,14 @@ const headerHtml = `
           const data = await res.json();
           commentsCountSpan.innerText = `${data.length} ${t.commentsTitle}`;
           commentsList.innerHTML = "";
-          
+
           if (data.length === 0) {
             commentsList.innerHTML = `<div style="color: #9ca3af; font-size: 11px; text-align: center; padding: 4px;">אין עדיין תגובות. היה הראשון להגיב!</div>`;
           } else {
             data.forEach((c: any) => {
               const item = document.createElement("div");
               item.style.cssText = "background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 6px; font-size: 11px;";
-              
+
               const isOwner = currentUserId && c.userId === currentUserId;
               const dateStr = new Date(c.createdAt).toLocaleDateString('he-IL');
 
@@ -338,35 +336,35 @@ const headerHtml = `
                   </div>
                 ` : ''}
               `;
-              
+
               if (isOwner) {
                 const delBtn = item.querySelector(".delete-comment-btn") as HTMLButtonElement;
                 delBtn.onclick = async (e) => {
-                    e.preventDefault(); e.stopPropagation();
-                    if (confirm("האם אתה בטוח שברצונך למחוק את התגובה?")) {
-                        try {
-                            const delRes = await fetch(`/api/comments?id=${c.id}`, { method: "DELETE" });
-                            if (delRes.ok) fetchComments();
-                        } catch (err) {
-                            alert("שגיאה במחיקה");
-                        }
+                  e.preventDefault(); e.stopPropagation();
+                  if (confirm("האם אתה בטוח שברצונך למחוק את התגובה?")) {
+                    try {
+                      const delRes = await fetch(`/api/comments?id=${c.id}`, { method: "DELETE" });
+                      if (delRes.ok) fetchComments();
+                    } catch (err) {
+                      alert("שגיאה במחיקה");
                     }
+                  }
                 };
 
                 const editBtn = item.querySelector(".edit-comment-btn") as HTMLButtonElement;
                 editBtn.onclick = (e) => {
-                    e.preventDefault(); e.stopPropagation();
-                    const newContent = prompt("ערוך את התגובה:", editBtn.getAttribute("data-content") || "");
-                    if (newContent && newContent.trim() !== "" && newContent !== c.content) {
-                        fetch(`/api/comments`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ commentId: c.id, content: newContent })
-                        }).then(res => {
-                            if (res.ok) fetchComments();
-                            else alert("שגיאה בעריכה");
-                        }).catch(() => alert("שגיאה בעריכה"));
-                    }
+                  e.preventDefault(); e.stopPropagation();
+                  const newContent = prompt("ערוך את התגובה:", editBtn.getAttribute("data-content") || "");
+                  if (newContent && newContent.trim() !== "" && newContent !== c.content) {
+                    fetch(`/api/comments`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ commentId: c.id, content: newContent })
+                    }).then(res => {
+                      if (res.ok) fetchComments();
+                      else alert("שגיאה בעריכה");
+                    }).catch(() => alert("שגיאה בעריכה"));
+                  }
                 };
               }
 
@@ -374,14 +372,8 @@ const headerHtml = `
             });
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
-
-    // קריאה ראשונית פשוטה רק למספר התגובות
-    fetch(`/api/comments?pointId=${point.id}`)
-      .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) commentsCountSpan.innerText = `${data.length} ${t.commentsTitle}`; })
-      .catch(() => commentsCountSpan.innerText = `0 ${t.commentsTitle}`);
 
     if (toggleCommentsBtn && commentsSection) {
       toggleCommentsBtn.onclick = (e) => {
@@ -412,7 +404,7 @@ const headerHtml = `
 
         if (res.ok) {
           commentInput.value = "";
-          fetchComments(); 
+          fetchComments();
         } else {
           alert(t.loginReq);
         }
@@ -586,7 +578,7 @@ const headerHtml = `
 
     return container;
   }
-  
+
   useEffect(() => {
     if (!map || !layerRef.current) return;
 

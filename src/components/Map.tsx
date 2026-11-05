@@ -26,8 +26,8 @@ type ModalState = {
   prefilledCategory?: string;
   draftData?: any;
   parentId?: number | null;
-  mode?: "create" | "edit";
-  pointId?: number;
+  mode?: "create" | "edit"; 
+  pointId?: number; 
 } | null;
 
 const tMap = {
@@ -49,14 +49,14 @@ const tMap = {
   pickLocationMsg: { he: "לחץ על המפה כדי לבחור מיקום מדויק 📍", en: "Tap on the map to pick an exact location 📍" },
   cancelPick: { he: "ביטול חזרה", en: "Cancel Picking" },
   gpsDisabled: { he: "שירותי המיקום כבויים. ניתן להדליקם בהגדרות ב'אזור שלי'.", en: "Location services are disabled in settings." },
-  suggestionsTitle: { he: "לגלות עולמות", en: "Discover Worlds" },
+  suggestionsTitle: { he: "SEEDS", en: "SEEDS" }, 
   loadingSuggestions: { he: "טוען רעיונות...", en: "Loading ideas..." },
   noSuggestions: { he: "לא מצאנו הצעות כרגע", en: "No suggestions right now" },
   backToList: { he: "חזרה להצעות", en: "Back to list" },
-  navigate: { he: "ניווט לשם", en: "Navigate there" },
-  visitLink: { he: "לאתר הבית", en: "Visit Website" },
   takeMeThere: { he: "קח אותי לנקודה", en: "Take me to point" }
 };
+
+type DrawerMode = 'peek' | 'closed' | 'open';
 
 export default function Map({
   activeCategory,
@@ -73,7 +73,7 @@ export default function Map({
   const [map, setMap] = useState<L.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
-
+  
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [draftFormState, setDraftFormState] = useState<any>(null);
 
@@ -93,27 +93,19 @@ export default function Map({
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
+  // 🌟 סטייט למגירה
+  const [drawerMode, setDrawerMode] = useState<DrawerMode>('peek');
   const [hasStarted, setHasStarted] = useState(false);
-
-  // 🌟 הלשונית: הצצה של 25% בפעם הראשונה בלבד
-  const [drawerMode, setDrawerMode] = useState<'peek' | 'open' | 'closed'>(() => {
-    if (typeof window !== "undefined") {
-      const seen = sessionStorage.getItem("jseed_suggestions_seen");
-      if (seen) return 'closed';
-      sessionStorage.setItem("jseed_suggestions_seen", "true");
-      return 'peek';
-    }
-    return 'peek';
-  });
-
+  
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
+  
+  // 🌟 רפרנס להכלת ה-Popup שנוצר מ-useMapMarkers
+  const suggestionNodeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const checkGps = () => {
-      setGpsEnabled(localStorage.getItem("jseed_gps_disabled") !== "true");
-    };
+    const checkGps = () => setGpsEnabled(localStorage.getItem("jseed_gps_disabled") !== "true");
     checkGps();
     window.addEventListener("gps-setting-changed", checkGps);
     return () => window.removeEventListener("gps-setting-changed", checkGps);
@@ -121,10 +113,10 @@ export default function Map({
 
   useEffect(() => {
     if (!gpsEnabled) {
-      setIsFollowing(false);
-      setShowLocationMarker(false);
-      setUserLocation(null);
-      setFilterRadius(null);
+        setIsFollowing(false);
+        setShowLocationMarker(false);
+        setUserLocation(null);
+        setFilterRadius(null);
     }
   }, [gpsEnabled]);
 
@@ -142,21 +134,27 @@ export default function Map({
             setIsPickingLocation(true);
             router.replace('/', { scroll: false });
           }
-        } catch (e) { }
+        } catch (e) {}
       }
     }
   }, [searchParams, router]);
 
+  // משיכת ההצעות מיד בפתיחה
   useEffect(() => {
-    if (drawerMode !== 'closed' && suggestions.length === 0) {
+    const fetchSuggestions = async () => {
       setIsLoadingSuggestions(true);
-      fetch("/api/suggestions")
-        .then(res => res.json())
-        .then(data => setSuggestions(data))
-        .catch(console.error)
-        .finally(() => setIsLoadingSuggestions(false));
-    }
-  }, [drawerMode, suggestions.length]);
+      try {
+        const res = await fetch("/api/suggestions"); 
+        const data = await res.json();
+        setSuggestions(data);
+      } catch (err) {
+        console.error("Failed to fetch suggestions", err);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
+    fetchSuggestions();
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -167,7 +165,7 @@ export default function Map({
     const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
     const newMap = L.map(container, {
-      center: [31.5, 10.8],
+      center: [31.5, 10.8], 
       zoom: isMobile ? 2 : 2.5,
       minZoom: isMobile ? 2 : 2.5,
       maxZoom: 18,
@@ -200,13 +198,13 @@ export default function Map({
   }, []);
 
   const loadHistory = async () => {
-    try {
-      const res = await fetch("/api/history");
-      if (res.ok) {
-        const data = await res.json();
-        setViewedIds(data.map((p: Point) => p.id));
-      }
-    } catch (err) { }
+      try {
+        const res = await fetch("/api/history");
+        if (res.ok) {
+          const data = await res.json();
+          setViewedIds(data.map((p: Point) => p.id));
+        }
+      } catch (err) { }
   };
 
   useEffect(() => {
@@ -257,8 +255,9 @@ export default function Map({
   }, [isLoggedIn]);
 
   const startUserJourney = () => {
-    if (hasStarted) return;
     setHasStarted(true);
+    setDrawerMode('closed');
+    
     if (mapInstanceRef.current) {
       fetch("https://ipapi.co/json/")
         .then(res => res.json())
@@ -280,23 +279,27 @@ export default function Map({
     const handleClick = (e: L.LeafletMouseEvent) => {
       if (!hasStarted) {
         startUserJourney();
+        return; 
+      }
+
+      if (drawerMode === 'open') {
         setDrawerMode('closed');
         return;
       }
 
       if (isPickingLocation && draftFormState) {
-        setModal({
-          lat: e.latlng.lat,
-          lng: e.latlng.lng,
-          prefilledCategory: draftFormState.category,
-          draftData: draftFormState,
-          parentId: draftFormState.parentId,
-          mode: draftFormState.editPointId ? "edit" : "create",
-          pointId: draftFormState.editPointId
-        });
-        setIsPickingLocation(false);
-        setDraftFormState(null);
-        return;
+          setModal({
+              lat: e.latlng.lat,
+              lng: e.latlng.lng,
+              prefilledCategory: draftFormState.category,
+              draftData: draftFormState,
+              parentId: draftFormState.parentId,
+              mode: draftFormState.editPointId ? "edit" : "create",
+              pointId: draftFormState.editPointId
+          });
+          setIsPickingLocation(false);
+          setDraftFormState(null);
+          return;
       }
 
       if (!isCompassMode) return;
@@ -343,7 +346,7 @@ export default function Map({
       map.off("locationfound", handleLocationFound);
       map.off("movestart", onMove);
     };
-  }, [map, isCompassMode, activeCategory, isLoggedIn, lang, isPickingLocation, draftFormState, hasStarted]);
+  }, [map, isCompassMode, activeCategory, isLoggedIn, lang, isPickingLocation, draftFormState, hasStarted, drawerMode]);
 
   useEffect(() => {
     const handleDirectAdd = (e: any) => {
@@ -415,6 +418,7 @@ export default function Map({
     }
   }, [map, userLocation, filterRadius, showLocationMarker]);
 
+  // 🌟 משיכת פונקציית יצירת ה-Popup המקורית מתוך ההוק
   const { createPopupNode } = useMapMarkers({
     map,
     points: filteredPoints,
@@ -425,8 +429,20 @@ export default function Map({
     searchQuery,
   });
 
-  const suggestionNodeRef = useRef<HTMLDivElement>(null);
+  const handleSuggestionClick = (point: any) => {
+    if (!hasStarted) {
+      setHasStarted(true);
+      setDrawerMode('open');
+    }
+    setSelectedSuggestion(point);
+    fetch("/api/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pointId: point.id }),
+    }).catch(() => {});
+  };
 
+  // 🌟 ברגע ש-selectedSuggestion מתעדכן, אנחנו מייצרים את הפופ-אפ המקורי ושותלים אותו בדיב ששמרנו ב-Ref!
   useEffect(() => {
     if (selectedSuggestion && suggestionNodeRef.current && map) {
       const isSaved = savedIds.includes(selectedSuggestion.id);
@@ -434,330 +450,296 @@ export default function Map({
       suggestionNodeRef.current.innerHTML = "";
       suggestionNodeRef.current.appendChild(node);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSuggestion, savedIds, map]); 
-
-  const toggleSuggestions = () => {
-    if (drawerMode === 'closed' || drawerMode === 'peek') {
-      setDrawerMode('open');
-      if (suggestions.length === 0) {
-        setIsLoadingSuggestions(true);
-        fetch("/api/suggestions")
-          .then(res => res.json())
-          .then(data => setSuggestions(data))
-          .catch(console.error)
-          .finally(() => setIsLoadingSuggestions(false));
-      }
-    } else {
-      setDrawerMode('closed');
-      setSelectedSuggestion(null);
-    }
-  };
-
-  const handleSuggestionClick = (point: any) => {
-    setSelectedSuggestion(point);
-    fetch("/api/history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pointId: point.id }),
-    }).catch(() => { });
-  };
+  }, [selectedSuggestion, savedIds, map, createPopupNode]);
 
   const isHe = lang === 'he';
-  // 🌟 לשונית ה-Peek מוגדרת פה לרוחב 20% בטלפון (w-[20%]) ו-40% במחשב (md:w-[40%])
-  // במצב פתוח (open) היא תופסת 90% מהמסך בטלפון ו-400px (בערך שליש) במחשב.
-  const drawerWidthClass = drawerMode === 'peek' 
-    ? "w-[20%] md:w-[40%]" 
-    : "w-[90%] md:w-[400px]";
-    
-  const drawerTransform = drawerMode !== 'closed' ? "translateX(0)" : isHe ? "translateX(100%)" : "translateX(-100%)";
 
+  const drawerWidthClass = drawerMode === 'peek' 
+    ? "w-[85%] md:w-[30%]" 
+    : "w-[95%] md:w-[80%]";
   
+  let drawerTransform = "translateX(0)";
+  if (drawerMode === 'closed') {
+    drawerTransform = isHe ? "translateX(100%)" : "translateX(-100%)";
+  }
+
   return (
     <div className={`relative w-full h-full overflow-hidden ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
-      <div
-        ref={mapRef}
-        className="w-full h-full min-h-[50vh] rounded-2xl overflow-hidden bg-black relative"
-      />
+      
+      <div className="absolute inset-0 z-0">
+        <div ref={mapRef} className="w-full h-full min-h-[50vh] bg-black relative" />
+      </div>
 
-      {isCompassMode && !isPickingLocation && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[400] pb-8">
-          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="rgba(17,24,39,0.9)" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.3))" }}>
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" fill="#fbbf24" stroke="none" />
-          </svg>
-        </div>
-      )}
-
-      {successToast && (
-        <div className="absolute inset-0 z-[99999] pointer-events-none flex items-center justify-center">
-          <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce text-center mx-4">
-            {successToast}
+      <div className="absolute inset-0 z-[400] pointer-events-none">
+        
+        {isCompassMode && !isPickingLocation && (
+          <div className="absolute inset-0 flex items-center justify-center pb-8">
+            <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="rgba(17,24,39,0.9)" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.3))" }}>
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" fill="#fbbf24" stroke="none" />
+            </svg>
           </div>
-        </div>
-      )}
+        )}
 
-      {isPickingLocation && (
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[400] flex flex-col items-center gap-2 pointer-events-auto">
-          <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
-            {tMap.pickLocationMsg[lang]}
+        {successToast && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-gray-900 border border-yellow-500 text-yellow-500 font-bold px-6 py-4 rounded-xl shadow-2xl animate-bounce text-center mx-4">
+              {successToast}
+            </div>
           </div>
-          <button
-            onClick={() => {
-              setIsPickingLocation(false);
-              setModal({
-                lat: draftFormState.lat || 31.768,
-                lng: draftFormState.lng || 35.213,
-                draftData: draftFormState,
-                parentId: draftFormState.parentId,
-                mode: draftFormState.editPointId ? "edit" : "create",
-                pointId: draftFormState.editPointId
-              });
-            }}
-            className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
-          >
-            ✕ {tMap.cancelPick[lang]}
-          </button>
-        </div>
-      )}
+        )}
 
-      {modal && !isPickingLocation && (
-        <PointForm
-          mode={modal.mode || "create"}
-          category={modal.prefilledCategory || activeCategory}
-          initialData={{
-            lat: modal.lat,
-            lng: modal.lng,
-            name: modal.draftData?.name || modal.prefilledName,
-            description: modal.draftData?.description,
-            address: modal.draftData ? (lang === "he" ? "מיקום נבחר מהמפה 📍" : "Location picked from map 📍") : modal.draftData?.address,
-            website: modal.draftData?.website,
-            images: modal.draftData?.images,
-            existingImages: modal.draftData?.existingImages,
-            parentId: modal.parentId || modal.draftData?.parentId
-          }}
-          onClose={() => {
-            setModal(null);
-            if (modal.mode === "edit") router.push("/my-points");
-          }}
-          onPickLocation={(currentFormState) => {
-            setDraftFormState({
-              ...currentFormState,
-              lat: modal.lat,
-              lng: modal.lng,
-              address: "",
-              parentId: modal.parentId,
-              editPointId: modal.pointId
-            });
-            setModal(null);
-            setIsPickingLocation(true);
-          }}
-          onSubmit={async ({ form }) => {
-            if (status !== "authenticated") return;
+        {isPickingLocation && (
+            <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+                <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
+                  {tMap.pickLocationMsg[lang]}
+                </div>
+                <button 
+                    onClick={() => {
+                        setIsPickingLocation(false);
+                        setModal({
+                            lat: draftFormState.lat || 31.768,
+                            lng: draftFormState.lng || 35.213,
+                            draftData: draftFormState,
+                            parentId: draftFormState.parentId,
+                            mode: draftFormState.editPointId ? "edit" : "create",
+                            pointId: draftFormState.editPointId
+                        });
+                    }}
+                    className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
+                >
+                    ✕ {tMap.cancelPick[lang]}
+                </button>
+            </div>
+        )}
 
-            let finalLat = modal.lat;
-            let finalLng = modal.lng;
+        {modal && !isPickingLocation && (
+          <div className="pointer-events-auto">
+            <PointForm
+              mode={modal.mode || "create"}
+              category={modal.prefilledCategory || activeCategory}
+              initialData={{
+                lat: modal.lat,
+                lng: modal.lng,
+                name: modal.draftData?.name || modal.prefilledName,
+                description: modal.draftData?.description,
+                address: modal.draftData ? (lang === "he" ? "מיקום נבחר מהמפה 📍" : "Location picked from map 📍") : modal.draftData?.address,
+                website: modal.draftData?.website,
+                images: modal.draftData?.images,
+                existingImages: modal.draftData?.existingImages,
+                parentId: modal.parentId || modal.draftData?.parentId 
+              }}
+              onClose={() => {
+                  setModal(null);
+                  if (modal.mode === "edit") router.push("/my-points");
+              }}
+              onPickLocation={(currentFormState) => {
+                  setDraftFormState({
+                      ...currentFormState,
+                      lat: modal.lat, 
+                      lng: modal.lng,
+                      address: "", 
+                      parentId: modal.parentId,
+                      editPointId: modal.pointId
+                  });
+                  setModal(null);
+                  setIsPickingLocation(true);
+              }}
+              onSubmit={async ({ form }) => {
+                if (status !== "authenticated") return;
 
-            const cleanAddress = form.address ? form.address.trim() : "";
-            const isPickedFromMap = modal.draftData !== undefined || cleanAddress.includes("📍");
+                let finalLat = modal.lat;
+                let finalLng = modal.lng;
 
-            if (!isPickedFromMap && cleanAddress !== "") {
-              try {
-                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
-                const geoData = await geoRes.json();
+                const cleanAddress = form.address ? form.address.trim() : "";
+                const isPickedFromMap = modal.draftData !== undefined || cleanAddress.includes("📍");
 
-                if (geoData && geoData.length > 0) {
-                  finalLat = parseFloat(geoData[0].lat);
-                  finalLng = parseFloat(geoData[0].lon);
-                } else {
-                  const useCompass = window.confirm(tMap.locNotFound[lang]);
+                if (!isPickedFromMap && cleanAddress !== "") {
+                  try {
+                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddress)}&limit=1`);
+                    const geoData = await geoRes.json();
+
+                    if (geoData && geoData.length > 0) {
+                      finalLat = parseFloat(geoData[0].lat);
+                      finalLng = parseFloat(geoData[0].lon);
+                    } else {
+                      const useCompass = window.confirm(tMap.locNotFound[lang]);
+                      if (!useCompass) {
+                        alert(tMap.enterAddress[lang]);
+                        return;
+                      }
+                    }
+                  } catch (err) { }
+                } else if (!isPickedFromMap) {
+                  const useCompass = window.confirm(tMap.noAddress[lang]);
                   if (!useCompass) {
                     alert(tMap.enterAddress[lang]);
                     return;
                   }
                 }
-              } catch (err) { }
-            } else if (!isPickedFromMap) {
-              const useCompass = window.confirm(tMap.noAddress[lang]);
-              if (!useCompass) {
-                alert(tMap.enterAddress[lang]);
-                return;
-              }
-            }
 
-            const formData = new FormData();
-            formData.append("name", form.name);
-            formData.append("description", form.description);
-            formData.append("address", isPickedFromMap ? "" : cleanAddress);
-            formData.append("website", form.website);
-            formData.append("category", form.category);
-            formData.append("latitude", String(finalLat));
-            formData.append("longitude", String(finalLng));
+                const formData = new FormData();
+                formData.append("name", form.name);
+                formData.append("description", form.description);
+                formData.append("address", isPickedFromMap ? "" : cleanAddress);
+                formData.append("website", form.website);
+                formData.append("category", form.category);
+                formData.append("latitude", String(finalLat));
+                formData.append("longitude", String(finalLng));
 
-            if (form.parentId) formData.append("parentId", String(form.parentId));
+                if (form.parentId) formData.append("parentId", String(form.parentId));
 
-            if (form.images && form.images.length > 0) {
-              form.images.forEach((img) => formData.append("images", img));
-            }
+                if (form.images && form.images.length > 0) {
+                  form.images.forEach((img) => formData.append("images", img));
+                }
 
-            const isEditing = modal.mode === "edit";
-            if (isEditing && form.existingImages && form.existingImages.length > 0) {
-              form.existingImages.forEach(url => formData.append("existingImages", url));
-            }
+                const isEditing = modal.mode === "edit";
+                if (isEditing && form.existingImages && form.existingImages.length > 0) {
+                   form.existingImages.forEach(url => formData.append("existingImages", url));
+                }
 
-            const endpoint = isEditing ? `/api/points/${modal.pointId}` : "/api/points";
-            const method = isEditing ? "PUT" : "POST";
+                const endpoint = isEditing ? `/api/points/${modal.pointId}` : "/api/points";
+                const method = isEditing ? "PUT" : "POST";
 
-            const res = await fetch(endpoint, { method, body: formData });
-            const data = await res.json();
+                const res = await fetch(endpoint, { method, body: formData });
+                const data = await res.json();
 
-            if (!res.ok) {
-              alert(data.error);
-              return;
-            }
+                if (!res.ok) {
+                  alert(data.error);
+                  return;
+                }
 
-            setModal(null);
-            setCompassMode(false);
-            setDraftFormState(null);
+                setModal(null);
+                setCompassMode(false);
+                setDraftFormState(null);
 
-            if (isEditing) {
-              window.dispatchEvent(new Event("points-updated"));
-              localStorage.removeItem("jseed_edit_draft");
-              router.push("/my-points");
-            } else {
-              setPoints((prev) => [...prev, data]);
-              setViewedIds((prev) => [...prev, data.id]);
-              if (map) map.setView([finalLat, finalLng], 16);
+                if (isEditing) {
+                   window.dispatchEvent(new Event("points-updated"));
+                   localStorage.removeItem("jseed_edit_draft"); 
+                   router.push("/my-points"); 
+                } else {
+                   setPoints((prev) => [...prev, data]);
+                   setViewedIds((prev) => [...prev, data.id]);
+                   if (map) map.setView([finalLat, finalLng], 16);
+                   
+                   setSuccessToast(tMap.thankYouMsg[lang]);
+                   setTimeout(() => setSuccessToast(null), 3000); 
+                }
+              }}
+            />
+          </div>
+        )}
 
-              setSuccessToast(tMap.thankYouMsg[lang]);
-              setTimeout(() => setSuccessToast(null), 3000);
-            }
-          }}
-        />
-      )}
-
-      {hasStarted && (
-        <>
-          <button
-            onClick={() => {
-              if (!map) return;
-              if (!gpsEnabled) {
-                alert(tMap.gpsDisabled[lang]);
-                return;
-              }
-              if (isLocating) return;
-
-              if (isFollowing) {
-                map.setView([31.7683, 35.2137], 3);
-                setIsFollowing(false);
-                setShowLocationMarker(false);
-              } else {
-                setIsLocating(true);
-                map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
-              }
-            }}
-            className={`absolute bottom-6 left-[24px] z-[400] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
-            title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
-          >
-            {isLocating ? (
-              <svg className="animate-spin h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : isFollowing ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 11l19-9-9 19-2-8-8-2z" />
-              </svg>
-            )}
-          </button>
-
-          <div className="absolute bottom-6 left-[68px] z-[400] flex flex-col-reverse items-start gap-2">
+        {hasStarted && (
+          <div className="pointer-events-auto">
             <button
               onClick={() => {
+                if (!map) return;
                 if (!gpsEnabled) {
-                  alert(tMap.gpsDisabled[lang]);
-                  return;
+                    alert(tMap.gpsDisabled[lang]);
+                    return;
                 }
-                if (!userLocation && map) {
-                  if (!isLocating) {
-                    setIsLocating(true);
-                    map.locate({ enableHighAccuracy: true });
-                  }
-                  alert(tMap.locating[lang]);
-                  return;
+                if (isLocating) return;
+
+                if (isFollowing) {
+                  map.setView([31.7683, 35.2137], 3);
+                  setIsFollowing(false);
+                  setShowLocationMarker(false);
+                } else {
+                  setIsLocating(true);
+                  map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
                 }
-                setShowRadiusMenu(!showRadiusMenu);
               }}
-              className={`p-2 rounded-full shadow-lg transition-colors border ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60 text-gray-500" : filterRadius
-                ? "bg-yellow-500 border-yellow-400 text-black"
-                : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
-                }`}
-              title={tMap.filterDist[lang]}
+              className={`absolute bottom-6 left-[24px] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
+              title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              {isLocating ? (
+                <svg className="animate-spin h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : isFollowing ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 11l19-9-9 19-2-8-8-2z" />
+                </svg>
+              )}
             </button>
 
-            {showRadiusMenu && userLocation && gpsEnabled && (
-              <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
-                <button
-                  onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}
-                  className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
-                >
-                  {tMap.noFilter[lang]}
-                </button>
+            <div className="absolute bottom-6 left-[68px] flex flex-col-reverse items-start gap-2">
+              <button
+                onClick={() => {
+                  if (!gpsEnabled) {
+                      alert(tMap.gpsDisabled[lang]);
+                      return;
+                  }
+                  if (!userLocation && map) {
+                    if (!isLocating) {
+                      setIsLocating(true);
+                      map.locate({ enableHighAccuracy: true });
+                    }
+                    alert(tMap.locating[lang]);
+                    return;
+                  }
+                  setShowRadiusMenu(!showRadiusMenu);
+                }}
+                className={`p-2 rounded-full shadow-lg transition-colors border ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60 text-gray-500" : filterRadius
+                  ? "bg-yellow-500 border-yellow-400 text-black"
+                  : "bg-gray-900 border-gray-700 text-yellow-500 hover:bg-gray-800"
+                  }`}
+                title={tMap.filterDist[lang]}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
 
-                {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
+              {showRadiusMenu && userLocation && gpsEnabled && (
+                <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl flex flex-col p-1 w-32 max-h-60 overflow-y-auto custom-scrollbar">
                   <button
-                    key={dist}
-                    onClick={() => {
-                      setFilterRadius(dist);
-                      setShowRadiusMenu(false);
-                      setShowLocationMarker(true);
-                    }}
-                    className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
+                    onClick={() => { setFilterRadius(null); setShowRadiusMenu(false); }}
+                    className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${!filterRadius ? "text-yellow-400 font-bold" : "text-gray-300"}`}
                   >
-                    {tMap.upTo[lang]} {dist} {tMap.km[lang]}
+                    {tMap.noFilter[lang]}
                   </button>
-                ))}
-              </div>
-            )}
+
+                  {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
+                    <button
+                      key={dist}
+                      onClick={() => { 
+                        setFilterRadius(dist); 
+                        setShowRadiusMenu(false);
+                        setShowLocationMarker(true);
+                      }}
+                      className={`text-center px-3 py-2 text-sm rounded-lg hover:bg-gray-800 ${filterRadius === dist ? "text-yellow-400 font-bold bg-gray-800" : "text-gray-300"}`}
+                    >
+                      {tMap.upTo[lang]} {dist} {tMap.km[lang]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       {/* 🌟 המגירה הגדולה */}
-      <div
-        onClick={() => {
-          if (drawerMode === 'peek') {
-            setDrawerMode('open');
-          }
-        }}
-        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} ${drawerWidthClass} transition-all duration-500 ease-in-out ${drawerMode === 'peek' ? 'cursor-pointer' : ''}`}
+      <div 
+        className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} ${drawerWidthClass} transition-all duration-500 ease-in-out pointer-events-none`}
         style={{ transform: drawerTransform }}
       >
-        <div dir={isHe ? 'rtl' : 'ltr'} className={`w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col ${drawerMode !== 'peek' ? 'pointer-events-auto' : 'pointer-events-none'} relative border-${isHe ? 'l' : 'r'} border-gray-700/50`}>
+        <div dir={isHe ? 'rtl' : 'ltr'} className={`w-full h-full bg-gray-900/95 backdrop-blur-xl shadow-2xl flex flex-col pointer-events-auto relative border-${isHe ? 'l' : 'r'} border-gray-700/50`}>
 
-          {drawerMode === 'peek' && (
-            <div className="absolute inset-0 flex items-center justify-center opacity-80" style={{ pointerEvents: 'none' }}>
-              <span className="text-yellow-500 font-bold tracking-widest text-lg" style={{ transform: isHe ? 'rotate(90deg)' : 'rotate(-90deg)', whiteSpace: 'nowrap' }}>
-                {tMap.suggestionsTitle[lang]} 👈
-              </span>
-            </div>
-          )}
-
-          <div style={{ opacity: drawerMode === 'peek' ? 0.05 : 1, transition: 'opacity 0.3s' }} className="flex flex-col h-full">
+          <div className="flex flex-col h-full">
             {!selectedSuggestion ? (
               <>
                 <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80 shrink-0">
                   <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
                 </div>
-
+                
                 <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                   {isLoadingSuggestions ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
@@ -769,25 +751,24 @@ export default function Map({
                       <p className="font-medium">{tMap.noSuggestions[lang]}</p>
                     </div>
                   ) : (
-                    // 🌟 הנה הגריד ששונה לטור אחד כדי שהגרעינים לא ימעכו בשורה
-                    <div className="flex flex-col gap-6">
+                    <div className={`grid gap-6 ${drawerMode === 'peek' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
                       {suggestions.map((point) => {
                         const pointName = isHe ? point.name : (point.name_en || point.name);
                         const pointDesc = isHe ? point.description : (point.description_en || point.description);
                         const hasImage = point.imageUrls && point.imageUrls.length > 0;
 
                         return (
-                          <div
-                            key={point.id}
+                          <div 
+                            key={point.id} 
                             onClick={() => handleSuggestionClick(point)}
                             className="group relative flex flex-col bg-gray-800/80 rounded-[28px] overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
                           >
-                            <div className={`w-full ${hasImage ? 'h-[30vh] md:h-48' : 'h-32'} bg-gray-950 relative shrink-0`}>
+                            <div className={`w-full ${hasImage ? 'h-[45vh] md:h-52' : 'h-32'} bg-gray-950 relative shrink-0`}>
                               {hasImage ? (
                                 <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                  <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                                   <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
                                 </div>
                               )}
                             </div>
@@ -808,9 +789,10 @@ export default function Map({
                 </div>
               </>
             ) : (
+              // 🌟 מסך הפירוט: משתמשים בפונקציית הפופ-אפ המקורית!
               <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
                 <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-gray-800/90 backdrop-blur-md border-b border-gray-700 shadow-md shrink-0">
-                  <button
+                  <button 
                     onClick={() => setSelectedSuggestion(null)}
                     className="flex items-center gap-2 text-yellow-500 font-bold hover:text-yellow-400 transition"
                   >
@@ -822,14 +804,15 @@ export default function Map({
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-5 pb-8">
+                  {/* הדיב שלתוכו נוצק את התוכן מהפונקציה המקורית */}
                   <div 
                     ref={suggestionNodeRef} 
-                    className="bg-[#111827] border border-gray-700 rounded-2xl p-4 shadow-2xl relative jseed-custom-modal-content"
+                    className="bg-[#111827] border border-gray-700 rounded-2xl p-4 shadow-2xl relative"
                   ></div>
 
-                  {/* הכפתור הנקי ללא הריבוע */}
+                  {/* הכפתור החדש - בלי מסגרת, עם אייקון נעץ */}
                   <div className="flex justify-center mt-5 mb-2">
-                    <button
+                    <button 
                       onClick={() => {
                         if (!hasStarted) {
                           setHasStarted(true);
@@ -852,8 +835,11 @@ export default function Map({
           </div>
         </div>
 
-        <div
-          onClick={toggleSuggestions}
+        <div 
+          onClick={() => {
+            if (drawerMode === 'closed' || drawerMode === 'peek') setDrawerMode('open');
+            else setDrawerMode('closed');
+          }}
           className={`absolute top-1/2 -translate-y-1/2 ${isHe ? 'left-[-20px]' : 'right-[-20px]'} w-5 h-20 bg-yellow-500 cursor-pointer pointer-events-auto shadow-lg flex items-center justify-center border border-yellow-400 ${isHe ? 'rounded-l-lg border-r-0' : 'rounded-r-lg border-l-0'} hover:bg-yellow-400 transition-colors z-[501]`}
         >
           <div className={`flex flex-col gap-1 ${isHe ? 'mr-0.5' : 'ml-0.5'}`}>
@@ -863,25 +849,7 @@ export default function Map({
           </div>
         </div>
       </div>
-
-      {drawerMode !== 'closed' && (
-        <div
-          className={`absolute top-0 bottom-0 ${isHe ? 'left-0' : 'right-0'} ${drawerMode === 'peek' ? 'w-[75%]' : 'w-[10%]'} z-[490] bg-gray-800/80 backdrop-blur-sm border-${isHe ? 'r' : 'l'} border-gray-700 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] cursor-pointer flex items-center justify-center transition-all hover:bg-gray-700 pointer-events-auto`}
-          onClick={() => {
-            if (drawerMode === 'peek') {
-              startUserJourney();
-            }
-            setDrawerMode('closed');
-            setTimeout(() => setSelectedSuggestion(null), 300);
-          }}
-        >
-          <div className="bg-gray-900/50 p-1 rounded-md text-gray-400 border border-gray-600/50">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isHe ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
-            </svg>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
