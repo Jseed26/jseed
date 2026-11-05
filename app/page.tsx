@@ -52,11 +52,11 @@ export default function Home() {
 
   const [activeCategory, setActiveCategory] = useState<PointCategory | null>(null);
   const [isCompassMode, setCompassMode] = useState(false);
-  
+
   // 🌟 הפרדה: searchInput זה מה שמקלידים, searchQuery נשלח לשרת רק בלחיצה על Enter / Search!
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -93,6 +93,43 @@ export default function Home() {
       console.error("Failed to fetch initiatives", err);
     }
   };
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadNotifications = async () => {
+    if (!isLoggedIn) {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/notifications", {
+        cache: "no-store",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.filter((n: any) => !n.isRead).length);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setUnreadCount(0);
+      return;
+    }
+
+    fetchUnreadNotifications();
+
+    const interval = setInterval(() => {
+      fetchUnreadNotifications();
+    }, 20000);
+
+    return () => clearInterval(interval);
+  }, [status]);
 
   const categories: { key: PointCategory; label: string }[] = [
     { key: "leaf", label: t.community[lang] },
@@ -153,13 +190,19 @@ export default function Home() {
                 if (status === "loading") return;
                 router.push("/my-points");
               }}
-              className="hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center"
+              className="relative hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center"
             >
               <img
                 src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
                 className="w-8 h-8 object-contain"
                 alt="Profile"
               />
+
+              {isLoggedIn && unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border border-black shadow-lg">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -342,16 +385,15 @@ export default function Home() {
                 <div className="h-12 sm:h-14 flex items-end justify-center w-full relative">
                   <img
                     src={`/icons/categories/${cat.key}/${isActive ? "active" : "default"}.png`}
-                    className={`shrink-0 object-contain transition-transform origin-bottom ${
-                      isChai
-                        ? `absolute z-0 w-14 h-12 sm:w-16 sm:h-14 bottom-[-14px] sm:bottom-[-16px] scale-[1.3] sm:scale-[1.4] group-hover:scale-[1.4] sm:group-hover:scale-[1.5] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
-                        : "relative z-10 w-10 h-10 sm:w-12 sm:h-12 group-hover:scale-105"
-                    }`}
+                    className={`shrink-0 object-contain transition-transform origin-bottom ${isChai
+                      ? `absolute z-0 w-14 h-12 sm:w-16 sm:h-14 bottom-[-14px] sm:bottom-[-16px] scale-[1.3] sm:scale-[1.4] group-hover:scale-[1.4] sm:group-hover:scale-[1.5] ${lang === "he" ? "-translate-x-1" : "translate-x-1"}`
+                      : "relative z-10 w-10 h-10 sm:w-12 sm:h-12 group-hover:scale-105"
+                      }`}
                     alt={cat.label}
                   />
                 </div>
-                
-                <span 
+
+                <span
                   className="text-[10px] sm:text-xs mt-1 text-center leading-tight break-words w-full relative z-10 text-yellow-500"
                   style={isChai ? { textShadow: "0px 1px 4px rgba(0,0,0,0.9), 0px 0px 2px rgba(0,0,0,1)" } : {}}
                 >
