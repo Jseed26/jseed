@@ -17,7 +17,7 @@ export async function GET() {
         userId: session.user.id,
       },
       orderBy: { createdAt: "desc" },
-      take: 50,
+      // 🌟 הוסרה מגבלת ה-take! עכשיו זה ישלוף את כל ההתראות במערכת
     });
 
     return NextResponse.json(notifications);

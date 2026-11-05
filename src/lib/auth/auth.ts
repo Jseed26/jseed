@@ -49,43 +49,54 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         GitHub({
             clientId: process.env.GITHUB_ID!,
             clientSecret: process.env.GITHUB_SECRET!,
+            // 🌟 הוספנו את ההרשאה לקשר חשבונות על בסיס אימייל
+            allowDangerousEmailAccountLinking: true,
         }),
 
         Google({
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            // 🌟 הוספנו את ההרשאה לקשר חשבונות על בסיס אימייל
+            allowDangerousEmailAccountLinking: true,
         }),
-
     ],
 
     callbacks: {
         async signIn({ user, account, profile }) {
-            if (account?.provider === 'google' || account?.provider === 'github') {
-                if (user.email) {
-                    const lowerEmail = user.email.toLowerCase();
-
-                    // מושכים את השם שהמשתמש הקליד אצלנו מתוך העוגיות
-                    // שׂימי את זה:
-                    const cookieStore = await cookies();
-                    const desiredName = cookieStore.get("jseed_desired_name")?.value;
-
-                    // מעדכנים את המשתמש הקיים/החדש במסד עם אותיות קטנות ועם השם הרצוי
-                    await prisma.user.update({
-                        where: { id: user.id },
-                        data: {
-                            email: lowerEmail,
-                            ...(desiredName ? { name: decodeURIComponent(desiredName) } : {})
-                        }
-                    });
-                }
-            }
             return true;
         },
 
-        async jwt({ token, user }) {
+        async jwt({ token, user, account, profile, isNewUser, trigger }) {
             if (user) {
                 token.id = user.id;
-                token.name = user.name; // 👈 מוודאים שהשם נכנס לטוקן
+                token.email = user.email ? user.email.toLowerCase() : token.email;
+
+                let finalName = user.name;
+
+                if (account && (account.provider === 'google' || account.provider === 'github')) {
+                    try {
+                        const cookieStore = await cookies();
+                        const desiredName = cookieStore.get("jseed_desired_name")?.value;
+                        
+                        if (desiredName) {
+                            finalName = decodeURIComponent(desiredName);
+                        }
+
+                        if (user.id) {
+                             await prisma.user.update({
+                                 where: { id: user.id },
+                                 data: {
+                                     email: token.email ?? undefined,
+                                     ...(finalName ? { name: finalName } : {})
+                                 }
+                             });
+                        }
+                    } catch (error) {
+                        console.error("Error updating social user data:", error);
+                    }
+                }
+                
+                token.name = finalName; 
             }
             return token;
         },
@@ -93,10 +104,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async session({ session, token }) {
             if (session.user) {
                 session.user.id = token.id as string;
-                session.user.name = token.name as string; // 👈 מעבירים את השם ל-session
+                session.user.name = token.name as string; 
+                session.user.email = token.email as string;
             }
             return session;
         },
     },
-
 });
