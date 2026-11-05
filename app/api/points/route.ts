@@ -365,6 +365,56 @@ export async function POST(req: Request) {
       },
     });
 
+    // אם מדובר בהצטרפות ליוזמה קיימת – שליחת התראה למשתתפים
+    if (parentId) {
+      try {
+        const initiative = await prisma.point.findUnique({
+          where: { id: parentId },
+          select: {
+            id: true,
+            name: true,
+            userId: true,
+            children: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        });
+
+        if (initiative) {
+          // אוספים את היוזם ואת כל המשתתפים הקיימים
+          const participantIds = [
+            initiative.userId,
+            ...initiative.children.map((child) => child.userId),
+          ];
+
+          // מסירים כפילויות ואת המשתמש שהצטרף עכשיו
+          const uniqueParticipantIds = [
+            ...new Set(
+              participantIds.filter(
+                (id): id is string =>
+                  Boolean(id) && id !== session.user.id
+              )
+            ),
+          ];
+
+          // שולחים התראה לכל המשתתפים
+          if (uniqueParticipantIds.length > 0) {
+            await prisma.notification.createMany({
+              data: uniqueParticipantIds.map((userId) => ({
+                userId,
+                message: `מישהו נוסף הצטרף ליוזמה "${initiative.name}" 🌱`,
+                isRead: false,
+              })),
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error("Failed to send initiative notifications:", notificationError);
+      }
+    }
+
     // 🌟 מריצים את ה-AI ברקע בלי לעכב את החזרת התשובה למשתמש!
     enrichPointWithAI(newPoint).catch(console.error);
 
@@ -421,12 +471,12 @@ export async function PUT(req: Request, context: any) {
     let isMapPicked = false;
 
     if (reqLat && reqLat !== "null" && reqLat !== "undefined") {
-        latitude = Number(reqLat);
-        isMapPicked = true;
+      latitude = Number(reqLat);
+      isMapPicked = true;
     }
     if (reqLng && reqLng !== "null" && reqLng !== "undefined") {
-        longitude = Number(reqLng);
-        isMapPicked = true;
+      longitude = Number(reqLng);
+      isMapPicked = true;
     }
 
     if (address && address !== existing.address && address !== "" && !isMapPicked) {
