@@ -57,6 +57,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
+    // 1. יצירת התגובה במסד הנתונים
     const newComment = await prisma.comment.create({
       data: {
         content: content.trim(),
@@ -68,8 +69,26 @@ export async function POST(req: Request) {
       }
     });
 
+    // 2. מציאת בעל הגרעין כדי לשלוח לו התראה
+    const point = await prisma.point.findUnique({
+      where: { id: Number(pointId) },
+      select: { userId: true, name: true }
+    });
+
+    // 3. יצירת התראה רק אם יש בעלים והוא שונה מהמשתמש שהגיב עכשיו
+    if (point?.userId && point.userId !== session.user.id) {
+      await prisma.notification.create({
+        data: {
+          userId: point.userId,
+          message: `מישהו הרגע הגיב לגרעין שלך: "${point.name}"! 💬`,
+          isRead: false,
+        }
+      });
+    }
+
     return NextResponse.json(newComment);
   } catch (error) {
+    console.error("Failed to add comment & notification:", error);
     return NextResponse.json({ error: "Failed to add comment" }, { status: 500 });
   }
 }

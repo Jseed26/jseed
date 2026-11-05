@@ -53,13 +53,13 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState<PointCategory | null>(null);
   const [isCompassMode, setCompassMode] = useState(false);
   
+  // 🌟 הפרדה: searchInput זה מה שמקלידים, searchQuery נשלח לשרת רק בלחיצה על Enter / Search!
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
-  // 🌟 סטייט חדש לספירת ההתראות שלא נקראו עבור אייקון הפרופיל
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
 
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -67,22 +67,8 @@ export default function Home() {
   const isLoggedIn = status === "authenticated";
 
   const [isChaiMenuOpen, setIsChaiMenuOpen] = useState(false);
-  const [chaiInitiatives, setChaiInitiatives] = useState<InitiativeWithCount[]>([]);
 
-  // 🌟 משיכת כמות ההתראות שלא נקראו מהשרת
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetch("/api/notifications")
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            const unread = data.filter((n: any) => !n.isRead).length;
-            setUnreadNotificationsCount(unread);
-          }
-        })
-        .catch(err => console.error("Failed to fetch unread notifications count", err));
-    }
-  }, [isLoggedIn]);
+  const [chaiInitiatives, setChaiInitiatives] = useState<InitiativeWithCount[]>([]);
 
   const fetchChaiInitiatives = async () => {
     try {
@@ -144,6 +130,7 @@ export default function Home() {
               />
             </button>
 
+            {/* 🌟 כפתור זכוכית המגדלת בצבע זהב */}
             <button
               className="flex items-center justify-center p-1.5 transition-all hover:scale-110 drop-shadow-lg bg-yellow-500/10 border border-yellow-500/50 rounded-full text-yellow-400"
               title="חיפוש חכם"
@@ -159,7 +146,6 @@ export default function Home() {
             </button>
           </div>
 
-          {/* 🌟 אייקון הפרופיל עם מספר ההתראות האדום */}
           <div className="flex items-center gap-4 pointer-events-auto">
             <button
               title={t.myProfile[lang]}
@@ -167,19 +153,13 @@ export default function Home() {
                 if (status === "loading") return;
                 router.push("/my-points");
               }}
-              className="hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center relative"
+              className="hover:scale-110 transition-transform drop-shadow-lg flex items-center justify-center"
             >
               <img
                 src={`/icons/ui/contact/${isLoggedIn ? "active" : "default"}.png`}
                 className="w-8 h-8 object-contain"
                 alt="Profile"
               />
-              {/* תגית אדומה עם מספר ההתראות שלא נקראו */}
-              {isLoggedIn && unreadNotificationsCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 bg-red-600 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full border border-black shadow-md">
-                  {unreadNotificationsCount}
-                </span>
-              )}
             </button>
           </div>
         </div>
@@ -192,12 +172,13 @@ export default function Home() {
           className="relative z-40"
         />
 
+        {/* 🌟 שורת החיפוש החכמה שנשלחת רק בלחיצה על Enter או Search בנייד */}
         {isSearchOpen && (
           <div className="w-11/12 max-w-md px-4 mt-1 transition-all animate-fadeIn relative z-[10000]">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                setActiveCategory(null);
+                setActiveCategory(null); // מבטל סינון קטגוריה כדי לחפש בכל המפה
                 setSearchQuery(searchInput.trim());
                 if (document.activeElement instanceof HTMLElement) {
                   document.activeElement.blur();
@@ -251,6 +232,14 @@ export default function Home() {
       )}
 
       <div className="flex-1 min-h-0 w-full px-2 relative">
+        <Map
+          activeCategory={activeCategory}
+          isCompassMode={isCompassMode}
+          setCompassMode={setCompassMode}
+          searchQuery={searchQuery}
+          isLoggedIn={isLoggedIn}
+          lang={lang}
+        />
       </div>
 
       {/* ================= תפריט קטגוריות תחתון ================= */}
