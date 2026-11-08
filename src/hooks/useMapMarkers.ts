@@ -36,28 +36,31 @@ const persistViewedPoint = (id: number) => {
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
 
+  // 🌟 מתמטיקה מדורגת שמתחילה מ-10 בברירת המחדל וגדלה בהדרגה לפי רמת הזום
   let baseSize = 10;
 
   if (zoom >= 15) {
-    baseSize = 44;
+    baseSize = 32; // זום קרוב מאוד (עיר/רחוב)
   } else if (zoom >= 11) {
-    baseSize = 34;
+    baseSize = 24; // זום בינוני (אזור/עיר)
   } else if (zoom >= 6) {
-    baseSize = 28;
+    baseSize = 16; // זום רחוק (מדינה)
   }
+  // מתחת לזום 6 יישאר 10 (מבט על העולם)
 
-  const badgeSize = baseSize < 28 ? 18 : 22;
-  const badgeFontSize = baseSize < 28 ? 11 : 13;
-  const badgeOffset = baseSize < 28 ? -5 : -8;
+  // התאמת גודל התג (Badge) בהתאם לגודל האייקון החדש
+  const badgeSize = baseSize < 20 ? 14 : (baseSize < 28 ? 16 : 20);
+  const badgeFontSize = baseSize < 20 ? 9 : (baseSize < 28 ? 10 : 12);
+  const badgeOffset = baseSize < 20 ? -3 : (baseSize < 28 ? -4 : -6);
 
   const badgeHtml = count > 1
-    ? `<div style="position: absolute; top: ${badgeOffset}px; right: ${badgeOffset}px; background: #fbbf24; color: #000; border-radius: 50%; width: ${badgeSize}px; height: ${badgeSize}px; display: flex; align-items: center; justify-content: center; font-size: ${badgeFontSize}px; font-weight: 900; border: 2px solid #111827; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10;">${count}</div>`
+    ? `<div style="position: absolute; top: ${badgeOffset}px; right: ${badgeOffset}px; background: #fbbf24; color: #000; border-radius: 50%; width: ${badgeSize}px; height: ${badgeSize}px; display: flex; align-items: center; justify-content: center; font-size: ${badgeFontSize}px; font-weight: 900; border: 1.5px solid #111827; box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 10;">${count}</div>`
     : '';
 
   return L.divIcon({
     html: `
       <div style="position: relative; width: ${baseSize}px; height: ${baseSize}px; transition: all 0.3s ease-out;">
-        <img src="${iconUrl}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.6));" />
+        <img src="${iconUrl}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.6));" />
         ${badgeHtml}
       </div>
     `,
