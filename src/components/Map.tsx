@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import * as maptilersdk from "@maptiler/sdk";
+import "@maptiler/sdk/dist/maptiler-sdk.css";
 
 import { useMapMarkers } from "@/src/hooks/useMapMarkers";
 import { Point } from "@/src/types/point";
@@ -58,6 +58,45 @@ const tMap = {
 
 type DrawerMode = 'peek' | 'closed' | 'open';
 
+// פונקציית עזר לחישוב מרחק בקילומטרים בין שתי קואורדינטות (Haversine)
+function getDistanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// פונקציית עזר ליצירת פוליגון מעגל עבור הגלובוס
+function createGeoJSONCircle(center: [number, number], radiusInKm: number, points = 64) {
+  const [lng, lat] = center;
+  const coords = [];
+  const distanceX = radiusInKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  const distanceY = radiusInKm / 110.574;
+
+  for (let i = 0; i < points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    const x = distanceX * Math.cos(theta);
+    const y = distanceY * Math.sin(theta);
+    coords.push([lng + x, lat + y]);
+  }
+  coords.push(coords[0]);
+
+  return {
+    type: "Feature" as const,
+    geometry: {
+      type: "Polygon" as const,
+      coordinates: [coords],
+    },
+    properties: {},
+  };
+}
+
 export default function Map({
   activeCategory,
   isCompassMode,
@@ -70,14 +109,15 @@ export default function Map({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [map, setMap] = useState<L.Map | null>(null);
+  const [map, setMap] = useState<maptilersdk.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
   
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [draftFormState, setDraftFormState] = useState<any>(null);
 
-  const mapInstanceRef = useRef<L.Map | null>(null);
+  const mapInstanceRef = useRef<maptilersdk.Map | null>(null);
+  const userMarkerRef = useRef<maptilersdk.Marker | null>(null);
 
   const [viewedIds, setViewedIds] = useState<number[]>([]);
   const [savedIds, setSavedIds] = useState<number[]>([]);
@@ -93,7 +133,6 @@ export default function Map({
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
-  // 🌟 סטייט למגירה - מתחיל כרגיל פתוח למחצה (peek)
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('peek');
   const [hasStarted, setHasStarted] = useState(false);
   
@@ -111,10 +150,10 @@ export default function Map({
 
   useEffect(() => {
     if (!gpsEnabled) {
-        setIsFollowing(false);
-        setShowLocationMarker(false);
-        setUserLocation(null);
-        setFilterRadius(null);
+      setIsFollowing(false);
+      setShowLocationMarker(false);
+      setUserLocation(null);
+      setFilterRadius(null);
     }
   }, [gpsEnabled]);
 
@@ -137,16 +176,13 @@ export default function Map({
     }
   }, [searchParams, router]);
 
-  // 🌟 לוגיקת SessionStorage חכמה! נטענת פעם אחת בלבד 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const isStarted = sessionStorage.getItem("jseed_app_started") === "true";
       if (isStarted) {
-        // אם חזרנו לדף - סוגרים את המגירה ורושמים שהתחלנו
         setHasStarted(true);
         setDrawerMode('closed');
       } else {
-        // אם זו הפעם הראשונה אי פעם - נמשוך רעיונות כדי להציג מיד ב-peek!
         setIsLoadingSuggestions(true);
         fetch("/api/suggestions")
           .then(res => res.json())
@@ -157,50 +193,46 @@ export default function Map({
     }
   }, []);
 
+  // 🌟 אתחול הגלובוס התלת-ממדי של MapTiler
   useEffect(() => {
     if (!mapRef.current) return;
     if (mapInstanceRef.current) return;
 
     const container = mapRef.current;
     const isMobile = window.innerWidth < 768;
-    const worldBounds = L.latLngBounds([-90, -180], [90, 180]);
 
-    const newMap = L.map(container, {
-      center: [31.5, 10.8], 
-      zoom: isMobile ? 2 : 2.5,
-      minZoom: isMobile ? 2 : 2.5,
+    maptilersdk.config.apiKey = "1eZTTOxJLWMsKdfO1otY";
+
+    const newMap = new maptilersdk.Map({
+      container,
+      style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
+      center: [20, 25], // [lng, lat] - ממורכז על אירופה/אפריקה/אסיה כמו בתמונה
+      zoom: isMobile ? 0.8 : 1.3, // זום אאוט שמציג את כל הגלובוס העגול בחלל
+      minZoom: 0.5,
       maxZoom: 18,
-      maxBounds: worldBounds,
-      maxBoundsViscosity: 1.0,
-      worldCopyJump: false,
-      zoomControl: false,
-      preferCanvas: true,
-      zoomSnap: 0,
-      zoomAnimation: false,
-      markerZoomAnimation: false,
-      fadeAnimation: false
+      projection: "globe", // 🌍 מפעיל את הגלובוס התלת-ממדי!
+      navigationControl: false,
+      geolocateControl: false,
     });
 
     mapInstanceRef.current = newMap;
-    const maptilerLayer = L.tileLayer(
-      "https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=1eZTTOxJLWMsKdfO1otY",
-      { noWrap: true, bounds: worldBounds }
-    );
 
-    maptilerLayer.addTo(newMap);
-    setMap(newMap);
+    newMap.on("load", () => {
+      // מוודאים שגם אם הסטייל שטוח, ההקרנה תהיה גלובוס תלת-ממדי
+      newMap.setProjection({ type: "globe" });
+      setMap(newMap);
 
-    // 🌟 אם חזרנו לדף (כבר התחלנו), נמקד את המפה ישר במדינה בלי "לטוס" לאט!
-    if (typeof window !== "undefined" && sessionStorage.getItem("jseed_app_started") === "true") {
-      fetch("https://ipapi.co/json/")
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.latitude && data.longitude) {
-            newMap.setView([data.latitude, data.longitude], 6);
-          }
-        })
-        .catch(() => {});
-    }
+      if (typeof window !== "undefined" && sessionStorage.getItem("jseed_app_started") === "true") {
+        fetch("https://ipapi.co/json/")
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.latitude && data.longitude) {
+              newMap.jumpTo({ center: [data.longitude, data.latitude], zoom: 6 });
+            }
+          })
+          .catch(() => {});
+      }
+    });
 
     return () => {
       if (mapInstanceRef.current) {
@@ -211,13 +243,13 @@ export default function Map({
   }, []);
 
   const loadHistory = async () => {
-      try {
-        const res = await fetch("/api/history");
-        if (res.ok) {
-          const data = await res.json();
-          setViewedIds(data.map((p: Point) => p.id));
-        }
-      } catch (err) { }
+    try {
+      const res = await fetch("/api/history");
+      if (res.ok) {
+        const data = await res.json();
+        setViewedIds(data.map((p: Point) => p.id));
+      }
+    } catch (err) {}
   };
 
   useEffect(() => {
@@ -230,7 +262,7 @@ export default function Map({
           const data = await res.json();
           setSavedIds(data.map((p: Point) => p.id));
         }
-      } catch (err) { }
+      } catch (err) {}
     }
     loadSaved();
   }, [isLoggedIn]);
@@ -267,7 +299,6 @@ export default function Map({
     return () => window.removeEventListener("points-updated", refresh);
   }, [isLoggedIn]);
 
-  // 🌟 מתחיל את המסע ושומר ב-SessionStorage כדי שלא יקפוץ שוב בעתיד!
   const startUserJourney = () => {
     setHasStarted(true);
     setDrawerMode('closed');
@@ -280,9 +311,11 @@ export default function Map({
         .then(res => res.json())
         .then(data => {
           if (data && data.latitude && data.longitude && mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([data.latitude, data.longitude], 6, {
-              duration: 2.5,
-              easeLinearity: 0.25
+            mapInstanceRef.current.flyTo({
+              center: [data.longitude, data.latitude],
+              zoom: 6,
+              duration: 2500,
+              essential: true
             });
           }
         })
@@ -290,10 +323,50 @@ export default function Map({
     }
   };
 
+  // פונקציה לאיתור מיקום ה-GPS של המשתמש
+  const locateUser = (flyToLocation: boolean) => {
+    if (!navigator.geolocation) {
+      alert(tMap.locationError[lang]);
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const { latitude, longitude } = pos.coords;
+        if (latitude === 0 && longitude === 0) {
+          setIsFollowing(false);
+          setShowLocationMarker(false);
+          setUserLocation(null);
+          setFilterRadius(null);
+          alert(tMap.locationUnstable[lang]);
+          return;
+        }
+        setUserLocation({ lat: latitude, lng: longitude });
+        setIsFollowing(true);
+        setShowLocationMarker(true);
+        if (flyToLocation && mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            duration: 1800
+          });
+        }
+      },
+      () => {
+        setIsLocating(false);
+        setIsFollowing(false);
+        setShowLocationMarker(false);
+        alert(tMap.locationError[lang]);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   useEffect(() => {
     if (!map) return;
 
-    const handleClick = (e: L.LeafletMouseEvent) => {
+    const handleClick = (e: maptilersdk.MapMouseEvent) => {
       if (!hasStarted) {
         startUserJourney();
         return; 
@@ -305,18 +378,18 @@ export default function Map({
       }
 
       if (isPickingLocation && draftFormState) {
-          setModal({
-              lat: e.latlng.lat,
-              lng: e.latlng.lng,
-              prefilledCategory: draftFormState.category,
-              draftData: draftFormState,
-              parentId: draftFormState.parentId,
-              mode: draftFormState.editPointId ? "edit" : "create",
-              pointId: draftFormState.editPointId
-          });
-          setIsPickingLocation(false);
-          setDraftFormState(null);
-          return;
+        setModal({
+          lat: e.lngLat.lat,
+          lng: e.lngLat.lng,
+          prefilledCategory: draftFormState.category,
+          draftData: draftFormState,
+          parentId: draftFormState.parentId,
+          mode: draftFormState.editPointId ? "edit" : "create",
+          pointId: draftFormState.editPointId
+        });
+        setIsPickingLocation(false);
+        setDraftFormState(null);
+        return;
       }
 
       if (!isCompassMode) return;
@@ -325,43 +398,17 @@ export default function Map({
         return;
       }
 
-      setModal({ lat: e.latlng.lat, lng: e.latlng.lng, mode: "create" });
+      setModal({ lat: e.lngLat.lat, lng: e.lngLat.lng, mode: "create" });
     };
 
-    const handleLocationError = () => {
-      setIsLocating(false);
-      setIsFollowing(false);
-      setShowLocationMarker(false);
-      alert(tMap.locationError[lang]);
-    };
-
-    const handleLocationFound = (e: any) => {
-      setIsLocating(false);
-      if (e.latlng.lat === 0 && e.latlng.lng === 0) {
-        setIsFollowing(false);
-        setShowLocationMarker(false);
-        setUserLocation(null);
-        setFilterRadius(null);
-        alert(tMap.locationUnstable[lang]);
-        return;
-      }
-      setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
-      setIsFollowing(true);
-      setShowLocationMarker(true);
-    };
-
-    const onMove = () => setIsFollowing(false);
+    const onDragStart = () => setIsFollowing(false);
 
     map.on("click", handleClick);
-    map.on("locationerror", handleLocationError);
-    map.on("locationfound", handleLocationFound);
-    map.on("movestart", onMove);
+    map.on("dragstart", onDragStart);
 
     return () => {
       map.off("click", handleClick);
-      map.off("locationerror", handleLocationError);
-      map.off("locationfound", handleLocationFound);
-      map.off("movestart", onMove);
+      map.off("dragstart", onDragStart);
     };
   }, [map, isCompassMode, activeCategory, isLoggedIn, lang, isPickingLocation, draftFormState, hasStarted, drawerMode]);
 
@@ -387,56 +434,77 @@ export default function Map({
   }, [isLoggedIn, lang]);
 
   const filteredPoints = useMemo(() => {
-    if (!filterRadius || !userLocation || !map) return points;
+    if (!filterRadius || !userLocation) return points;
     return points.filter((p) => {
-      const distanceInMeters = map.distance(
-        [Number(p.latitude), Number(p.longitude)],
-        [userLocation.lat, userLocation.lng]
+      const distKm = getDistanceInKm(
+        Number(p.latitude),
+        Number(p.longitude),
+        userLocation.lat,
+        userLocation.lng
       );
-      return distanceInMeters <= filterRadius * 1000;
+      return distKm <= filterRadius;
     });
-  }, [points, filterRadius, userLocation, map]);
+  }, [points, filterRadius, userLocation]);
 
+  // ציור מיקום המשתמש ומעגל הרדיוס על גבי הגלובוס
   useEffect(() => {
-    map?.eachLayer((layer: any) => {
-      if (layer.options && (layer.options.dashArray === "5, 5" || layer.options.isUserLocationMarker)) {
-        map.removeLayer(layer);
-      }
-    });
+    if (!map) return;
 
-    if (!map || !userLocation || !showLocationMarker) return;
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+      userMarkerRef.current = null;
+    }
 
-    const userPinIcon = L.divIcon({
-      html: `
-        <div style="position: relative; width: 14px; height: 14px; transform: translate(-50%, -50%);">
-          <div style="position: absolute; top: -60%; left: -60%; width: 220%; height: 220%; background-color: rgba(251, 191, 36, 0.25); border-radius: 50%; z-index: 1;"></div>
-          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: #fbbf24; border: 2px solid #111827; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.4); z-index: 2;"></div>
-        </div>
-      `,
-      className: "",
-      iconSize: [0, 0],
-    });
+    if (map.getLayer("radius-fill")) map.removeLayer("radius-fill");
+    if (map.getLayer("radius-outline")) map.removeLayer("radius-outline");
+    if (map.getSource("radius-source")) map.removeSource("radius-source");
 
-    L.marker([userLocation.lat, userLocation.lng], {
-      icon: userPinIcon,
-      isUserLocationMarker: true
-    } as any).addTo(map);
+    if (!userLocation || !showLocationMarker) return;
+
+    const el = document.createElement("div");
+    el.innerHTML = `
+      <div style="position: relative; width: 14px; height: 14px;">
+        <div style="position: absolute; top: -60%; left: -60%; width: 220%; height: 220%; background-color: rgba(251, 191, 36, 0.25); border-radius: 50%; z-index: 1;"></div>
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: #fbbf24; border: 2px solid #111827; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.4); z-index: 2;"></div>
+      </div>
+    `;
+
+    userMarkerRef.current = new maptilersdk.Marker({ element: el })
+      .setLngLat([userLocation.lng, userLocation.lat])
+      .addTo(map);
 
     if (filterRadius) {
-      const circle = L.circle([userLocation.lat, userLocation.lng], {
-        radius: filterRadius * 1000,
-        color: '#FFD700',
-        fillColor: '#FFD700',
-        fillOpacity: 0.05,
-        weight: 1.5,
-        dashArray: "5, 5"
-      }).addTo(map);
-      map.fitBounds(circle.getBounds());
+      const circleGeoJSON = createGeoJSONCircle([userLocation.lng, userLocation.lat], filterRadius);
+      map.addSource("radius-source", {
+        type: "geojson",
+        data: circleGeoJSON,
+      });
+
+      map.addLayer({
+        id: "radius-fill",
+        type: "fill",
+        source: "radius-source",
+        paint: {
+          "fill-color": "#FFD700",
+          "fill-opacity": 0.06,
+        },
+      });
+
+      map.addLayer({
+        id: "radius-outline",
+        type: "line",
+        source: "radius-source",
+        paint: {
+          "line-color": "#FFD700",
+          "line-width": 1.5,
+          "line-dasharray": [4, 4],
+        },
+      });
     }
   }, [map, userLocation, filterRadius, showLocationMarker]);
 
   const { createPopupNode } = useMapMarkers({
-    map,
+    map: map as any,
     points: filteredPoints,
     activeCategory,
     viewedIds,
@@ -461,7 +529,7 @@ export default function Map({
   useEffect(() => {
     if (selectedSuggestion && suggestionNodeRef.current && map) {
       const isSaved = savedIds.includes(selectedSuggestion.id);
-      const node = createPopupNode(selectedSuggestion, isSaved, map);
+      const node = createPopupNode(selectedSuggestion, isSaved, map as any);
       suggestionNodeRef.current.innerHTML = "";
       suggestionNodeRef.current.appendChild(node);
     }
@@ -469,9 +537,8 @@ export default function Map({
 
   const isHe = lang === 'he';
 
-  // 🌟 העדכון לנייד! peek זה עכשיו רק 20% במובייל כדי שלא יסתיר, אבל 30% במחשב.
   const drawerWidthClass = drawerMode === 'peek' 
-    ? "w-[35%] md:w-[30%]" 
+    ? "w-[20%] md:w-[30%]" 
     : "w-[95%] md:w-[65%]";
   
   let drawerTransform = "translateX(0)";
@@ -506,27 +573,27 @@ export default function Map({
         )}
 
         {isPickingLocation && (
-            <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto">
-                <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
-                  {tMap.pickLocationMsg[lang]}
-                </div>
-                <button 
-                    onClick={() => {
-                        setIsPickingLocation(false);
-                        setModal({
-                            lat: draftFormState.lat || 31.768,
-                            lng: draftFormState.lng || 35.213,
-                            draftData: draftFormState,
-                            parentId: draftFormState.parentId,
-                            mode: draftFormState.editPointId ? "edit" : "create",
-                            pointId: draftFormState.editPointId
-                        });
-                    }}
-                    className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
-                >
-                    ✕ {tMap.cancelPick[lang]}
-                </button>
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+            <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
+              {tMap.pickLocationMsg[lang]}
             </div>
+            <button 
+              onClick={() => {
+                setIsPickingLocation(false);
+                setModal({
+                  lat: draftFormState.lat || 31.768,
+                  lng: draftFormState.lng || 35.213,
+                  draftData: draftFormState,
+                  parentId: draftFormState.parentId,
+                  mode: draftFormState.editPointId ? "edit" : "create",
+                  pointId: draftFormState.editPointId
+                });
+              }}
+              className="bg-red-900/80 hover:bg-red-800 border border-red-500 text-red-200 px-4 py-1.5 rounded-full text-xs font-bold transition shadow-lg"
+            >
+              ✕ {tMap.cancelPick[lang]}
+            </button>
+          </div>
         )}
 
         {modal && !isPickingLocation && (
@@ -546,20 +613,20 @@ export default function Map({
                 parentId: modal.parentId || modal.draftData?.parentId 
               }}
               onClose={() => {
-                  setModal(null);
-                  if (modal.mode === "edit") router.push("/my-points");
+                setModal(null);
+                if (modal.mode === "edit") router.push("/my-points");
               }}
               onPickLocation={(currentFormState) => {
-                  setDraftFormState({
-                      ...currentFormState,
-                      lat: modal.lat, 
-                      lng: modal.lng,
-                      address: "", 
-                      parentId: modal.parentId,
-                      editPointId: modal.pointId
-                  });
-                  setModal(null);
-                  setIsPickingLocation(true);
+                setDraftFormState({
+                  ...currentFormState,
+                  lat: modal.lat, 
+                  lng: modal.lng,
+                  address: "", 
+                  parentId: modal.parentId,
+                  editPointId: modal.pointId
+                });
+                setModal(null);
+                setIsPickingLocation(true);
               }}
               onSubmit={async ({ form }) => {
                 if (status !== "authenticated") return;
@@ -585,7 +652,7 @@ export default function Map({
                         return;
                       }
                     }
-                  } catch (err) { }
+                  } catch (err) {}
                 } else if (!isPickedFromMap) {
                   const useCompass = window.confirm(tMap.noAddress[lang]);
                   if (!useCompass) {
@@ -611,7 +678,7 @@ export default function Map({
 
                 const isEditing = modal.mode === "edit";
                 if (isEditing && form.existingImages && form.existingImages.length > 0) {
-                   form.existingImages.forEach(url => formData.append("existingImages", url));
+                  form.existingImages.forEach(url => formData.append("existingImages", url));
                 }
 
                 const endpoint = isEditing ? `/api/points/${modal.pointId}` : "/api/points";
@@ -630,16 +697,16 @@ export default function Map({
                 setDraftFormState(null);
 
                 if (isEditing) {
-                   window.dispatchEvent(new Event("points-updated"));
-                   localStorage.removeItem("jseed_edit_draft"); 
-                   router.push("/my-points"); 
+                  window.dispatchEvent(new Event("points-updated"));
+                  localStorage.removeItem("jseed_edit_draft"); 
+                  router.push("/my-points"); 
                 } else {
-                   setPoints((prev) => [...prev, data]);
-                   setViewedIds((prev) => [...prev, data.id]);
-                   if (map) map.setView([finalLat, finalLng], 16);
-                   
-                   setSuccessToast(tMap.thankYouMsg[lang]);
-                   setTimeout(() => setSuccessToast(null), 3000); 
+                  setPoints((prev) => [...prev, data]);
+                  setViewedIds((prev) => [...prev, data.id]);
+                  if (map) map.flyTo({ center: [finalLng, finalLat], zoom: 16 });
+                  
+                  setSuccessToast(tMap.thankYouMsg[lang]);
+                  setTimeout(() => setSuccessToast(null), 3000); 
                 }
               }}
             />
@@ -652,18 +719,17 @@ export default function Map({
               onClick={() => {
                 if (!map) return;
                 if (!gpsEnabled) {
-                    alert(tMap.gpsDisabled[lang]);
-                    return;
+                  alert(tMap.gpsDisabled[lang]);
+                  return;
                 }
                 if (isLocating) return;
 
                 if (isFollowing) {
-                  map.setView([31.7683, 35.2137], 3);
+                  map.flyTo({ center: [20, 25], zoom: 1.2 });
                   setIsFollowing(false);
                   setShowLocationMarker(false);
                 } else {
-                  setIsLocating(true);
-                  map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
+                  locateUser(true);
                 }
               }}
               className={`absolute bottom-6 left-[24px] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
@@ -689,13 +755,12 @@ export default function Map({
               <button
                 onClick={() => {
                   if (!gpsEnabled) {
-                      alert(tMap.gpsDisabled[lang]);
-                      return;
+                    alert(tMap.gpsDisabled[lang]);
+                    return;
                   }
-                  if (!userLocation && map) {
+                  if (!userLocation) {
                     if (!isLocating) {
-                      setIsLocating(true);
-                      map.locate({ enableHighAccuracy: true });
+                      locateUser(false);
                     }
                     alert(tMap.locating[lang]);
                     return;
@@ -783,7 +848,7 @@ export default function Map({
                                 <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                   <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                                  <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
                                 </div>
                               )}
                             </div>
@@ -832,7 +897,10 @@ export default function Map({
                         setDrawerMode('closed');
                         setTimeout(() => setSelectedSuggestion(null), 300);
                         if (map) {
-                          map.setView([selectedSuggestion.latitude, selectedSuggestion.longitude], 16);
+                          map.flyTo({
+                            center: [Number(selectedSuggestion.longitude), Number(selectedSuggestion.latitude)],
+                            zoom: 16
+                          });
                         }
                         router.push(`/?point=${selectedSuggestion.id}`, { scroll: false });
                       }}
