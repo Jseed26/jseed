@@ -36,7 +36,7 @@ const persistViewedPoint = (id: number) => {
 function createGroupedIcon(category: string, isViewed: boolean, zoom: number, count: number) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
 
-  let baseSize = 22;
+  let baseSize = 10;
 
   if (zoom >= 15) {
     baseSize = 44;
