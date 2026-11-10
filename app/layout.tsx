@@ -25,14 +25,26 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "JSeed",
-  description: "Global Jewish Connection",
-  manifest: "/manifest.json",
-  icons: {
-    icon: "/logo.png", // 👈 תוודאי שזה השם האמיתי של הלוגו שלך בתיקיית public
-    apple: "/logo.png", // 👈 זה מה שמכריח את אייפון להראות את הלוגו!
+  title: 'JSeed',
+  description: 'מפת היוזמות, הקהילות והעסקים. גלו ושתפו נקודות עניין סביבכם.',
+  openGraph: {
+    title: 'JSeed',
+    description: 'מפת היוזמות, הקהילות והעסקים. גלו ושתפו נקודות עניין סביבכם.',
+    url: 'https://jseedglobal.com', // תחליפי לדומיין האמיתי שלכם
+    siteName: 'JSeed',
+    images: [
+      {
+        // כאן שמים את הנתיב לתמונה שאת רוצה שתוצג בוואטסאפ
+        url: '/icons/ui/logo/logo2.png', 
+        width: 1200,
+        height: 630,
+        alt: 'JSeed Logo',
+      },
+    ],
+    locale: 'he_IL',
+    type: 'website',
   },
-};
+}
 
 
 export default function RootLayout({
