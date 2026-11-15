@@ -31,6 +31,21 @@ model User {
   comments Comment[]
 }
 
+
+// מודל הנתונים הסטטיסטיים הפרטניים של כל גרעין
+model PointAnalytics {
+  id        Int      @id @default(autoincrement())
+  pointId   Int      @unique
+  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  
+  views     Int      @default(0) // כמה פעמים פתחו את הבועה של הגרעין הזה
+  clicks    Int      @default(0) // כמה פעמים לחצו על כפתור "למעבר לאתר" בגרעין הזה
+  joins     Int      @default(0) // כמה פעמים משתמשים לחצו על השתתפות מהירה (לחיצת הידיים)
+  
+  updatedAt DateTime @updatedAt
+}
+
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -95,6 +110,7 @@ model Point {
   // 🌟 העמודה החדשה שלנו למוח ה-AI המורחב! 🌟
   aiMetadata     Json?
   comments Comment[]
+  analytics PointAnalytics?
 }
 
 model ViewedPoint {

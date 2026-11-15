@@ -12,13 +12,14 @@ export async function GET() {
     const points = await prisma.point.findMany({
         where: { userId: session.user.id },
         include: {
-            // 👈 זו שורת הקסם של Prisma! היא סופרת במקומך את הקשרים
             _count: {
                 select: {
                     viewedBy: true,
                     savedBy: true,
                 }
-            }
+            },
+            // 🌟 זו התוספת שלנו! השרת יביא עכשיו גם את מודל הסטטיסטיקות שיצרנו
+            analytics: true 
         },
         orderBy: { createdAt: "desc" },
     });

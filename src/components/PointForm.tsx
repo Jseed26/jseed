@@ -233,7 +233,8 @@ export default function PointForm({ mode, initialData, onClose, onSubmit, onPick
                             key={cat.key}
                             type="button"
                             onClick={() => {
-                                setForm({ ...form, category: cat.key, name: "" });
+                                // 🌟 הורדנו את איפוס השם, כדי שהטקסט שהמשתמש כתב יישמר
+                                setForm({ ...form, category: cat.key });
                                 setIsDropdownOpen(false); 
                             }}
                             className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg transition-all ${

@@ -152,7 +152,10 @@ export async function GET(req: Request) {
 
     const allPoints = await prisma.point.findMany({
       where: baseWhere,
-      include: { _count: { select: { savedBy: true, viewedBy: true } } },
+      include: { 
+        _count: { select: { savedBy: true, viewedBy: true } },
+        analytics: true // 🌟 הוספנו את משיכת הסטטיסטיקות!
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -368,6 +371,15 @@ export async function POST(req: Request) {
       },
     });
 
+    // 🌟 🌟 🌟 התוספת החדשה: עדכון סטטיסטיקת השתתפות (Joins) על יוזמת האם 🌟 🌟 🌟
+    if (category === "chai_support" && parentId) {
+        await (prisma as any).pointAnalytics.upsert({
+            where: { pointId: parentId },
+            update: { joins: { increment: 1 } },
+            create: { pointId: parentId, joins: 1 }
+        });
+    }
+
     // 🌟 🌟 🌟 מנגנון שליחת התראות לכל משתתפי היוזמה (בקטגוריה chai) 🌟 🌟 🌟
     if (category === "chai") {
       try {
@@ -523,6 +535,16 @@ export async function DELETE(req: Request, context: any) {
   if (!existing) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
+
+  // 🌟 🌟 🌟 התוספת החדשה: הורדת סטטיסטיקת השתתפות במקרה של ביטול תמיכה 🌟 🌟 🌟
+  if (existing.category === "chai_support" && existing.parentId) {
+      await (prisma as any).pointAnalytics.update({
+          where: { pointId: existing.parentId },
+          data: { joins: { decrement: 1 } }
+      });
+  }
+
+  await prisma.point.delete({ where: { id: pointId } });
 
   await prisma.point.delete({ where: { id: pointId } });
   return Response.json({ success: true });

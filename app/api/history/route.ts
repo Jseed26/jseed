@@ -29,6 +29,7 @@ export async function GET() {
     return Response.json(points);
 }
 
+
 // שמירת נקודה בהיסטוריה + הפעלת התראת צפייה במפה
 export async function POST(req: Request) {
     const session = await auth();
@@ -56,6 +57,13 @@ export async function POST(req: Request) {
                 userId: session.user.id,
                 pointId: pointId,
             },
+        });
+
+        // 🌟 🌟 🌟 התוספת החדשה: עדכון סטטיסטיקת צפיות (Views) על הגרעין הספציפי 🌟 🌟 🌟
+        await (prisma as any).pointAnalytics.upsert({
+            where: { pointId: pointId },
+            update: { views: { increment: 1 } },
+            create: { pointId: pointId, views: 1 }
         });
 
         // 🌟 🌟 🌟 התראה: מישהו צפה בנקודה שלך במפה 🌟 🌟 🌟

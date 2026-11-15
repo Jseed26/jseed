@@ -19,7 +19,7 @@ export type Point = {
   imageUrl?: string | null;
   imageUrls?: string[];
   userId?: string | null;
-  parentId?: number | null; // 🌟 תוסיפי את השורה הזו!
+  parentId?: number | null;
   createdAt?: string | Date;
 
   _count?: {

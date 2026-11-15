@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import { PointCategory } from "@/src/types/point";
 import ImageGallery from "@/src/components/ImageGallery";
 
+// 🌟 הוספנו את ההגדרה של analytics כדי ש-TypeScript לא יצעק
 type Point = {
     id: number;
     name: string;
@@ -25,6 +26,11 @@ type Point = {
     _count?: {
         viewedBy: number;
         savedBy: number;
+    };
+    analytics?: {
+        views: number;
+        clicks: number;
+        joins: number;
     };
 };
 
@@ -67,7 +73,7 @@ const t = {
     deleteAccount: { he: "מחיקת חשבון", en: "Delete Account" },
     terms: { he: "קריאת התקנון", en: "Terms of Service" },
     language: { he: "שפת האפליקציה", en: "App Language" },
-    participants: { he: "משתתפים ביוזמה", en: "Initiative Participants" },
+    participants: { he: "השתתפויות", en: "Participations" },
     mustLogin: { he: "יש להתחבר על מנת לראות", en: "Please log in to view" },
     loginNow: { he: "התחבר עכשיו", en: "Log In Now" },
     contactUs: { he: "ליצירת קשר ניתן לפנות אלינו:", en: "For contact, you can reach us at:" },
@@ -497,17 +503,34 @@ export default function MyPointsPage() {
                                                 </div>
                                                 
                                                 {tab === "my" && (
+                                                    // 🌟 🌟 🌟 כאן שילבתי את שורת הסטטיסטיקות עם הנתונים האמיתיים מ-Analytics!
                                                     <div className="flex flex-wrap justify-between mt-5 bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 text-xs font-medium text-zinc-400 shadow-inner gap-2">
-                                                        <span className="flex items-center gap-1.5"><span className="text-base">👁️</span> {p._count?.viewedBy || 0} {t.views[lang]}</span>
-                                                        <span className="flex items-center gap-1.5">
+                                                        
+                                                        {/* צפיות בבועה מתוך Analytics */}
+                                                        <span className="flex items-center gap-1.5" title={lang === "he" ? "צפיות בבועה על המפה" : "Map views"}>
+                                                            <span className="text-base">👁️</span> 
+                                                            {p.analytics?.views || p._count?.viewedBy || 0} {t.views[lang]}
+                                                        </span>
+                                                        
+                                                        {/* שמירות */}
+                                                        <span className="flex items-center gap-1.5" title={lang === "he" ? "שמירות" : "Saves"}>
                                                             <img src="/icons/ui/save/active.png" alt="Saves" className="w-4 h-4 object-contain opacity-80" />
                                                             {p._count?.savedBy || 0} {t.saves[lang]}
                                                         </span>
-                                                        {p.website && <span className="flex items-center gap-1.5"><span className="text-base">🔗</span> {p.linkClicks || 0} {t.clicks[lang]}</span>}
                                                         
+                                                        {/* קליקים (עכשיו מקושר ל-Analytics) */}
+                                                        {p.website && (
+                                                            <span className="flex items-center gap-1.5" title={lang === "he" ? "קליקים על הקישור לאתר" : "Link clicks"}>
+                                                                <span className="text-base">🔗</span> 
+                                                                {p.analytics?.clicks || p.linkClicks || 0} {t.clicks[lang]}
+                                                            </span>
+                                                        )}
+                                                        
+                                                        {/* השתתפויות (Chai) כולל התמיכות השקטות */}
                                                         {isChai && (
-                                                            <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20">
-                                                                <span className="text-base">🤝</span> {participantsCount} {t.participants[lang]}
+                                                            <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20" title={lang === "he" ? "השתתפויות ותמיכות" : "Joins and supports"}>
+                                                                <span className="text-base">🤝</span> 
+                                                                {participantsCount + (p.analytics?.joins || 0)} {t.participants[lang]}
                                                             </span>
                                                         )}
                                                     </div>
