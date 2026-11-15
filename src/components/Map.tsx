@@ -1066,7 +1066,7 @@ export default function Map({
     }
   }, []);
 
-  // 🌟 אתחול הגלובוס התלת-ממדי של MapTiler
+// 🌟 אתחול הגלובוס התלת-ממדי של MapTiler
   useEffect(() => {
     if (!mapRef.current) return;
     if (mapInstanceRef.current) return;
@@ -1078,7 +1078,8 @@ export default function Map({
 
     const newMap = new maptilersdk.Map({
       container,
-      style: "019f76f1-2bdd-7600-aefe-ed6362e87df7",
+      // 🌟 כאן החלפנו את הסטייל הישן בקישור למפת הלוויין החדשה
+      style: "https://api.maptiler.com/maps/satellite-v4/style.json?key=1eZTTOxJLWMsKdfO1otY", 
       center: [20, 25], // [lng, lat] - ממורכז על אירופה/אפריקה/אסיה כמו בתמונה
       zoom: isMobile ? 0.8 : 1.3, // זום אאוט שמציג את כל הגלובוס העגול בחלל
       minZoom: 0.5,
