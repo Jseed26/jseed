@@ -72,13 +72,35 @@ export default function Home() {
 
   const fetchChaiInitiatives = async () => {
     try {
-      const res = await fetch("/api/points?category=chai");
-      const data = await res.json();
-      if (Array.isArray(data)) {
+      // 🌟 שולפים גם את יוזמות ה-chai וגם את ה-chai_support
+      const res = await fetch("/api/points");
+      const allData = await res.json();
+      
+      if (Array.isArray(allData)) {
+        // מסננים רק את מה שרלוונטי ל-chai
+        const data = allData.filter((p: any) => p.category === "chai" || p.category === "chai_support");
+        
         const counts: Record<string, number> = {};
+        const parentMap: Record<number, string> = {}; // מיפוי בין מזהה האב לשמו האמיתי
+
+        // קודם כל, ממפים את כל שמות היוזמות המקוריות (chai בלבד)
         data.forEach((p: any) => {
-          if (p.name) {
-            counts[p.name] = (counts[p.name] || 0) + 1;
+          if (p.category === "chai" && p.name) {
+            const cleanName = p.name.trim();
+            parentMap[p.id] = cleanName;
+            if (!counts[cleanName]) counts[cleanName] = 0;
+            counts[cleanName] += 1;
+          }
+        });
+
+        // עכשיו מוסיפים את נקודות התמיכה למספרים של יוזמת האם
+        data.forEach((p: any) => {
+          if (p.category === "chai_support") {
+            const parentName = parentMap[p.parentId] || (p.name || "").trim();
+            if (parentName) {
+              if (!counts[parentName]) counts[parentName] = 0;
+              counts[parentName] += 1;
+            }
           }
         });
 

@@ -113,7 +113,6 @@ function createArcLngLat(
   return coords;
 }
 
-// 🌟 פונקציית עזר לחישוב מרחק על כדור הארץ כדי לבדוק מה מאחורי האופק
 function isBehindGlobe(
   mapCenter: maptilersdk.LngLat,
   markerLngLat: [number, number]
@@ -128,8 +127,6 @@ function isBehindGlobe(
     Math.sin(dLng / 2) * Math.sin(dLng / 2) * Math.cos(lat1) * Math.cos(lat2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  // 🌟 תיקון: 82 מעלות (Math.PI / 2.2) במקום 90. 
-  // מסתיר את הנקודות רגע קטן לפני קצה האופק, ומונע מהן להציץ מהצד.
   return c > Math.PI / 2.2;
 }
 
@@ -143,7 +140,6 @@ export function useMapMarkers({
   searchQuery = "",
 }: Props) {
   const activeMarkersRef = useRef<maptilersdk.Marker[]>([]);
-  // 🌟 שומרים רפרנס לאלמנטים עצמם והקואורדינטות שלהם כדי להסתיר אותם בצד השני
   const markerElementsRef = useRef<{ el: HTMLElement; lngLat: [number, number] }[]>([]);
   const markersByPointIdRef = useRef<{
     [key: number]: { marker: maptilersdk.Marker; openModal: () => void };
@@ -219,9 +215,8 @@ export function useMapMarkers({
       waText: isHe
         ? "תראו איזה Seed מצאתי ב-JSeed! 🌱"
         : "Check out this Seed I found on JSeed! 🌱",
-      participants: isHe ? "משתתפים" : "Participants",
-      zoomInText: isHe ? "הגדל טקסט" : "Increase text size",
-      zoomOutText: isHe ? "הקטן טקסט" : "Decrease text size",
+      participants: isHe ? "השתתפות" : "Join",
+      creation: isHe ? "יצירה" : "Create",
       commentsTitle: isHe ? "תגובות" : "Comments",
       addCommentPlaceholder: isHe ? "כתוב תגובה..." : "Write a comment...",
       send: isHe ? "שלח" : "Send",
@@ -234,6 +229,11 @@ export function useMapMarkers({
     const display = (val: string | null | undefined) =>
       val && val.trim() !== "" ? val : "-";
     const isChai = point.category === "chai";
+    
+    const saveIconSrc = isSaved ? "/icons/ui/save/active.png" : "/icons/ui/save/default.png";
+    const joinIconSrc = "/icons/ui/participants/default.png"; 
+    const createIconSrc = "/icons/ui/seed/default.png";       
+    const commentsIconSrc = "/icons/ui/comments/comments.png"; 
 
     const headerHtml = `
       <div style="position: relative; padding-top: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #374151;">
@@ -241,7 +241,7 @@ export function useMapMarkers({
           <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
             <img src="/icons/categories/${point.category}/active.png" alt="${point.category}" style="width: 18px; height: 18px; object-fit: contain;" />
           </div>
-          <div class="point-title" style="font-weight: bold; font-size: 16px; transition: font-size 0.2s; color: #f9fafb; text-align: ${isHe ? "right" : "left"}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.3; margin-top: 5px;">
+          <div class="point-title" style="font-weight: bold; font-size: 16px; color: #f9fafb; text-align: ${isHe ? "right" : "left"}; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.3; margin-top: 5px;">
             ${display(displayName)}
           </div>
         </div>
@@ -286,17 +286,13 @@ export function useMapMarkers({
       `;
     }
 
-    const saveIconSrc = isSaved
-      ? "/icons/ui/save/active.png"
-      : "/icons/ui/save/default.png";
     let currentSavedCount = point._count?.savedBy || 0;
-    const participantsCount = isChai
-      ? points.filter(
-          (p) =>
-            p.category === "chai" &&
-            (p.name || "").trim() === (point.name || "").trim()
-        ).length
-      : 0;
+    
+    const participantsCount = points.filter(
+      (p) =>
+        (p.category === "chai" || p.category === "chai_support") &&
+        (p.parentId === point.id || (p.name || "").trim() === (point.name || "").trim())
+    ).length;
 
     const baseUrl = window.location.origin;
     const shareUrl = `${baseUrl}/?point=${point.id}`;
@@ -306,38 +302,53 @@ export function useMapMarkers({
         ${headerHtml}
         ${imageHtml}
         
-        <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? "right" : "left"}: 5px; font-size: 14px; transition: font-size 0.2s; color: #d1d5db;">
-         
+        <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? "right" : "left"}: 5px; font-size: 14px; color: #d1d5db;">
+          <div style="margin-bottom: 10px;">
+              <div style="margin-bottom: 4px;">
+                  <strong style="color: #f9fafb;">${t.desc}</strong> 
+              </div>
+              <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
+          </div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> <span dir="auto">${display(point.address)}</span></div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>` : "-"}</div>
         </div>
         
         <div style="margin-top: 8px; border-top: 1px solid #374151; padding-top: 8px; display: flex; flex-direction: column; gap: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px;">
-              <img src="${saveIconSrc}" alt="Save" style="width: 16px; height: 16px; object-fit: contain; transition: transform 0.2s;" />
-              <span class="saved-count-text" style="font-size: 12px; color: #9ca3af; font-weight: bold;">
+          <div style="margin-top: 4px; display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+            
+            <button class="save-point-btn" style="background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" title="שמור נקודה">
+              <img src="${saveIconSrc}" alt="Save" style="width: 18px; height: 18px; object-fit: contain;" />
+              <span class="saved-count-text" style="font-size: 11px; color: #9ca3af; font-weight: bold;">
                 ${currentSavedCount} ${t.saves}
               </span>
             </button>
-            
+
             ${
               isChai
                 ? `
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <span style="font-size: 12px; color: #fbbf24; font-weight: bold; display: flex; align-items: center; gap: 4px;">🤝 ${participantsCount} ${t.participants}</span>
-              <button class="add-chai-btn" style="background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; color: #fbbf24; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="הוסף נקודה ליוזמה זו"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg></button>
-            </div>
+            <button class="join-chai-fast-btn" style="background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" title="הצטרף לתמיכה ביוזמה מהמיקום שלי">
+               <img src="${joinIconSrc}" alt="Join" style="width: 18px; height: 18px; object-fit: contain; pointer-events: none;" />
+               <span style="font-size: 11px; color: #9ca3af; font-weight: bold;">
+                  <span class="participants-count-text">${participantsCount}</span> ${t.participants}
+               </span>
+            </button>
+
+            <button class="add-chai-btn" style="background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" title="הוסף עשייה מפורטת ליוזמה זו">
+               <img src="${createIconSrc}" alt="Create" style="width: 18px; height: 18px; object-fit: contain; pointer-events: none;" />
+               <span style="font-size: 11px; color: #9ca3af; font-weight: bold;">
+                  ${t.creation}
+               </span>
+            </button>
             `
                 : ""
             }
-          </div>
 
-          <div style="display: flex; align-items: center;">
-              <button class="toggle-comments-btn" style="background: none; border: none; cursor: pointer; padding: 0; outline: none; display: flex; align-items: center; gap: 6px; color: #9ca3af; font-size: 12px; font-weight: bold; transition: color 0.2s;">
-                <img src="/icons/ui/comments/comments.png" alt="Comments" style="width: 16px; height: 16px; object-fit: contain;" />
-                <span class="comments-count">${t.commentsTitle}</span>
-              </button>
+            <button class="toggle-comments-btn" style="background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" title="הצג תגובות">
+              <img src="${commentsIconSrc}" alt="Comments" style="width: 18px; height: 18px; object-fit: contain;" />
+              <span class="comments-count" style="font-size: 11px; color: #9ca3af; font-weight: bold;">
+                ${t.commentsTitle}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -523,38 +534,6 @@ export function useMapMarkers({
       };
     }
 
-    let currentFontSize = 14;
-    const updateFontSize = () => {
-      const descBox = container.querySelector(".point-desc-container") as HTMLElement;
-      const titleBox = container.querySelector(".point-title") as HTMLElement;
-      if (descBox) descBox.style.fontSize = `${currentFontSize}px`;
-      if (titleBox) titleBox.style.fontSize = `${currentFontSize + 2}px`;
-    };
-
-    const zoomInBtn = container.querySelector(".zoom-in-text") as HTMLButtonElement;
-    if (zoomInBtn) {
-      zoomInBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (currentFontSize < 24) {
-          currentFontSize += 2;
-          updateFontSize();
-        }
-      };
-    }
-
-    const zoomOutBtn = container.querySelector(".zoom-out-text") as HTMLButtonElement;
-    if (zoomOutBtn) {
-      zoomOutBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (currentFontSize > 12) {
-          currentFontSize -= 2;
-          updateFontSize();
-        }
-      };
-    }
-
     const lightBoxTriggers = container.querySelectorAll(".map-lightbox-trigger");
     lightBoxTriggers.forEach((trigger) => {
       trigger.addEventListener("click", (e) => {
@@ -737,6 +716,76 @@ export function useMapMarkers({
         );
       };
     }
+    
+    const joinChaiFastBtn = container.querySelector(".join-chai-fast-btn") as HTMLButtonElement;
+    const participantsCountText = container.querySelector(".participants-count-text") as HTMLSpanElement;
+    
+    if (joinChaiFastBtn) {
+      joinChaiFastBtn.setAttribute("data-joined", "false");
+
+      joinChaiFastBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const img = joinChaiFastBtn.querySelector("img");
+        if (!img) return;
+        
+        const isCurrentlyJoined = joinChaiFastBtn.getAttribute("data-joined") === "true";
+        
+        if (!isCurrentlyJoined) {
+          img.src = "/icons/ui/participants/active.png";
+          joinChaiFastBtn.setAttribute("data-joined", "true");
+          
+          if (participantsCountText) {
+            participantsCountText.innerText = (parseInt(participantsCountText.innerText || "0") + 1).toString();
+          }
+
+          let lat = mapInstance.getCenter().lat;
+          let lng = mapInstance.getCenter().lng;
+          
+          const userLocationMarker = markerElementsRef.current.find(m => m.el.innerHTML.includes("rgba(251, 191, 36, 0.25)"));
+          if (userLocationMarker) {
+             lng = userLocationMarker.lngLat[0];
+             lat = userLocationMarker.lngLat[1];
+          }
+
+          try {
+            const formData = new FormData();
+            formData.append("name", point.name || "תמיכה ביוזמה");
+            formData.append("description", "משתתף ביוזמה");
+            formData.append("category", "chai_support");
+            formData.append("latitude", String(lat));
+            formData.append("longitude", String(lng));
+            formData.append("parentId", String(point.id));
+            
+            fetch("/api/points", { method: "POST", body: formData })
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.id) {
+                   joinChaiFastBtn.setAttribute("data-created-point-id", String(data.id));
+                   window.dispatchEvent(new Event("points-updated")); 
+                }
+              }).catch(() => {});
+          } catch (error) {}
+          
+        } else {
+          img.src = "/icons/ui/participants/default.png";
+          joinChaiFastBtn.setAttribute("data-joined", "false");
+          
+          if (participantsCountText) {
+            participantsCountText.innerText = Math.max(0, parseInt(participantsCountText.innerText || "0") - 1).toString();
+          }
+
+          const createdPointId = joinChaiFastBtn.getAttribute("data-created-point-id");
+          if (createdPointId) {
+             fetch(`/api/points/${createdPointId}`, { method: "DELETE" })
+               .then(() => {
+                 window.dispatchEvent(new Event("points-updated")); 
+               }).catch(() => {});
+          }
+        }
+      };
+    }
 
     return container;
   }
@@ -744,13 +793,12 @@ export function useMapMarkers({
   useEffect(() => {
     if (!map) return;
 
-    // 1. ניקוי מרקרים, פופאפים וקשתות קודמים
     activePopupRef.current?.remove();
     activePopupRef.current = null;
     activeMarkersRef.current.forEach((m) => m.remove());
     activeMarkersRef.current = [];
     markersByPointIdRef.current = {};
-    markerElementsRef.current = []; // 🌟 איפוס הרפרנס לאלמנטים
+    markerElementsRef.current = []; 
 
     try {
       if (map.getLayer("chai-arcs-layer")) map.removeLayer("chai-arcs-layer");
@@ -759,17 +807,38 @@ export function useMapMarkers({
     } catch (e) {}
 
     const filtered = points.filter((p) => {
+      // 🌟 וידוא סינון שקוף! גם בחיפוש כללי וגם בסינון חי אנחנו תמיד שולפים גם את chai_support
+      if (activeCategory === "chai") {
+        if (p.category === "chai" || p.category === "chai_support") {
+            if (searchQuery) {
+                const cleanQuery = searchQuery.trim().toLowerCase();
+                const cleanName = (p.name || "").trim().toLowerCase();
+                
+                if (cleanName === cleanQuery) return true;
+                
+                if (p.category === "chai_support" && p.parentId) {
+                   const parent = points.find(parentPoint => parentPoint.id === p.parentId);
+                   if (parent && (parent.name || "").trim().toLowerCase() === cleanQuery) {
+                     return true; 
+                   }
+                }
+                
+                return cleanName.includes(cleanQuery) || (p.description || "").toLowerCase().includes(cleanQuery);
+            }
+            return true;
+        }
+        return false;
+      }
       return activeCategory ? p.category === activeCategory : true;
     });
 
-    // 2. ציור חוטי הזהב (Arcs)
     if (activeCategory === "chai") {
       const pointsMap = new Map<number, Point>();
       points.forEach((p) => pointsMap.set(p.id, p));
 
       const chaiGroups: Record<string, Point[]> = {};
       points.forEach((p) => {
-        if (p.category === "chai") {
+        if (p.category === "chai" || p.category === "chai_support") {
           const nameKey = (p.name || "").trim().toLowerCase();
           if (nameKey) {
             if (!chaiGroups[nameKey]) chaiGroups[nameKey] = [];
@@ -789,7 +858,7 @@ export function useMapMarkers({
       const arcFeatures: any[] = [];
 
       points.forEach((child) => {
-        if (child.category === "chai") {
+        if (child.category === "chai" || child.category === "chai_support") {
           let parent: Point | undefined = undefined;
           if (child.parentId) {
             parent = pointsMap.get(child.parentId);
@@ -835,20 +904,18 @@ export function useMapMarkers({
             },
           });
 
-// 1. הילת הזוהר הרכה והשקופה (ההילה מסביב לקור)
           map.addLayer({
             id: "chai-arcs-glow",
             type: "line",
             source: "chai-arcs",
             paint: {
-              "line-color": "#fde047", // צהוב-זהב בהיר ונוצץ
-              "line-width": 2.5,       // הצרנו משמעותית את ההילה
-              "line-opacity": 0.2,     // שקוף מאוד לקבלת אפקט קסום ורך
-              "line-blur": 2,          // טשטוש עדין
+              "line-color": "#fde047", 
+              "line-width": 2.5,       
+              "line-opacity": 0.2,     
+              "line-blur": 2,          
             },
           });
 
-          // 2. קור העכביש המרכזי והדקיק
           map.addLayer({
             id: "chai-arcs-layer",
             type: "line",
@@ -858,16 +925,15 @@ export function useMapMarkers({
               "line-join": "round",
             },
             paint: {
-              "line-color": "#fbbf24", // צבע זהב עמוק יותר
-              "line-width": 0.6,       // ממש דקיק כמו קור עכביש! (קודם היה 1.8)
-              "line-opacity": 0.4,     // חצי שקוף ומשתלב עם הרקע של החלל
+              "line-color": "#fbbf24", 
+              "line-width": 0.6,       
+              "line-opacity": 0.4,     
             },
           });
         } catch (e) {}
       }
     }
 
-    // 3. קיבוץ נקודות
     const groupedByLocation: Record<string, Record<string, Point[]>> = {};
 
     filtered.forEach((point) => {
@@ -1044,7 +1110,6 @@ export function useMapMarkers({
           .setLngLat([finalLng, finalLat])
           .addTo(map);
 
-        // 🌟 שומרים את האלמנט במערך שלנו לבדיקת אופק מאוחר יותר
         markerElementsRef.current.push({ el, lngLat: [finalLng, finalLat] });
 
         const openModal = () => {
@@ -1103,13 +1168,10 @@ export function useMapMarkers({
       });
     });
 
-   // 🌟 פונקציה לבדיקת אופק בזמן אמת ולהסתרת/הצגת הנקודות
     const updateVisibility = () => {
       const mapCenter = map.getCenter();
       markerElementsRef.current.forEach(({ el, lngLat }) => {
         if (isBehindGlobe(mapCenter, lngLat)) {
-          // 🌟 תיקון: משתמשים ב-display: none כדי שההעלמות תהיה מיידית 
-          // ולא תהפוך לשקופה-זמנית בגלל אנימציות CSS!
           el.style.display = "none";
         } else {
           el.style.display = "block";
@@ -1117,12 +1179,9 @@ export function useMapMarkers({
       });
     };
 
-    // מפעילים פעם אחת בהתחלה וכל פעם שהמפה זזה
     updateVisibility();
     map.on("render", updateVisibility);
 
-
-    // 4. תמיכה בקישור ישיר לנקודה (?point=ID)
     const urlParams = new URLSearchParams(window.location.search);
     const pointIdFromUrl = urlParams.get("point");
 
@@ -1137,13 +1196,10 @@ export function useMapMarkers({
           duration: 1500,
         });
         
-        // 🌟 מחקנו את פקודת ה-targetEntry.openModal() שהייתה פה ב-setTimeout
-        
         window.history.replaceState({}, "", window.location.pathname);
       }
     }
 
-    // 5. התאמת גודל האייקונים בזמן אמת כשעושים זום בגלובוס
     const handleZoomEnd = () => {
       const currentZoom = map.getZoom();
       markerUpdaters.forEach((updateFn) => updateFn(currentZoom));

@@ -1316,8 +1316,22 @@ export default function Map({
   }, [isLoggedIn, lang]);
 
   const filteredPoints = useMemo(() => {
-    if (!filterRadius || !userLocation) return points;
-    return points.filter((p) => {
+    // 🌟 קודם כל מסננים לפי קטגוריה, לפני רדיוס ה-GPS!
+    let filteredByCategory = points;
+    if (activeCategory) {
+       filteredByCategory = points.filter((p) => {
+         // אם בחרנו חי, אנחנו רוצים גם את היוזמות וגם את התומכים!
+         if (activeCategory === "chai") {
+           return p.category === "chai" || p.category === "chai_support";
+         }
+         return p.category === activeCategory;
+       });
+    }
+
+    if (!filterRadius || !userLocation) return filteredByCategory;
+    
+    // ואז מסננים לפי מרחק
+    return filteredByCategory.filter((p) => {
       const distKm = getDistanceInKm(
         Number(p.latitude),
         Number(p.longitude),
@@ -1326,7 +1340,7 @@ export default function Map({
       );
       return distKm <= filterRadius;
     });
-  }, [points, filterRadius, userLocation]);
+  }, [points, filterRadius, userLocation, activeCategory]);
 
   // ציור מיקום המשתמש ומעגל הרדיוס על גבי הגלובוס
   useEffect(() => {
@@ -1598,8 +1612,9 @@ export default function Map({
           </div>
         )}
 
-        {hasStarted && (
+       {hasStarted && (
           <div className="pointer-events-auto">
+            {/* 🌟 העלינו את הכפתור מ-bottom-6 ל-bottom-[50px] */}
             <button
               onClick={() => {
                 if (!map) return;
@@ -1617,7 +1632,7 @@ export default function Map({
                   locateUser(true);
                 }
               }}
-              className={`absolute bottom-6 left-[24px] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
+              className={`absolute bottom-[50px] left-[24px] border p-2 rounded-full shadow-lg transition-colors ${!gpsEnabled ? "bg-gray-800 border-gray-600 opacity-60" : isLocating ? "bg-gray-800 border-yellow-500 cursor-wait" : "bg-gray-900 border-gray-700 hover:bg-gray-800"}`}
               title={isFollowing ? tMap.zoomOut[lang] : tMap.myLocation[lang]}
             >
               {isLocating ? (
@@ -1636,7 +1651,8 @@ export default function Map({
               )}
             </button>
 
-            <div className="absolute bottom-6 left-[68px] flex flex-col-reverse items-start gap-2">
+            {/* 🌟 העלינו גם את התפריט מ-bottom-6 ל-bottom-[50px] לשמירה על יישור */}
+            <div className="absolute bottom-[50px] left-[68px] flex flex-col-reverse items-start gap-2">
               <button
                 onClick={() => {
                   if (!gpsEnabled) {

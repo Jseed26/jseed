@@ -138,7 +138,17 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
 
   try {
-    const baseWhere: any = category ? { category } : {};
+    // 🌟 התיקון הקריטי: אם הקטגוריה המבוקשת היא chai, נשלוף גם chai וגם chai_support
+    let baseWhere: any = {};
+    if (category === "chai") {
+      baseWhere = {
+        category: {
+          in: ["chai", "chai_support"]
+        }
+      };
+    } else if (category) {
+      baseWhere = { category };
+    }
 
     const allPoints = await prisma.point.findMany({
       where: baseWhere,
@@ -150,9 +160,16 @@ export async function GET(req: Request) {
       return NextResponse.json(allPoints);
     }
 
-    if (category === "chai") {
-      const exactChai = allPoints.filter(p => p.name.trim().toLowerCase() === qRaw.toLowerCase());
-      if (exactChai.length > 0) return NextResponse.json(exactChai);
+   if (category === "chai") {
+      const exactChaiName = qRaw.toLowerCase();
+      // 🌟 שולפים את יוזמת האם וגם את כל נקודות ה-chai_support שקשורות אליה או בעלות אותו שם
+      const exactChaiAndSupports = allPoints.filter(p => 
+        p.name.trim().toLowerCase() === exactChaiName || 
+        (p.category === "chai_support" && 
+         (p.name.trim().toLowerCase() === exactChaiName || 
+          allPoints.find(parent => parent.id === p.parentId)?.name.trim().toLowerCase() === exactChaiName))
+      );
+      if (exactChaiAndSupports.length > 0) return NextResponse.json(exactChaiAndSupports);
     }
 
     const queryLower = qRaw.toLowerCase();
