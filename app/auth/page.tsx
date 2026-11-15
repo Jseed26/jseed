@@ -116,6 +116,12 @@ export default function AuthPage() {
         if (savedLang) setLang(savedLang);
     }, []);
 
+    // 🌟 הפונקציה שמשנה את השפה ושומרת אותה
+    const changeLanguage = (newLang: "en" | "he") => {
+        setLang(newLang);
+        localStorage.setItem("jseed_lang", newLang);
+    };
+
     const [agreements, setAgreements] = useState({
         box1: false,
         box2: false,
@@ -154,7 +160,6 @@ export default function AuthPage() {
             textBefore: tAuth.box8Before[lang],
             linkText: tAuth.box8Link[lang],
             textAfter: tAuth.box8After[lang],
-            // 🌟 במקום לפתוח מודל פנימי, זה פותח את עמוד התקנון הרשמי בלשונית חדשה
             onClick: () => window.open("/terms", "_blank"),
             isBold: true
         },
@@ -207,7 +212,7 @@ async function handleLogin() {
         setLoading(true);
 
         const res = await signIn("credentials", {
-            email: email.toLowerCase(), // 🌟 מבטיח שגם בהתחברות נשלח רק אותיות קטנות
+            email: email.toLowerCase(),
             password,
             redirect: false,
         });
@@ -226,14 +231,12 @@ async function handleLogin() {
         if (mode === "register") {
             if (isTermsMissing) return;
 
-            // 🌟 דורשים להכניס שם במפורש גם אם נרשמים עם גוגל/גיטהאב
             if (name.trim().length < 2) {
                 setError(tAuth.errName[lang]);
                 return;
             }
 
             document.cookie = "jseed_terms_accepted=true; path=/; max-age=300";
-            // 🌟 שומרים את השם שהמשתמש בחר בעוגייה כדי שהשרת ישתמש בו ולא בשם של גוגל
             document.cookie = `jseed_desired_name=${encodeURIComponent(name.trim())}; path=/; max-age=300`;
         } else {
             document.cookie = "jseed_terms_accepted=; path=/; max-age=0";
@@ -289,9 +292,33 @@ async function handleLogin() {
                 </svg>
             </button>
 
-            <div className="flex flex-col gap-5 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden">
+            <div className="flex flex-col gap-5 w-full max-w-sm p-8 bg-[#0a0a0a] border border-gray-800 rounded-2xl shadow-[0_0_25px_rgba(255,215,0,0.03)] relative overflow-hidden mt-10">
 
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-yellow-500 opacity-50 blur-[10px]"></div>
+
+                {/* 🌟 בורר השפות שנוסף מעל לכותרת */}
+                <div className="flex justify-center mb-2" dir="ltr">
+                  <div className="bg-gray-900 border border-gray-700 p-1 rounded-full flex gap-1 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => changeLanguage("en")}
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        lang === "en" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => changeLanguage("he")}
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        lang === "he" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      עברית
+                    </button>
+                  </div>
+                </div>
 
                 <div className="text-center space-y-1">
                     <h1 className="text-2xl font-bold tracking-wide">

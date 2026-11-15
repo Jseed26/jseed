@@ -32,6 +32,7 @@ const t = {
 
 type InitiativeWithCount = {
   name: string;
+  name_en?: string;
   count: number;
 };
 
@@ -72,28 +73,29 @@ export default function Home() {
 
   const fetchChaiInitiatives = async () => {
     try {
-      // 🌟 שולפים גם את יוזמות ה-chai וגם את ה-chai_support
       const res = await fetch("/api/points");
       const allData = await res.json();
-      
-      if (Array.isArray(allData)) {
-        // מסננים רק את מה שרלוונטי ל-chai
-        const data = allData.filter((p: any) => p.category === "chai" || p.category === "chai_support");
-        
-        const counts: Record<string, number> = {};
-        const parentMap: Record<number, string> = {}; // מיפוי בין מזהה האב לשמו האמיתי
 
-        // קודם כל, ממפים את כל שמות היוזמות המקוריות (chai בלבד)
+      if (Array.isArray(allData)) {
+        const data = allData.filter((p: any) => p.category === "chai" || p.category === "chai_support");
+
+        const counts: Record<string, number> = {};
+        const parentMap: Record<number, string> = {};
+        const nameEnMap: Record<string, string> = {}; // 🌟 מילון לשמירת השמות באנגלית
+
         data.forEach((p: any) => {
           if (p.category === "chai" && p.name) {
             const cleanName = p.name.trim();
             parentMap[p.id] = cleanName;
+
+            // שומרים את השם באנגלית אם קיים
+            if (p.name_en) nameEnMap[cleanName] = p.name_en.trim();
+
             if (!counts[cleanName]) counts[cleanName] = 0;
             counts[cleanName] += 1;
           }
         });
 
-        // עכשיו מוסיפים את נקודות התמיכה למספרים של יוזמת האם
         data.forEach((p: any) => {
           if (p.category === "chai_support") {
             const parentName = parentMap[p.parentId] || (p.name || "").trim();
@@ -106,6 +108,7 @@ export default function Home() {
 
         const mappedInitiatives = Object.keys(counts).map(name => ({
           name,
+          name_en: nameEnMap[name] || name, // 🌟 משדכים את השם באנגלית
           count: counts[name]
         }));
 
@@ -366,8 +369,9 @@ export default function Home() {
                           className={`w-full p-3 text-sm text-gray-300 hover:text-white hover:bg-gray-800 border-b border-gray-800/50 transition flex justify-between items-center text-${lang === "he" ? "right" : "left"}`}
                         >
                           <div className="flex items-center gap-2 overflow-hidden w-full">
-                            <span className="truncate">{init.name}</span>
-                            <span className="text-[10px] font-bold text-gray-300 bg-gray-800 px-2 py-0.5 rounded-full shrink-0">
+                            <span className="truncate">
+                              {lang === "he" ? init.name : (init.name_en || init.name)}
+                            </span>                            <span className="text-[10px] font-bold text-gray-300 bg-gray-800 px-2 py-0.5 rounded-full shrink-0">
                               {init.count}
                             </span>
                           </div>
