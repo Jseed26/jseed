@@ -307,16 +307,7 @@ export function useMapMarkers({
         ${imageHtml}
         
         <div class="point-desc-container" style="max-height: ${textMaxHeight}; overflow-y: auto; padding-${isHe ? "right" : "left"}: 5px; font-size: 14px; transition: font-size 0.2s; color: #d1d5db;">
-          <div style="margin-bottom: 10px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <strong style="color: #f9fafb;">${t.desc}</strong> 
-                  <div style="display: flex; gap: 8px;">
-                    <button class="zoom-out-text" title="${t.zoomOutText}" style="background: none; border: none; color: #9ca3af; font-weight: bold; font-size: 14px; cursor: pointer; padding: 0;">A-</button>
-                    <button class="zoom-in-text" title="${t.zoomInText}" style="background: none; border: none; color: #fbbf24; font-weight: bold; font-size: 14px; cursor: pointer; padding: 0;">A+</button>
-                  </div>
-              </div>
-              <span style="white-space: pre-wrap; line-height: 1.5;">${display(displayDesc)}</span>
-          </div>
+         
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.loc}</strong> <span dir="auto">${display(point.address)}</span></div>
           <div style="margin-bottom: 6px;"><strong style="color: #f9fafb;">${t.link}</strong> ${point.website ? `<a href="${point.website}" target="_blank" class="point-website-link" data-id="${point.id}" style="color: #fbbf24; text-decoration: none;">${t.visit}</a>` : "-"}</div>
         </div>
@@ -1145,9 +1136,9 @@ export function useMapMarkers({
           zoom: 16,
           duration: 1500,
         });
-        setTimeout(() => {
-          targetEntry.openModal();
-        }, 1600);
+        
+        // 🌟 מחקנו את פקודת ה-targetEntry.openModal() שהייתה פה ב-setTimeout
+        
         window.history.replaceState({}, "", window.location.pathname);
       }
     }

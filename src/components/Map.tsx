@@ -1343,7 +1343,10 @@ export default function Map({
       </div>
     `;
 
-    userMarkerRef.current = new maptilersdk.Marker({ element: el })
+    userMarkerRef.current = new maptilersdk.Marker({ 
+        element: el,
+        offset: [0, -15] // 🌟 הוספנו Offset: 0 בציר X, מינוס 15 פיקסלים בציר Y (למעלה)
+    })
       .setLngLat([userLocation.lng, userLocation.lat])
       .addTo(map);
 
