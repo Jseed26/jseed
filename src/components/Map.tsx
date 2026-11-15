@@ -1006,7 +1006,8 @@ export default function Map({
   const [gpsEnabled, setGpsEnabled] = useState(true);
   const [showLocationMarker, setShowLocationMarker] = useState(false);
 
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>('peek');
+  // 🌟 הלשונית מתחילה סגורה מראש!
+  const [drawerMode, setDrawerMode] = useState<DrawerMode>('closed');
   const [hasStarted, setHasStarted] = useState(false);
   
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -1078,21 +1079,27 @@ export default function Map({
 
     const newMap = new maptilersdk.Map({
       container,
-      // 🌟 כאן החלפנו את הסטייל הישן בקישור למפת הלוויין החדשה
       style: "https://api.maptiler.com/maps/satellite-v4/style.json?key=1eZTTOxJLWMsKdfO1otY", 
-      center: [20, 25], // [lng, lat] - ממורכז על אירופה/אפריקה/אסיה כמו בתמונה
-      zoom: isMobile ? 0.8 : 1.3, // זום אאוט שמציג את כל הגלובוס העגול בחלל
-      minZoom: 0.5,
+      center: [20, 25], 
+      
+      // 🌟 הגבלת הזום אאוט: העלינו את הערכים כדי שלא נתרחק מדי לתוך החלל השחור
+      zoom: isMobile ? 1.5 : 2.0, 
+      minZoom: isMobile ? 1.2 : 1.8, 
       maxZoom: 18,
-      projection: "globe", // 🌍 מפעיל את הגלובוס התלת-ממדי!
+      projection: "globe", 
       navigationControl: false,
       geolocateControl: false,
+
+      // 🌟 הגבלת הסיבוב: המפה תרגיש "כבדה" יותר ותעצור מהר יותר אחרי גרירה (מניע את הסיבוב הפראי)
+      dragPan: true,
+      dragRotate: true,
+      maxPitch: 60, // מונע השתטחות מוגזמת של המפה שתקשה על הניווט
+      renderWorldCopies: false, // מונע שכפול של העולם כשמגלגלים
     });
 
     mapInstanceRef.current = newMap;
 
     newMap.on("load", () => {
-      // מוודאים שגם אם הסטייל שטוח, ההקרנה תהיה גלובוס תלת-ממדי
       newMap.setProjection({ type: "globe" });
       setMap(newMap);
 
@@ -1115,6 +1122,7 @@ export default function Map({
       }
     };
   }, []);
+
 
   const loadHistory = async () => {
     try {
