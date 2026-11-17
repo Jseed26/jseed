@@ -371,12 +371,24 @@ export async function POST(req: Request) {
       },
     });
 
-    // 🌟 🌟 🌟 התוספת החדשה: עדכון סטטיסטיקת השתתפות (Joins) על יוזמת האם 🌟 🌟 🌟
+    // 🌟 🌟 🌟 התוספת החדשה: עדכון סטטיסטיקת השתתפות (Joins) על יוזמת האם ותיעוד ביומן 🌟 🌟 🌟
     if (category === "chai_support" && parentId) {
+        // עדכון המונה
         await (prisma as any).pointAnalytics.upsert({
             where: { pointId: parentId },
             update: { joins: { increment: 1 } },
             create: { pointId: parentId, joins: 1 }
+        });
+        
+        // תיעוד ביומן הפעולות
+        const country = req.headers.get("x-vercel-ip-country") || "IL";
+        await (prisma as any).pointActionLog.create({
+            data: {
+                pointId: parentId,
+                action: "JOIN",
+                country: country,
+                userId: session.user.id,
+            }
         });
     }
 

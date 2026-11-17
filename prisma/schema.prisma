@@ -32,7 +32,7 @@ model User {
 }
 
 
-// מודל הנתונים הסטטיסטיים הפרטניים של כל גרעין
+// מודל הנתונים הסטטיסטיים הכללי (סיכום המונים לטעינה מהירה)
 model PointAnalytics {
   id        Int      @id @default(autoincrement())
   pointId   Int      @unique
@@ -43,6 +43,21 @@ model PointAnalytics {
   joins     Int      @default(0) // כמה פעמים משתמשים לחצו על השתתפות מהירה (לחיצת הידיים)
   
   updatedAt DateTime @updatedAt
+}
+
+// 🌟 המודל החדש: יומן פעולות שמאפשר פילוח לפי זמן, משתמש, ומדינה 🌟
+model PointActionLog {
+  id        Int      @id @default(autoincrement())
+  pointId   Int
+  point     Point    @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  
+  action    String   // סוג הפעולה: "VIEW", "CLICK", "JOIN", "SAVE"
+  country   String?  // קוד המדינה (למשל "IL", "US") כדי לפלח מאיפה הפעולה
+  userId    String?  // אם הפעולה בוצעה על ידי משתמש מחובר (רשות)
+  
+  createdAt DateTime @default(now()) // הזמן שבו הפעולה התבצעה - מאפשר חיתוך לפי חודשים/ימים/שבועות
+  
+  @@index([pointId, action]) // אינדקס לשיפור מהירות השליפה לפי סוג פעולה לגרעין מסוים
 }
 
 
@@ -111,6 +126,7 @@ model Point {
   aiMetadata     Json?
   comments Comment[]
   analytics PointAnalytics?
+  actionLogs     PointActionLog[]
 }
 
 model ViewedPoint {

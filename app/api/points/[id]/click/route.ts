@@ -6,10 +6,31 @@ export async function POST(req: Request, context: any) {
         const session = await auth();
         const params = await context.params;
         const pointId = Number(params.id);
+        
+        // 🌍 שולפים את המדינה מה-Headers
+        const country = req.headers.get("x-vercel-ip-country") || "IL";
 
+        // עדכון המונה הכולל ב-Point
         const updatedPoint = await prisma.point.update({
             where: { id: pointId },
             data: { linkClicks: { increment: 1 } },
+        });
+        
+        // 🌟 🌟 🌟 עדכון סטטיסטיקת קליקים (Clicks) על הגרעין הספציפי ב-PointAnalytics 🌟 🌟 🌟
+        await (prisma as any).pointAnalytics.upsert({
+            where: { pointId: pointId },
+            update: { clicks: { increment: 1 } },
+            create: { pointId: pointId, clicks: 1 }
+        });
+        
+        // 🌟 🌟 🌟 תיעוד הפעולה ביומן המפורט (PointActionLog) 🌟 🌟 🌟
+        await (prisma as any).pointActionLog.create({
+            data: {
+                pointId: pointId,
+                action: "CLICK",
+                country: country,
+                userId: session?.user?.id || null, // יכול להיות גם אורח שלחץ
+            }
         });
 
         // 🌟 🌟 🌟 התראה: מישהו לחץ על הקישור שלך 🌟 🌟 🌟

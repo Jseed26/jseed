@@ -7,7 +7,6 @@ import { signOut, useSession } from "next-auth/react";
 import { PointCategory } from "@/src/types/point";
 import ImageGallery from "@/src/components/ImageGallery";
 
-// 🌟 הוספנו את ההגדרה של analytics כדי ש-TypeScript לא יצעק
 type Point = {
     id: number;
     name: string;
@@ -23,6 +22,7 @@ type Point = {
     longitude: number;
     linkClicks: number;
     createdAt: string;
+    parentId?: number | null;
     _count?: {
         viewedBy: number;
         savedBy: number;
@@ -73,7 +73,7 @@ const t = {
     deleteAccount: { he: "מחיקת חשבון", en: "Delete Account" },
     terms: { he: "קריאת התקנון", en: "Terms of Service" },
     language: { he: "שפת האפליקציה", en: "App Language" },
-    participants: { he: "השתתפויות", en: "Participations" },
+    participants: { he: "משתתפים ביוזמה", en: "Initiative Participants" },
     mustLogin: { he: "יש להתחבר על מנת לראות", en: "Please log in to view" },
     loginNow: { he: "התחבר עכשיו", en: "Log In Now" },
     contactUs: { he: "ליצירת קשר ניתן לפנות אלינו:", en: "For contact, you can reach us at:" },
@@ -83,9 +83,8 @@ const t = {
 
 export default function MyPointsPage() {
     const { data: session, status } = useSession();
-    
+
     const [lang, setLang] = useState<"en" | "he">("he");
-    
     const [gpsEnabled, setGpsEnabled] = useState(true);
 
     useEffect(() => {
@@ -99,7 +98,7 @@ export default function MyPointsPage() {
     const changeLanguage = (newLang: "en" | "he") => {
         setLang(newLang);
         localStorage.setItem("jseed_lang", newLang);
-        window.dispatchEvent(new Event("language-changed")); 
+        window.dispatchEvent(new Event("language-changed"));
     };
 
     const toggleGps = () => {
@@ -110,24 +109,27 @@ export default function MyPointsPage() {
         } else {
             localStorage.removeItem("jseed_gps_disabled");
         }
-        window.dispatchEvent(new Event("gps-setting-changed")); 
+        window.dispatchEvent(new Event("gps-setting-changed"));
     };
 
     const [tab, setTab] = useState<"my" | "history" | "saved" | "notifications" | "settings">("my");
     const [savedCategory, setSavedCategory] = useState<PointCategory | null>(null);
-    
+
     const [points, setPoints] = useState<Point[]>([]);
     const [historyPoints, setHistoryPoints] = useState<Point[]>([]);
     const [savedPoints, setSavedPoints] = useState<Point[]>([]);
     const [allChaiPoints, setAllChaiPoints] = useState<Point[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    
+
     const [editingPoint, setEditingPoint] = useState<Point | null>(null);
     const [pointToDelete, setPointToDelete] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+    // 🌟 הסטייט למודאל הסטטיסטיקות הייעודי!
+    const [statsModalPoint, setStatsModalPoint] = useState<Point | null>(null);
 
     const isLoggedIn = status === "authenticated";
     const router = useRouter();
@@ -169,11 +171,11 @@ export default function MyPointsPage() {
             } catch (err) { console.error(err); }
         }
         loadData();
-    }, [status]); 
+    }, [status]);
 
     useEffect(() => {
         if (isLoggedIn && tab === "notifications" && notifications.some(n => !n.isRead)) {
-            fetch("/api/notifications", { method: "POST" }) 
+            fetch("/api/notifications", { method: "POST" })
                 .then(() => {
                     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
                 })
@@ -206,9 +208,9 @@ export default function MyPointsPage() {
     }
 
     async function executeDelete() {
-        if (!pointToDelete || isDeleting) return; 
-        
-        setIsDeleting(true); 
+        if (!pointToDelete || isDeleting) return;
+
+        setIsDeleting(true);
 
         try {
             const res = await fetch(`/api/points/${pointToDelete}`, { method: "DELETE" });
@@ -219,10 +221,21 @@ export default function MyPointsPage() {
         } catch (error) {
             console.error("Error deleting point:", error);
         } finally {
-            setIsDeleting(false); 
-            setPointToDelete(null); 
+            setIsDeleting(false);
+            setPointToDelete(null);
         }
     }
+
+    // 🌟 חישוב אוטומטי של כל הסטטיסטיקות בחשבון של המשתמש
+    const accountStats = points.reduce((acc, p) => {
+        if (p.category !== "chai_support") {
+            acc.seeds += 1;
+            acc.views += (p.analytics?.views || p._count?.viewedBy || 0);
+            acc.saves += (p._count?.savedBy || 0);
+            acc.clicks += (p.analytics?.clicks || p.linkClicks || 0);
+        }
+        return acc;
+    }, { seeds: 0, views: 0, saves: 0, clicks: 0 });
 
     if (status === "loading") {
         return (
@@ -252,20 +265,20 @@ export default function MyPointsPage() {
         star: "Spirit",
         triangle: "Legacy",
         circle: "Business",
-        chai: "Chai", 
+        chai: "Chai",
     };
 
     return (
         <div className="min-h-screen bg-[#070709] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/20 via-[#070709] to-[#070709] text-zinc-100 p-4 sm:p-8 pb-32 relative font-sans selection:bg-yellow-500/30" dir={lang === "he" ? "rtl" : "ltr"}>
-            
+
             {/* Header & Back Button */}
             <div className="max-w-3xl mx-auto flex justify-between items-center mb-8 pt-2">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-l from-yellow-300 to-yellow-600 truncate pr-2">
                     {userName}
                 </h1>
-                
-                <button 
-                    onClick={() => router.push("/")} 
+
+                <button
+                    onClick={() => router.push("/")}
                     className="bg-zinc-900/80 backdrop-blur-md border border-zinc-800 text-yellow-500 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-zinc-800 hover:border-yellow-500/50 shadow-lg flex items-center gap-2"
                     dir="ltr"
                 >
@@ -284,14 +297,13 @@ export default function MyPointsPage() {
                         { id: "notifications", label: <span className="flex items-center gap-1.5 relative">{t.notifications[lang]} 🔔 {unreadCount > 0 && isLoggedIn && <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</span> },
                         { id: "settings", label: <span className="flex items-center gap-1.5">{t.settings[lang]} ⚙️</span> }
                     ].map((item) => (
-                        <button 
+                        <button
                             key={item.id}
-                            onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }} 
-                            className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${
-                                tab === item.id 
-                                ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50" 
-                                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
-                            }`}
+                            onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }}
+                            className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${tab === item.id
+                                    ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50"
+                                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
+                                }`}
                         >
                             {item.label}
                         </button>
@@ -307,7 +319,7 @@ export default function MyPointsPage() {
                             <span className="text-3xl">🔒</span>
                         </div>
                         <p className="text-zinc-300 text-lg font-bold">{t.mustLogin[lang]}</p>
-                        <button 
+                        <button
                             onClick={() => router.push("/auth")}
                             className="bg-gradient-to-r from-yellow-500 to-yellow-400 text-black px-8 py-3 rounded-xl font-bold shadow-[0_4px_14px_0_rgba(251,191,36,0.39)] hover:shadow-[0_6px_20px_rgba(251,191,36,0.23)] hover:-translate-y-0.5 transition-all"
                         >
@@ -342,22 +354,20 @@ export default function MyPointsPage() {
                         {/* Settings */}
                         {tab === "settings" && (
                             <div className="space-y-5 animate-in fade-in duration-300">
-                                
-                                {/* Language */}
                                 <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800 p-6 rounded-3xl shadow-xl">
                                     <div className="flex items-center gap-3 text-zinc-400 mb-5">
-                                        <div className="bg-zinc-800 p-2 rounded-lg text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
+                                        <div className="bg-zinc-800 p-2 rounded-lg text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></svg></div>
                                         <h2 className="text-sm font-bold tracking-wide">{t.language[lang]}</h2>
                                     </div>
                                     <div className="flex gap-3 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/50">
-                                        <button 
-                                            onClick={() => changeLanguage("he")} 
+                                        <button
+                                            onClick={() => changeLanguage("he")}
                                             className={`flex-1 py-2.5 rounded-xl font-bold transition-all duration-300 text-sm ${lang === "he" ? "bg-zinc-800 text-yellow-400 shadow-md" : "text-zinc-500 hover:text-zinc-300"}`}
                                         >
                                             עברית
                                         </button>
-                                        <button 
-                                            onClick={() => changeLanguage("en")} 
+                                        <button
+                                            onClick={() => changeLanguage("en")}
                                             className={`flex-1 py-2.5 rounded-xl font-bold transition-all duration-300 text-sm ${lang === "en" ? "bg-zinc-800 text-yellow-400 shadow-md" : "text-zinc-500 hover:text-zinc-300"}`}
                                         >
                                             English
@@ -365,18 +375,17 @@ export default function MyPointsPage() {
                                     </div>
                                 </div>
 
-                                {/* Location Services */}
                                 <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800 p-6 rounded-3xl shadow-xl">
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-3 text-zinc-400">
-                                            <div className="bg-zinc-800 p-2 rounded-lg text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+                                            <div className="bg-zinc-800 p-2 rounded-lg text-yellow-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg></div>
                                             <div>
                                                 <h2 className="text-sm font-bold tracking-wide">{t.locationTitle[lang]}</h2>
                                                 <p className="text-xs text-zinc-500 mt-0.5">{t.locationDesc[lang]}</p>
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={toggleGps} 
+                                        <button
+                                            onClick={toggleGps}
                                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${gpsEnabled ? 'bg-yellow-500' : 'bg-zinc-700'}`}
                                             dir="ltr"
                                         >
@@ -385,19 +394,18 @@ export default function MyPointsPage() {
                                     </div>
                                 </div>
 
-                                {/* Terms & Contact */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <button 
-                                        onClick={() => router.push("/terms")} 
+                                    <button
+                                        onClick={() => router.push("/terms")}
                                         className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-3xl shadow-lg flex justify-between items-center group hover:border-yellow-500/50 hover:bg-zinc-800/50 transition-all duration-300"
                                     >
                                         <div className="flex items-center gap-3 text-zinc-300 group-hover:text-yellow-400 transition-colors">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" /></svg>
                                             <span className="font-bold text-sm">{t.terms[lang]}</span>
                                         </div>
                                         <span className="text-zinc-600 group-hover:text-yellow-500 transition-colors">{lang === "he" ? "❮" : "❯"}</span>
                                     </button>
-                                    
+
                                     <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-3xl shadow-lg flex flex-col justify-center">
                                         <p className="text-zinc-500 text-xs font-bold mb-1">{t.contactUs[lang]}</p>
                                         <a href="mailto:jseedglobal@gmail.com" className="text-yellow-400 hover:text-yellow-300 font-bold text-sm truncate">
@@ -408,25 +416,25 @@ export default function MyPointsPage() {
 
                                 {isLoggedIn ? (
                                     <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <button 
-                                            onClick={handleLogout} 
+                                        <button
+                                            onClick={handleLogout}
                                             className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-6 py-3.5 rounded-2xl hover:bg-zinc-800 hover:text-white transition-all font-bold flex justify-center items-center gap-2 text-sm shadow-md"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                                             {t.logout[lang]}
                                         </button>
-                                        <button 
-                                            onClick={() => setShowDeleteAccountModal(true)} 
+                                        <button
+                                            onClick={() => setShowDeleteAccountModal(true)}
                                             className="bg-red-500/5 border border-red-900/40 text-red-400 px-6 py-3.5 rounded-2xl hover:bg-red-500/10 hover:border-red-500/50 transition-all font-bold flex justify-center items-center gap-2 text-sm shadow-md"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
                                             {t.deleteAccount[lang]}
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="mt-8">
-                                        <button 
-                                            onClick={() => router.push("/auth")} 
+                                        <button
+                                            onClick={() => router.push("/auth")}
                                             className="w-full bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-black px-6 py-3.5 rounded-2xl transition-all font-bold shadow-[0_4px_14px_0_rgba(251,191,36,0.39)]"
                                         >
                                             {t.loginNow[lang]}
@@ -442,9 +450,9 @@ export default function MyPointsPage() {
                                 {tab === "saved" && (
                                     <div className="flex justify-center gap-3 mb-8 bg-zinc-900/30 p-3 rounded-2xl border border-zinc-800/50 w-fit mx-auto">
                                         {["leaf", "star", "triangle", "circle", "chai"].map((cat) => (
-                                            <button 
-                                                key={cat} 
-                                                onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)} 
+                                            <button
+                                                key={cat}
+                                                onClick={() => setSavedCategory(savedCategory === cat as PointCategory ? null : cat as PointCategory)}
                                                 className={`p-2 rounded-xl transition-all duration-300 ${savedCategory === cat ? "bg-zinc-800 shadow-inner border border-zinc-700" : "hover:bg-zinc-800/50 border border-transparent"}`}
                                             >
                                                 <img src={`/icons/categories/${cat}/${savedCategory === cat ? "active" : "default"}.png`} className="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-md" />
@@ -470,91 +478,121 @@ export default function MyPointsPage() {
                                             const displayName = lang === "en" && p.name_en ? p.name_en : p.name;
                                             const displayDesc = lang === "en" && p.description_en ? p.description_en : p.description;
                                             const isChai = p.category === "chai";
+                                            const isChaiSupport = p.category === "chai_support";
                                             const participantsCount = isChai ? Math.max(1, allChaiPoints.filter(cp => cp.name === p.name).length) : 0;
 
+                                            if (isChaiSupport) {
+                                                return (
+                                                    <div key={p.id} className="relative bg-zinc-900/40 backdrop-blur-md border border-yellow-500/20 p-5 rounded-2xl shadow-md flex justify-between items-center group">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="bg-yellow-500/10 p-3 rounded-full border border-yellow-500/30">
+                                                                <span className="text-2xl">🤝</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-yellow-500 text-xs font-bold mb-1">
+                                                                    {lang === "he" ? "השתתפתי ביוזמה:" : "Participated in:"}
+                                                                </p>
+                                                                <h2 className="font-extrabold text-lg text-zinc-100">{displayName}</h2>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col sm:flex-row gap-2">
+                                                            {tab === "my" && (
+                                                                <button onClick={() => setPointToDelete(p.id)} className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-2 rounded-xl text-xs font-bold transition">
+                                                                    {t.delete[lang]}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => router.push(`/?point=${p.id}`)}
+                                                                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                                            >
+                                                                📍 {t.viewOnMap[lang]}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
                                             return (
-                                            <div key={p.id} className="relative bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 p-5 sm:p-6 rounded-3xl shadow-xl hover:border-yellow-500/20 transition-all group">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <h2 className="font-extrabold text-xl sm:text-2xl text-zinc-100">{displayName}</h2>
-                                                    <span className="bg-zinc-950 border border-zinc-800 text-zinc-400 px-2.5 py-1 rounded-lg text-xs font-mono shrink-0 shadow-inner">
-                                                        #{p.id}
-                                                    </span>
-                                                </div>
-                                                
-                                                <ImageGallery images={pointImages} />
-                                                
-                                                {displayDesc && <p className="text-sm text-zinc-300 mt-4 leading-relaxed whitespace-pre-wrap">{displayDesc}</p>}
-                                                
-                                                <div className="mt-5 space-y-2.5 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/50 text-sm">
-                                                    <div className="flex items-start gap-3">
-                                                        <span className="shrink-0 text-lg">🏷️</span>
-                                                        <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.category[lang]}</strong> {categoryNames[p.category] || p.category}</span>
-                                                    </div>
-                                                    <div className="flex items-start gap-3">
-                                                        <span className="shrink-0 text-lg">🏠</span>
-                                                        <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.address[lang]}</strong> {p.address || t.none[lang]}</span>
-                                                    </div>
-                                                    <div className="flex items-start gap-3">
-                                                        <span className="shrink-0 text-lg">🌐</span>
-                                                        <span className="text-zinc-400 pt-0.5">
-                                                            <strong className="text-zinc-300 font-medium">{t.website[lang]}</strong> {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:text-yellow-400 font-medium transition-colors underline decoration-yellow-500/30 underline-offset-4">{t.visitSite[lang]}</a> : t.none[lang]}
+                                                <div key={p.id} className="relative bg-zinc-900/40 backdrop-blur-md border border-zinc-800/60 p-5 sm:p-6 rounded-3xl shadow-xl hover:border-yellow-500/20 transition-all group">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <h2 className="font-extrabold text-xl sm:text-2xl text-zinc-100">{displayName}</h2>
+                                                        <span className="bg-zinc-950 border border-zinc-800 text-zinc-400 px-2.5 py-1 rounded-lg text-xs font-mono shrink-0 shadow-inner">
+                                                            #{p.id}
                                                         </span>
                                                     </div>
-                                                </div>
-                                                
-                                                {tab === "my" && (
-                                                    // 🌟 🌟 🌟 כאן שילבתי את שורת הסטטיסטיקות עם הנתונים האמיתיים מ-Analytics!
-                                                    <div className="flex flex-wrap justify-between mt-5 bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 text-xs font-medium text-zinc-400 shadow-inner gap-2">
-                                                        
-                                                        {/* צפיות בבועה מתוך Analytics */}
-                                                        <span className="flex items-center gap-1.5" title={lang === "he" ? "צפיות בבועה על המפה" : "Map views"}>
-                                                            <span className="text-base">👁️</span> 
-                                                            {p.analytics?.views || p._count?.viewedBy || 0} {t.views[lang]}
-                                                        </span>
-                                                        
-                                                        {/* שמירות */}
-                                                        <span className="flex items-center gap-1.5" title={lang === "he" ? "שמירות" : "Saves"}>
-                                                            <img src="/icons/ui/save/active.png" alt="Saves" className="w-4 h-4 object-contain opacity-80" />
-                                                            {p._count?.savedBy || 0} {t.saves[lang]}
-                                                        </span>
-                                                        
-                                                        {/* קליקים (עכשיו מקושר ל-Analytics) */}
-                                                        {p.website && (
-                                                            <span className="flex items-center gap-1.5" title={lang === "he" ? "קליקים על הקישור לאתר" : "Link clicks"}>
-                                                                <span className="text-base">🔗</span> 
-                                                                {p.analytics?.clicks || p.linkClicks || 0} {t.clicks[lang]}
+
+                                                    <ImageGallery images={pointImages} />
+
+                                                    {displayDesc && <p className="text-sm text-zinc-300 mt-4 leading-relaxed whitespace-pre-wrap">{displayDesc}</p>}
+
+                                                    <div className="mt-5 space-y-2.5 bg-zinc-950/50 p-4 rounded-2xl border border-zinc-800/50 text-sm">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="shrink-0 text-lg">🏷️</span>
+                                                            <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.category[lang]}</strong> {categoryNames[p.category] || p.category}</span>
+                                                        </div>
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="shrink-0 text-lg">🏠</span>
+                                                            <span className="text-zinc-400 pt-0.5"><strong className="text-zinc-300 font-medium">{t.address[lang]}</strong> {p.address || t.none[lang]}</span>
+                                                        </div>
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="shrink-0 text-lg">🌐</span>
+                                                            <span className="text-zinc-400 pt-0.5">
+                                                                <strong className="text-zinc-300 font-medium">{t.website[lang]}</strong> {p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="text-yellow-500 hover:text-yellow-400 font-medium transition-colors underline decoration-yellow-500/30 underline-offset-4">{t.visitSite[lang]}</a> : t.none[lang]}
                                                             </span>
-                                                        )}
-                                                        
-                                                        {/* השתתפויות (Chai) כולל התמיכות השקטות */}
-                                                        {isChai && (
-                                                            <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20" title={lang === "he" ? "השתתפויות ותמיכות" : "Joins and supports"}>
-                                                                <span className="text-base">🤝</span> 
-                                                                {participantsCount + (p.analytics?.joins || 0)} {t.participants[lang]}
+                                                        </div>
+                                                    </div>
+
+                                                    {tab === "my" && (
+                                                        <div className="flex flex-wrap justify-between mt-5 bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 text-xs font-medium text-zinc-400 shadow-inner gap-2">
+                                                            <span className="flex items-center gap-1.5" title={lang === "he" ? "צפיות בבועה על המפה" : "Map views"}>
+                                                                <span className="text-base">👁️</span>
+                                                                {p.analytics?.views || p._count?.viewedBy || 0} {t.views[lang]}
                                                             </span>
-                                                        )}
+
+                                                            <span className="flex items-center gap-1.5" title={lang === "he" ? "שמירות" : "Saves"}>
+                                                                <img src="/icons/ui/save/active.png" alt="Saves" className="w-4 h-4 object-contain opacity-80" />
+                                                                {p._count?.savedBy || 0} {t.saves[lang]}
+                                                            </span>
+
+                                                            {p.website && (
+                                                                <span className="flex items-center gap-1.5" title={lang === "he" ? "קליקים על הקישור לאתר" : "Link clicks"}>
+                                                                    <span className="text-base">🔗</span>
+                                                                    {p.analytics?.clicks || p.linkClicks || 0} {t.clicks[lang]}
+                                                                </span>
+                                                            )}
+
+                                                            {isChai && (
+                                                                <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20" title={lang === "he" ? "השתתפויות ותמיכות" : "Joins and supports"}>
+                                                                    <span className="text-base">🤝</span>
+                                                                    {participantsCount + (p.analytics?.joins || 0)} {t.participants[lang]}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-6 gap-3">
+                                                        <div className="flex gap-2 w-full sm:w-auto">
+                                                            {tab === "my" && (
+                                                                <>
+                                                                    <button onClick={() => router.push(`/my-points/analytics?pointId=${p.id}`)} className="flex-1 sm:flex-none bg-blue-900/30 hover:bg-blue-800/50 border border-blue-500/30 text-blue-400 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">
+                                                                        📊 נתונים מורחבים
+                                                                    </button>
+                                                                    <button onClick={() => setEditingPoint(p)} className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">{t.edit[lang]}</button>
+                                                                    <button onClick={() => setPointToDelete(p.id)} className="flex-1 sm:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">{t.delete[lang]}</button>
+                                                                </>
+                                                            )}
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => router.push(`/?point=${p.id}`)}
+                                                            className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 text-black px-6 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition hover:shadow-[0_0_15px_rgba(251,191,36,0.3)] shadow-md"
+                                                        >
+                                                            📍 {t.viewOnMap[lang]}
+                                                        </button>
                                                     </div>
-                                                )}
-                                                
-                                                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-6 gap-3">
-                                                    <div className="flex gap-2 w-full sm:w-auto">
-                                                        {tab === "my" && (
-                                                            <>
-                                                                <button onClick={() => setEditingPoint(p)} className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/50 text-zinc-200 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">{t.edit[lang]}</button>
-                                                                <button onClick={() => setPointToDelete(p.id)} className="flex-1 sm:flex-none bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm">{t.delete[lang]}</button>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    <button 
-                                                        onClick={() => router.push(`/?point=${p.id}`)}
-                                                        className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 text-black px-6 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition hover:shadow-[0_0_15px_rgba(251,191,36,0.3)] shadow-md"
-                                                    >
-                                                        📍 {t.viewOnMap[lang]}
-                                                    </button>
                                                 </div>
-                                            </div>
-                                        )})}
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </>
@@ -563,6 +601,66 @@ export default function MyPointsPage() {
                 )}
             </div>
 
+            {/* 🌟 🌟 🌟 המודאל החדש: מציג סטטיסטיקות על גרעין ספציפי ועל כל החשבון 🌟 🌟 🌟 */}
+            {statsModalPoint && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[99999] px-4">
+                    <div className="bg-[#0a0a0c] border border-blue-500/30 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-blue-400"></div>
+                        <button onClick={() => setStatsModalPoint(null)} className="absolute top-4 left-4 text-gray-500 hover:text-white text-xl transition">✕</button>
+
+                        <h3 className="text-xl font-black text-blue-400 mb-6 flex items-center gap-2">
+                            <span className="text-2xl">📊</span> נתוני חשיפה וביצועים
+                        </h3>
+
+                        <div className="space-y-6">
+                            {/* נתוני הגרעין */}
+                            <div className="bg-blue-950/10 border border-blue-900/30 rounded-2xl p-5 shadow-inner">
+                                <h4 className="text-sm font-bold text-gray-400 mb-4">
+                                    עבור הגרעין: <span className="text-white">"{statsModalPoint.name}"</span>
+                                </h4>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-black/40 border border-gray-800 p-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-inner">
+                                        <span className="text-xl">👁️</span>
+                                        <span className="font-black text-white text-lg">{statsModalPoint.analytics?.views || statsModalPoint._count?.viewedBy || 0}</span>
+                                        <span className="text-[10px] text-gray-500">צפיות בבועה</span>
+                                    </div>
+                                    <div className="bg-black/40 border border-gray-800 p-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-inner">
+                                        <img src="/icons/ui/save/active.png" className="w-5 h-5 object-contain opacity-80" />
+                                        <span className="font-black text-white text-lg">{statsModalPoint._count?.savedBy || 0}</span>
+                                        <span className="text-[10px] text-gray-500">שמירות</span>
+                                    </div>
+                                    <div className="bg-black/40 border border-gray-800 p-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-inner">
+                                        <span className="text-xl">🔗</span>
+                                        <span className="font-black text-white text-lg">{statsModalPoint.analytics?.clicks || statsModalPoint.linkClicks || 0}</span>
+                                        <span className="text-[10px] text-gray-500">קליקים לאתר</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* נתוני כלל החשבון */}
+                            <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5">
+                                <h4 className="text-sm font-bold text-gray-400 mb-4 flex justify-between items-center">
+                                    <span>סך הכל בחשבון שלך</span>
+                                    <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md text-[10px]">{accountStats.seeds} גרעינים</span>
+                                </h4>
+                                <div className="flex justify-between items-center border-b border-gray-800/50 pb-3 mb-3">
+                                    <span className="text-xs text-gray-500">סה"כ צפיות במפה:</span>
+                                    <span className="font-bold text-white">{accountStats.views}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-800/50 pb-3 mb-3">
+                                    <span className="text-xs text-gray-500">סה"כ פעמים ששמרו גרעין שלך:</span>
+                                    <span className="font-bold text-yellow-500">{accountStats.saves}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs text-gray-500">סה"כ קליקים לאתרים:</span>
+                                    <span className="font-bold text-blue-400">{accountStats.clicks}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Delete Point Modal */}
             {pointToDelete && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] px-4">
@@ -570,15 +668,15 @@ export default function MyPointsPage() {
                         <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-red-500/20 text-3xl">🗑️</div>
                         <h3 className="text-lg font-bold text-zinc-100">{t.deleteConfirm[lang]}</h3>
                         <div className="flex gap-3">
-                            <button 
-                                onClick={() => setPointToDelete(null)} 
+                            <button
+                                onClick={() => setPointToDelete(null)}
                                 disabled={isDeleting}
                                 className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3 rounded-xl font-bold transition disabled:opacity-50"
                             >
                                 {t.cancel[lang]}
                             </button>
-                            <button 
-                                onClick={executeDelete} 
+                            <button
+                                onClick={executeDelete}
                                 disabled={isDeleting}
                                 className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold transition disabled:opacity-50 shadow-lg shadow-red-500/20"
                             >
@@ -594,20 +692,20 @@ export default function MyPointsPage() {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] px-4">
                     <div className="bg-zinc-950 border border-red-900/50 p-8 rounded-3xl max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-red-500/20 text-red-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                         </div>
                         <h3 className="text-xl font-extrabold text-red-400">{t.deleteAccount[lang]}</h3>
                         <p className="text-sm text-zinc-400 leading-relaxed px-2">{t.deleteAccountConfirm[lang]}</p>
                         <div className="flex gap-3">
-                            <button 
-                                onClick={() => setShowDeleteAccountModal(false)} 
+                            <button
+                                onClick={() => setShowDeleteAccountModal(false)}
                                 disabled={isDeletingAccount}
                                 className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3 rounded-xl font-bold transition disabled:opacity-50"
                             >
                                 {t.cancel[lang]}
                             </button>
-                            <button 
-                                onClick={handleDeleteAccount} 
+                            <button
+                                onClick={handleDeleteAccount}
                                 disabled={isDeletingAccount}
                                 className="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold transition disabled:opacity-50 shadow-lg shadow-red-600/20"
                             >
@@ -630,8 +728,8 @@ export default function MyPointsPage() {
                         website: editingPoint.website,
                         lat: editingPoint.latitude,
                         lng: editingPoint.longitude,
-                        existingImages: editingPoint.imageUrls && editingPoint.imageUrls.length > 0 
-                            ? editingPoint.imageUrls 
+                        existingImages: editingPoint.imageUrls && editingPoint.imageUrls.length > 0
+                            ? editingPoint.imageUrls
                             : (editingPoint.imageUrl ? [editingPoint.imageUrl] : [])
                     }}
                     onClose={() => setEditingPoint(null)}
@@ -653,7 +751,7 @@ export default function MyPointsPage() {
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", form.category || editingPoint.category);
-                        
+
                         if (form.images && form.images.length > 0) {
                             form.images.forEach(img => {
                                 formData.append("images", img);
@@ -680,8 +778,9 @@ export default function MyPointsPage() {
                     }}
                 />
             )}
-            
-            <style dangerouslySetInnerHTML={{__html: `
+
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-scrollbar::-webkit-scrollbar { height: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.2); border-radius: 4px; }

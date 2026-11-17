@@ -192,6 +192,29 @@ export function useMapMarkers({
       ? point.description
       : point.description_en || point.description;
 
+    const display = (val: string | null | undefined) =>
+      val && val.trim() !== "" ? val : "-";
+      
+    // 🌟 1. עיצוב ייעודי ומינימליסטי לתמיכה שקטה בלבד
+    if (point.category === "chai_support") {
+        container.innerHTML = `
+          <div dir="${isHe ? "rtl" : "ltr"}" style="width: 100%; text-align: center; padding: 15px 5px;">
+            <div style="background: rgba(251, 191, 36, 0.1); display: inline-flex; padding: 15px; border-radius: 50%; margin-bottom: 12px; border: 1px solid rgba(251,191,36,0.3);">
+                <span style="font-size: 32px;">🤝</span>
+            </div>
+            <h3 style="font-size: 15px; font-weight: bold; color: #fbbf24; margin-bottom: 6px;">
+                ${isHe ? "גם אני השתתפתי ביוזמה:" : "I also participated in:"}
+            </h3>
+            <p style="font-size: 18px; color: #f9fafb; font-weight: 900; line-height: 1.3;">
+                "${display(displayName)}"
+            </p>
+          </div>
+        `;
+        return container;
+    }
+
+    // -- אם זו לא תמיכה שקטה, נמשיך לבנות את הבועה הרגילה --
+    
     const t = {
       desc: isHe ? "תיאור:" : "Description:",
       loc: isHe ? "מיקום:" : "Location:",
@@ -226,8 +249,6 @@ export function useMapMarkers({
     container.addEventListener("click", (e) => e.stopPropagation());
     container.addEventListener("wheel", (e) => e.stopPropagation());
 
-    const display = (val: string | null | undefined) =>
-      val && val.trim() !== "" ? val : "-";
     const isChai = point.category === "chai";
     
     const saveIconSrc = isSaved ? "/icons/ui/save/active.png" : "/icons/ui/save/default.png";
@@ -288,9 +309,17 @@ export function useMapMarkers({
 
     let currentSavedCount = point._count?.savedBy || 0;
     
+    // 🌟 2. סופר אך ורק תמיכות שקטות (לחיצות ידיים)
     const participantsCount = points.filter(
       (p) =>
-        (p.category === "chai" || p.category === "chai_support") &&
+        p.category === "chai_support" &&
+        (p.parentId === point.id || (p.name || "").trim() === (point.name || "").trim())
+    ).length;
+
+    // 🌟 3. סופר אך ורק יוזמות-בת (גרעינים מלאים שנוצרו תחת היוזמה)
+    const creationsCount = points.filter(
+      (p) =>
+        p.category === "chai" && p.id !== point.id && 
         (p.parentId === point.id || (p.name || "").trim() === (point.name || "").trim())
     ).length;
 
@@ -336,7 +365,7 @@ export function useMapMarkers({
             <button class="add-chai-btn" style="background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" title="הוסף עשייה מפורטת ליוזמה זו">
                <img src="${createIconSrc}" alt="Create" style="width: 18px; height: 18px; object-fit: contain; pointer-events: none;" />
                <span style="font-size: 11px; color: #9ca3af; font-weight: bold;">
-                  ${t.creation}
+                  <span class="creations-count-text">${creationsCount}</span> ${t.creation}
                </span>
             </button>
             `
@@ -363,9 +392,11 @@ export function useMapMarkers({
         </div>
 
         <div style="display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid #374151;">
+          ${!isChai ? `
           <a href="https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes" target="_blank" style="text-decoration: none; display: flex; align-items: center;" title="${t.nav}">
              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#05c8f6" viewBox="0 0 16 16"><path d="M4 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm10 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM1.777 5.093c.123-.38.272-.733.447-1.053C2.81 2.915 3.86 2 5.25 2h5.5c1.39 0 2.44.915 3.026 2.04.175.32.324.672.447 1.053C14.743 6.134 15 7.155 15 8.125V11a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H4v1a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V8.125c0-.97.257-1.99.777-3.032ZM3.7 5.021a1.5 1.5 0 0 0-1.187 1.5V7h10.974v-.479a1.5 1.5 0 0 0-1.187-1.5l-4.22-.844a1.5 1.5 0 0 0-.86 0l-4.22.844Z"/></svg>
           </a>
+          ` : ""}
           <button class="native-share-btn" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; padding: 0;" title="${t.shareTip}">
             <img src="/icons/ui/whatsapp/whatsapp.png" alt="Share" style="width: 20px; height: 20px; object-fit: contain;" />
           </button>
@@ -807,7 +838,6 @@ export function useMapMarkers({
     } catch (e) {}
 
     const filtered = points.filter((p) => {
-      // 🌟 וידוא סינון שקוף! גם בחיפוש כללי וגם בסינון חי אנחנו תמיד שולפים גם את chai_support
       if (activeCategory === "chai") {
         if (p.category === "chai" || p.category === "chai_support") {
             if (searchQuery) {

@@ -48,11 +48,9 @@ export default async function AdminDashboard({
     const filterCat = resolvedSearchParams?.cat || "";
     const showUserId = resolvedSearchParams?.showUser || "";
 
-    // 🌟 סוג הטווח והאופסט (היסטוריה אחורה)
-    const rangeType = resolvedSearchParams?.rangeType || "week"; // week, month, year
+    const rangeType = resolvedSearchParams?.rangeType || "week";
     const offset = parseInt(resolvedSearchParams?.offset || "0", 10) || 0;
 
-    // 🌟 חישוב תאריכים לפי הטווח והאופסט
     let periodDays = 7;
     let labelHe = "שבוע";
     if (rangeType === "month") { periodDays = 30; labelHe = "חודש"; }
@@ -61,11 +59,8 @@ export default async function AdminDashboard({
     const endDate = new Date(Date.now() - (offset * periodDays * 24 * 60 * 60 * 1000));
     const startDate = new Date(endDate.getTime() - (periodDays * 24 * 60 * 60 * 1000));
 
-    // מסננים לפי תאריך יצירה ועדכון
-    const pointDateFilter = { createdAt: { gte: startDate, lt: endDate } };
     const userDateFilter = { updatedAt: { gte: startDate, lt: endDate } };
 
-    // 🌟 שליפת פרטי משתמש ספציפי למודאל (אם נבחר)
     let modalUser = null;
     if (showUserId) {
         modalUser = await prisma.user.findUnique({
@@ -78,7 +73,6 @@ export default async function AdminDashboard({
         });
     }
 
-    // 🌟 סטטיסטיקות משתמשים וזמנים
     const totalUsers = await prisma.user.count({ where: userDateFilter });
     const totalVisitors = await prisma.visitor.count({ where: userDateFilter });
     const totalSessionsCount = totalUsers + totalVisitors;
@@ -105,7 +99,6 @@ export default async function AdminDashboard({
     const onlineVisitors = await prisma.visitor.count({ where: { updatedAt: { gte: fiveMinutesAgo } } });
     const totalOnlineNow = onlineUsers + onlineVisitors;
 
-    // 🌟 שליפת גרעינים (כולל תגובות!)
     const allPointsWithStats = await prisma.point.findMany({
         include: {
             user: { select: { id: true, name: true, email: true } },
@@ -174,7 +167,12 @@ export default async function AdminDashboard({
         return { ...item, meta: CATEGORY_META[k], uniqueUsers: item.uniqueUsersSet.size, percentage };
     });
 
-    // 🌟 בניית הגרף
+    // 🌟 שליפת יומן הפעילויות החדש של הסטטיסטיקות! 🌟
+    const logsInDateRange = await prisma.pointActionLog.findMany({
+        where: { createdAt: { gte: startDate, lt: endDate } },
+        select: { createdAt: true, country: true, action: true }
+    });
+
     const dayNamesHe = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
     const chartData: { label: string; dateStr: string; count: number; fullDate: Date }[] = [];
 
@@ -186,18 +184,21 @@ export default async function AdminDashboard({
         const nextD = new Date(currentDayForChart);
         nextD.setDate(currentDayForChart.getDate() + 1);
 
-        let dayActivity = 0;
+        let legacyActivity = 0;
         allPointsWithStats.forEach(p => {
-            if (p.createdAt >= currentDayForChart && p.createdAt < nextD) dayActivity++;
-            p.viewedBy.forEach(v => { if (v.viewedAt >= currentDayForChart && v.viewedAt < nextD) dayActivity++; });
-            p.savedBy.forEach(s => { if (s.savedAt >= currentDayForChart && s.savedAt < nextD) dayActivity++; });
+            if (p.createdAt >= currentDayForChart && p.createdAt < nextD) legacyActivity++;
+            p.viewedBy.forEach(v => { if (v.viewedAt >= currentDayForChart && v.viewedAt < nextD) legacyActivity++; });
+            p.savedBy.forEach(s => { if (s.savedAt >= currentDayForChart && s.savedAt < nextD) legacyActivity++; });
         });
 
+        // סופר מהיומן החדש שלנו!
+        const logsActivity = logsInDateRange.filter(log => log.createdAt >= currentDayForChart && log.createdAt < nextD).length;
+        
         chartData.push({
             label: `יום ${dayNamesHe[currentDayForChart.getDay()]}`,
             dateStr: `${currentDayForChart.getDate()}/${currentDayForChart.getMonth() + 1}`,
             fullDate: new Date(currentDayForChart),
-            count: dayActivity,
+            count: legacyActivity + logsActivity, // משלב ישן וחדש כדי שלא יאבד מידע
         });
 
         currentDayForChart.setDate(currentDayForChart.getDate() + 1);
@@ -205,15 +206,19 @@ export default async function AdminDashboard({
 
     const maxDailyCount = Math.max(...chartData.map(d => d.count), 1);
 
-    // 🌟 יצירת נתוני מדינות 
     const usersInDateRange = await prisma.user.findMany({
         where: userDateFilter,
         select: { country: true }
     });
 
+    // 🌟 שימוש ביומן ליצירת מפת מדינות עדכנית ופעילה 🌟
     const countryCounts: Record<string, number> = {};
     usersInDateRange.forEach(u => {
-        const c = u.country || "לא ידוע";
+        const c = u.country || "IL";
+        countryCounts[c] = (countryCounts[c] || 0) + 1;
+    });
+    logsInDateRange.forEach(log => {
+        const c = log.country || "IL";
         countryCounts[c] = (countryCounts[c] || 0) + 1;
     });
 
@@ -221,7 +226,6 @@ export default async function AdminDashboard({
     const top5Countries = sortedCountries.slice(0, 5);
     const otherCountries = sortedCountries.slice(5);
 
-    // 🌟 שליפת משתמשים לטבלה
     const users = await prisma.user.findMany({
         where: userDateFilter,
         select: {
@@ -280,7 +284,6 @@ export default async function AdminDashboard({
         }
     }
 
-    // פונקציה למחיקת תגובה מהאדמין
     async function deleteCommentAction(formData: FormData) {
         "use server";
         const currentSession = await auth();
@@ -294,7 +297,6 @@ export default async function AdminDashboard({
         }
     }
 
-    // פונקציות ליצירת קישורים (URL Builders)
     const getRangeUrl = (newRange: string) => `/admin?rangeType=${newRange}&offset=0&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
     const getOffsetUrl = (newOffset: number) => `/admin?rangeType=${rangeType}&offset=${newOffset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
     const getCloseModalUrl = () => `/admin?rangeType=${rangeType}&offset=${offset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
@@ -422,7 +424,7 @@ export default async function AdminDashboard({
                 {/* 🌟 שורה 2: חלונית מדינות (Top 5 + All) */}
                 <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-blue-500/30 rounded-2xl p-6 shadow-xl">
                     <h2 className="text-lg font-bold text-blue-400 mb-4 flex items-center gap-2">
-                        <span>🌍</span> תפוצת משתמשים לפי מדינות ({labelHe} נבחר)
+                        <span>🌍</span> תפוצת משתמשים ופעילויות לפי מדינות ({labelHe} נבחר)
                     </h2>
 
                     {top5Countries.length === 0 ? (
@@ -608,7 +610,6 @@ export default async function AdminDashboard({
                                             </div>
                                         </div>
 
-                                        {/* 👇 אזור התגובות לכל גרעין 👇 */}
                                         {p.comments && p.comments.length > 0 ? (
                                             <details className="mt-4 border-t border-gray-800/80 pt-3 group outline-none">
                                                 <summary className="text-xs text-yellow-500 font-bold cursor-pointer hover:text-yellow-400 transition outline-none select-none flex items-center gap-1">
@@ -656,6 +657,8 @@ export default async function AdminDashboard({
                                     <th className="p-4">שם ומייל</th>
                                     <th className="p-4 text-center">מדינה</th>
                                     <th className="p-4">פלטפורמה</th>
+                                    {/* 🌟 הוספנו את זמן השהייה חזרה */}
+                                    <th className="p-4 text-center">זמן באתר</th>
                                     <th className="p-4 text-center">גרעינים שיצר</th>
                                     <th className="p-4 text-center">שמירות</th>
                                 </tr>
@@ -678,6 +681,10 @@ export default async function AdminDashboard({
                                         </td>
                                         <td className="p-4 text-center text-xl">{getFlagEmoji(u.country)}</td>
                                         <td className="p-4 text-xs">{u.platform === "PWA" ? "📱 אפליקציה" : "💻 אתר"}</td>
+                                        
+                                        {/* 🌟 הוספנו את שליפת הדקות */}
+                                        <td className="p-4 text-center text-gray-300 font-mono text-xs">{u.timeSpentMins} דק'</td>
+                                        
                                         <td className="p-4 text-center font-bold text-white">{u._count.points}</td>
                                         <td className="p-4 text-center font-bold text-yellow-400">{u._count.savedPoints}</td>
                                     </tr>
@@ -689,7 +696,7 @@ export default async function AdminDashboard({
 
             </div>
 
-            {/* 🌟 מודאל פרטי משתמש (מוצג כאשר יש showUser ב-URL) */}
+            {/* 🌟 מודאל פרטי משתמש */}
             {modalUser && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-[#141418] border border-yellow-500/50 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl relative p-6 custom-scrollbar">

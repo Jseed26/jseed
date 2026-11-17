@@ -8,7 +8,6 @@ export async function GET() {
         return Response.json([], { status: 401 });
     }
 
-    // בתוך קובץ app/api/my-points/route.ts
     const points = await prisma.point.findMany({
         where: { userId: session.user.id },
         include: {
@@ -18,8 +17,7 @@ export async function GET() {
                     savedBy: true,
                 }
             },
-            // 🌟 זו התוספת שלנו! השרת יביא עכשיו גם את מודל הסטטיסטיקות שיצרנו
-            analytics: true 
+            analytics: true // 🌟 מביא את הסטטיסטיקות הספציפיות של הגרעין
         },
         orderBy: { createdAt: "desc" },
     });

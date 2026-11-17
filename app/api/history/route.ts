@@ -41,6 +41,9 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const pointId = Number(body.pointId);
+        
+        // 🌍 שולפים את המדינה מה-Headers (או IL כברירת מחדל)
+        const country = req.headers.get("x-vercel-ip-country") || "IL";
 
         // upsert: אם הוא כבר צפה בזה פעם, רק נעדכן את השעה להיום. אם לא, ניצור רשומה.
         await (prisma as any).viewedPoint.upsert({
@@ -59,11 +62,21 @@ export async function POST(req: Request) {
             },
         });
 
-        // 🌟 🌟 🌟 התוספת החדשה: עדכון סטטיסטיקת צפיות (Views) על הגרעין הספציפי 🌟 🌟 🌟
+        // 🌟 🌟 🌟 התוספת החדשה: עדכון סטטיסטיקת צפיות (Views) על הגרעין הספציפי ב-PointAnalytics 🌟 🌟 🌟
         await (prisma as any).pointAnalytics.upsert({
             where: { pointId: pointId },
             update: { views: { increment: 1 } },
             create: { pointId: pointId, views: 1 }
+        });
+        
+        // 🌟 🌟 🌟 התוספת החדשה 2: תיעוד הפעולה ביומן המפורט (PointActionLog) 🌟 🌟 🌟
+        await (prisma as any).pointActionLog.create({
+            data: {
+                pointId: pointId,
+                action: "VIEW",
+                country: country,
+                userId: session.user.id,
+            }
         });
 
         // 🌟 🌟 🌟 התראה: מישהו צפה בנקודה שלך במפה 🌟 🌟 🌟
