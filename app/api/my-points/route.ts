@@ -11,15 +11,13 @@ export async function GET() {
     const points = await prisma.point.findMany({
         where: { userId: session.user.id },
         include: {
-            _count: {
-                select: {
-                    viewedBy: true,
-                    savedBy: true,
-                }
-            },
-            analytics: true // 🌟 מביא את הסטטיסטיקות הספציפיות של הגרעין
-        },
-        orderBy: { createdAt: "desc" },
+            _count: { select: { viewedBy: true, savedBy: true } },
+            analytics: true,
+            comments: {
+                orderBy: { createdAt: "desc" },
+                include: { user: { select: { name: true } } }
+            }
+        }
     });
 
     return Response.json(points);

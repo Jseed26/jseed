@@ -58,6 +58,7 @@ export async function POST(req: Request) {
           await prisma.notification.create({
             data: {
               userId: point.userId, 
+              pointId: pId,
               message: `מישהו הרגע שמר את הגרעין שלך: "${point.name}"! 🌱`,
             }
           });

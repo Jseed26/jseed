@@ -80,6 +80,7 @@ export async function POST(req: Request) {
       await prisma.notification.create({
         data: {
           userId: point.userId,
+          pointId: Number(pointId),
           message: `מישהו הרגע הגיב לגרעין שלך: "${point.name}"! 💬`,
           isRead: false,
         }
@@ -102,11 +103,17 @@ export async function DELETE(req: Request) {
   if (!commentId) return NextResponse.json({ error: "Missing comment id" }, { status: 400 });
 
   try {
-    const comment = await prisma.comment.findUnique({ where: { id: Number(commentId) } });
+    const comment = await prisma.comment.findUnique({
+      where: { id: Number(commentId) },
+      include: { point: { select: { userId: true } } }
+    });
     if (!comment) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-    if (comment.userId !== session.user.id && !user?.isAdmin) {
+    const isCommentAuthor = comment.userId === session.user.id;
+    const isPointOwner = comment.point?.userId === session.user.id;
+
+    if (!isCommentAuthor && !isPointOwner && !user?.isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

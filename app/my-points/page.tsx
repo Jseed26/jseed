@@ -7,6 +7,14 @@ import { signOut, useSession } from "next-auth/react";
 import { PointCategory } from "@/src/types/point";
 import ImageGallery from "@/src/components/ImageGallery";
 
+type PointComment = {
+    id: number;
+    content: string;
+    createdAt: string;
+    userId: string;
+    user?: { name: string | null };
+};
+
 type Point = {
     id: number;
     name: string;
@@ -32,8 +40,8 @@ type Point = {
         clicks: number;
         joins: number;
     };
-
     allowComments?: boolean;
+    comments?: PointComment[];
 };
 
 type Notification = {
@@ -41,6 +49,7 @@ type Notification = {
     message: string;
     isRead: boolean;
     createdAt: string;
+    pointId?: number | null;
 };
 
 const t = {
@@ -129,6 +138,8 @@ export default function MyPointsPage() {
 
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+    const [commentsModalPoint, setCommentsModalPoint] = useState<Point | null>(null);
 
     const isLoggedIn = status === "authenticated";
     const router = useRouter();
@@ -251,6 +262,43 @@ export default function MyPointsPage() {
         }
     }
 
+    async function handleDeletePointComment(pointId: number, commentId: number) {
+        const res = await fetch(`/api/comments?id=${commentId}`, { method: "DELETE" });
+        if (res.ok) {
+            setPoints(prev =>
+                prev.map(p =>
+                    p.id === pointId
+                        ? { ...p, comments: (p.comments || []).filter(c => c.id !== commentId) }
+                        : p
+                )
+            );
+            setCommentsModalPoint(prev =>
+                prev && prev.id === pointId
+                    ? { ...prev, comments: (prev.comments || []).filter(c => c.id !== commentId) }
+                    : prev
+            );
+        }
+    }
+
+    function resolveNotificationPointId(notif: Notification): number | null {
+        if (notif.pointId) return notif.pointId;
+        const candidatePoints = [...points, ...historyPoints, ...savedPoints, ...allChaiPoints];
+        const matchedByName = candidatePoints.find(
+            (pt) => pt.name && notif.message.includes(`"${pt.name}"`)
+        );
+        if (matchedByName) return matchedByName.id;
+
+        const quoteMatch = notif.message.match(/"([^"]+)"/);
+        if (quoteMatch) {
+            const extractedName = quoteMatch[1].trim().toLowerCase();
+            const fallbackPoint = candidatePoints.find(
+                (pt) => pt.name && pt.name.trim().toLowerCase() === extractedName
+            );
+            if (fallbackPoint) return fallbackPoint.id;
+        }
+        return null;
+    }
+
     if (status === "loading") {
         return (
             <div className="min-h-screen bg-[#070709] text-yellow-500 flex items-center justify-center font-bold">
@@ -285,7 +333,7 @@ export default function MyPointsPage() {
     return (
         <div className="min-h-screen bg-[#070709] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/20 via-[#070709] to-[#070709] text-zinc-100 p-4 sm:p-8 pb-32 relative font-sans selection:bg-yellow-500/30" dir={lang === "he" ? "rtl" : "ltr"}>
 
-            {/* 🌟 עטיפה מקובעת לכותרת ולטאבים */}
+            {/* עטיפה מקובעת לכותרת ולטאבים */}
             <div className="sticky top-0 z-40 bg-[#070709]/95 backdrop-blur-md pt-4 pb-3 -mx-4 px-4 sm:-mx-8 sm:px-8 mb-6 border-b border-zinc-800/60">
                 {/* Header & Back Button */}
                 <div className="max-w-3xl mx-auto flex justify-between items-center mb-4">
@@ -354,16 +402,29 @@ export default function MyPointsPage() {
                                         <p>{t.noNotifications[lang]}</p>
                                     </div>
                                 ) : (
-                                    notifications.map((notif) => (
-                                        <div key={notif.id} className={`p-4 rounded-2xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${notif.isRead ? "bg-zinc-900/30 border-zinc-800/60" : "bg-yellow-500/5 border-yellow-500/30 shadow-md"}`}>
-                                            <p className={`text-sm ${notif.isRead ? "text-zinc-400" : "text-zinc-100 font-bold"}`}>
-                                                {notif.message}
-                                            </p>
-                                            <span className="text-[11px] font-mono text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md w-fit">
-                                                {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                    ))
+                                    notifications.map((notif) => {
+                                        const targetPointId = resolveNotificationPointId(notif);
+                                        return (
+                                            <div key={notif.id} className={`p-4 rounded-2xl border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${notif.isRead ? "bg-zinc-900/30 border-zinc-800/60" : "bg-yellow-500/5 border-yellow-500/30 shadow-md"}`}>
+                                                <p className={`text-sm ${notif.isRead ? "text-zinc-400" : "text-zinc-100 font-bold"}`}>
+                                                    {notif.message}
+                                                </p>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    {targetPointId && (
+                                                        <button
+                                                            onClick={() => router.push(`/?point=${targetPointId}`)}
+                                                            className="bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 px-3 py-1 rounded-lg text-xs font-bold transition"
+                                                        >
+                                                            📍 {lang === "he" ? "צפה בגרעין" : "View Seed"}
+                                                        </button>
+                                                    )}
+                                                    <span className="text-[11px] font-mono text-zinc-500 bg-zinc-950 px-2 py-1 rounded-md w-fit">
+                                                        {new Date(notif.createdAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-US", { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         )}
@@ -585,6 +646,36 @@ export default function MyPointsPage() {
                                                         </div>
                                                     )}
 
+                                                    {tab === "my" && (
+                                                        <div className="flex items-center justify-between mt-3 bg-zinc-950/60 border border-zinc-800/80 px-4 py-2.5 rounded-2xl gap-2">
+                                                            <span className="text-xs font-bold text-zinc-300 flex items-center gap-2">
+                                                                <span>💬</span>
+                                                                {lang === "he"
+                                                                    ? `אפשר תגובות (${p.comments?.length || 0})`
+                                                                    : `Allow comments (${p.comments?.length || 0})`}
+                                                            </span>
+                                                            <div className="flex items-center gap-3">
+                                                                {(p.comments?.length || 0) > 0 && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setCommentsModalPoint(p)}
+                                                                        className="text-xs font-bold text-yellow-400 hover:text-yellow-300 underline underline-offset-4"
+                                                                    >
+                                                                        {lang === "he" ? "נהל תגובות" : "Manage"}
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleComments(p)}
+                                                                    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${p.allowComments !== false ? "bg-yellow-500" : "bg-zinc-700"}`}
+                                                                    dir="ltr"
+                                                                >
+                                                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-zinc-900 transition-transform ${p.allowComments !== false ? "translate-x-5" : "translate-x-1"}`} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-6 gap-3">
                                                         <div className="flex gap-2 w-full sm:w-auto">
                                                             {tab === "my" && (
@@ -597,22 +688,6 @@ export default function MyPointsPage() {
                                                                 </>
                                                             )}
                                                         </div>
-
-                                                        {tab === "my" && (
-                                                            <div className="flex items-center justify-between mt-3 bg-zinc-950/60 border border-zinc-800/80 px-4 py-2.5 rounded-2xl">
-                                                                <span className="text-xs font-bold text-zinc-300">
-                                                                    💬 {lang === "he" ? "אפשר תגובות על הגרעין" : "Allow comments"}
-                                                                </span>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleComments(p)}
-                                                                    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${p.allowComments !== false ? "bg-yellow-500" : "bg-zinc-700"}`}
-                                                                    dir="ltr"
-                                                                >
-                                                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-zinc-900 transition-transform ${p.allowComments !== false ? "translate-x-5" : "translate-x-1"}`} />
-                                                                </button>
-                                                            </div>
-                                                        )}
 
                                                         <button
                                                             onClick={() => router.push(`/?point=${p.id}`)}
@@ -631,6 +706,47 @@ export default function MyPointsPage() {
                     </>
                 )}
             </div>
+
+            {/* Comments Management Modal */}
+            {commentsModalPoint && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[9999] px-4">
+                    <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-2xl max-h-[80vh] flex flex-col">
+                        <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+                            <h3 className="text-base font-bold text-yellow-400 truncate">
+                                💬 {commentsModalPoint.name} ({commentsModalPoint.comments?.length || 0})
+                            </h3>
+                            <button
+                                onClick={() => setCommentsModalPoint(null)}
+                                className="text-zinc-400 hover:text-white text-lg"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto space-y-2.5 flex-1">
+                            {!commentsModalPoint.comments || commentsModalPoint.comments.length === 0 ? (
+                                <p className="text-xs text-zinc-500 text-center py-6">
+                                    {lang === "he" ? "אין תגובות על גרעין זה." : "No comments on this seed."}
+                                </p>
+                            ) : (
+                                commentsModalPoint.comments.map((c) => (
+                                    <div key={c.id} className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl flex justify-between items-start gap-2">
+                                        <div className="text-xs space-y-1">
+                                            <div className="font-bold text-zinc-200">{c.user?.name || "משתמש"}</div>
+                                            <p className="text-zinc-400 break-words">{c.content}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeletePointComment(commentsModalPoint.id, c.id)}
+                                            className="text-red-400 hover:text-red-300 text-xs font-bold shrink-0"
+                                        >
+                                            {t.delete[lang]}
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete Point Modal */}
             {pointToDelete && (
@@ -723,6 +839,7 @@ export default function MyPointsPage() {
                         formData.append("address", form.address);
                         formData.append("website", form.website);
                         formData.append("category", form.category || editingPoint.category);
+                        formData.append("allowComments", String(form.allowComments));
 
                         if (form.images && form.images.length > 0) {
                             form.images.forEach(img => {
