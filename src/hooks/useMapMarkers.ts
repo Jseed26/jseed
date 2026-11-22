@@ -223,7 +223,6 @@ export function useMapMarkers({
       saves: isHe ? "שמירות" : "Saves",
       nav: isHe ? "נווט לשם" : "Navigate",
       shareTip: isHe ? "שתף בוואטסאפ" : "Share on WhatsApp",
-      copyTip: isHe ? "העתק קישור" : "Copy Link",
       reportTip: isHe ? "דווח על בעיה" : "Report Issue",
       copiedMsg: isHe ? "הקישור הועתק בהצלחה!" : "Link copied successfully!",
       reportMsg: isHe
@@ -400,7 +399,6 @@ export function useMapMarkers({
           <button class="native-share-btn" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; padding: 0;" title="${t.shareTip}">
             <img src="/icons/ui/whatsapp/whatsapp.png" alt="Share" style="width: 20px; height: 20px; object-fit: contain;" />
           </button>
-          <button class="copy-link-btn" style="background: none; border: none; cursor: pointer; font-size: 16px; padding: 0;" title="${t.copyTip}">🔗</button>
           <button class="report-btn" style="background: none; border: none; cursor: pointer; font-size: 16px; padding: 0;" title="${t.reportTip}">🚩</button>
         </div>
       </div>

@@ -60,7 +60,7 @@ const t = {
     visitSite: { he: "למעבר לאתר", en: "Visit Site" },
     views: { he: "צפיות", en: "Views" },
     saves: { he: "שמירות", en: "Saves" },
-    clicks: { he: "קליקים", en: "Clicks" },
+    shares: { he: "שיתופים", en: "Shares" },
     edit: { he: "ערוך", en: "Edit" },
     delete: { he: "מחק", en: "Delete" },
     viewOnMap: { he: "צפה במפה", en: "View on Map" },
@@ -127,9 +127,6 @@ export default function MyPointsPage() {
 
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-
-    // 🌟 הסטייט למודאל הסטטיסטיקות הייעודי!
-    const [statsModalPoint, setStatsModalPoint] = useState<Point | null>(null);
 
     const isLoggedIn = status === "authenticated";
     const router = useRouter();
@@ -225,17 +222,6 @@ export default function MyPointsPage() {
             setPointToDelete(null);
         }
     }
-
-    // 🌟 חישוב אוטומטי של כל הסטטיסטיקות בחשבון של המשתמש
-    const accountStats = points.reduce((acc, p) => {
-        if (p.category !== "chai_support") {
-            acc.seeds += 1;
-            acc.views += (p.analytics?.views || p._count?.viewedBy || 0);
-            acc.saves += (p._count?.savedBy || 0);
-            acc.clicks += (p.analytics?.clicks || p.linkClicks || 0);
-        }
-        return acc;
-    }, { seeds: 0, views: 0, saves: 0, clicks: 0 });
 
     if (status === "loading") {
         return (
@@ -554,12 +540,10 @@ export default function MyPointsPage() {
                                                                 {p._count?.savedBy || 0} {t.saves[lang]}
                                                             </span>
 
-                                                            {p.website && (
-                                                                <span className="flex items-center gap-1.5" title={lang === "he" ? "קליקים על הקישור לאתר" : "Link clicks"}>
-                                                                    <span className="text-base">🔗</span>
-                                                                    {p.analytics?.clicks || p.linkClicks || 0} {t.clicks[lang]}
-                                                                </span>
-                                                            )}
+                                                            <span className="flex items-center gap-1.5" title={lang === "he" ? "שיתופים (וואטסאפ, העתקת קישור וכו')" : "Shares"}>
+                                                                <span className="text-base">📤</span>
+                                                                {p.analytics?.clicks || p.linkClicks || 0} {t.shares[lang]}
+                                                            </span>
 
                                                             {isChai && (
                                                                 <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20" title={lang === "he" ? "השתתפויות ותמיכות" : "Joins and supports"}>
@@ -600,66 +584,6 @@ export default function MyPointsPage() {
                     </>
                 )}
             </div>
-
-            {/* 🌟 🌟 🌟 המודאל החדש: מציג סטטיסטיקות על גרעין ספציפי ועל כל החשבון 🌟 🌟 🌟 */}
-            {statsModalPoint && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[99999] px-4">
-                    <div className="bg-[#0a0a0c] border border-blue-500/30 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-blue-400"></div>
-                        <button onClick={() => setStatsModalPoint(null)} className="absolute top-4 left-4 text-gray-500 hover:text-white text-xl transition">✕</button>
-
-                        <h3 className="text-xl font-black text-blue-400 mb-6 flex items-center gap-2">
-                            <span className="text-2xl">📊</span> נתוני חשיפה וביצועים
-                        </h3>
-
-                        <div className="space-y-6">
-                            {/* נתוני הגרעין */}
-                            <div className="bg-blue-950/10 border border-blue-900/30 rounded-2xl p-5 shadow-inner">
-                                <h4 className="text-sm font-bold text-gray-400 mb-4">
-                                    עבור הגרעין: <span className="text-white">"{statsModalPoint.name}"</span>
-                                </h4>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="bg-black/40 border border-gray-800 p-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-inner">
-                                        <span className="text-xl">👁️</span>
-                                        <span className="font-black text-white text-lg">{statsModalPoint.analytics?.views || statsModalPoint._count?.viewedBy || 0}</span>
-                                        <span className="text-[10px] text-gray-500">צפיות בבועה</span>
-                                    </div>
-                                    <div className="bg-black/40 border border-gray-800 p-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-inner">
-                                        <img src="/icons/ui/save/active.png" className="w-5 h-5 object-contain opacity-80" />
-                                        <span className="font-black text-white text-lg">{statsModalPoint._count?.savedBy || 0}</span>
-                                        <span className="text-[10px] text-gray-500">שמירות</span>
-                                    </div>
-                                    <div className="bg-black/40 border border-gray-800 p-3 rounded-xl flex flex-col items-center justify-center gap-1 shadow-inner">
-                                        <span className="text-xl">🔗</span>
-                                        <span className="font-black text-white text-lg">{statsModalPoint.analytics?.clicks || statsModalPoint.linkClicks || 0}</span>
-                                        <span className="text-[10px] text-gray-500">קליקים לאתר</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* נתוני כלל החשבון */}
-                            <div className="bg-gray-900/40 border border-gray-800 rounded-2xl p-5">
-                                <h4 className="text-sm font-bold text-gray-400 mb-4 flex justify-between items-center">
-                                    <span>סך הכל בחשבון שלך</span>
-                                    <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md text-[10px]">{accountStats.seeds} גרעינים</span>
-                                </h4>
-                                <div className="flex justify-between items-center border-b border-gray-800/50 pb-3 mb-3">
-                                    <span className="text-xs text-gray-500">סה"כ צפיות במפה:</span>
-                                    <span className="font-bold text-white">{accountStats.views}</span>
-                                </div>
-                                <div className="flex justify-between items-center border-b border-gray-800/50 pb-3 mb-3">
-                                    <span className="text-xs text-gray-500">סה"כ פעמים ששמרו גרעין שלך:</span>
-                                    <span className="font-bold text-yellow-500">{accountStats.saves}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-gray-500">סה"כ קליקים לאתרים:</span>
-                                    <span className="font-bold text-blue-400">{accountStats.clicks}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Delete Point Modal */}
             {pointToDelete && (

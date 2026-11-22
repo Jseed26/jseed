@@ -1056,15 +1056,16 @@ export default function Map({
       if (isStarted) {
         setHasStarted(true);
         setDrawerMode('closed');
-      } else {
-        setIsLoadingSuggestions(true);
-        fetch("/api/suggestions")
-          .then(res => res.json())
-          .then(data => setSuggestions(data))
-          .catch(console.error)
-          .finally(() => setIsLoadingSuggestions(false));
       }
     }
+
+    // 🌟 טוען את ההצעות תמיד, בלי קשר לשאלה אם המשתמש כבר התחיל או לא
+    setIsLoadingSuggestions(true);
+    fetch("/api/suggestions")
+      .then(res => res.json())
+      .then(data => setSuggestions(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setIsLoadingSuggestions(false));
   }, []);
 
 // 🌟 אתחול הגלובוס התלת-ממדי של MapTiler
