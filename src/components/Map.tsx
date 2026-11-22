@@ -1103,17 +1103,21 @@ export default function Map({
     newMap.on("load", () => {
       newMap.setProjection({ type: "globe" });
       setMap(newMap);
+      setHasStarted(true); // 🌟 מציג מיד את כפתורי המיקום והרדיוס בלי לחכות ללחיצה
 
-      if (typeof window !== "undefined" && sessionStorage.getItem("jseed_app_started") === "true") {
-        fetch("https://ipapi.co/json/")
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.latitude && data.longitude) {
-              newMap.jumpTo({ center: [data.longitude, data.latitude], zoom: 6 });
-            }
-          })
-          .catch(() => {});
-      }
+      fetch("https://ipapi.co/json/")
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.latitude && data.longitude) {
+            newMap.flyTo({
+              center: [data.longitude, data.latitude],
+              zoom: 6,
+              duration: 2000,
+              essential: true
+            });
+          }
+        })
+        .catch(() => {});
     });
 
     return () => {
@@ -1158,11 +1162,36 @@ export default function Map({
 
       const res = await fetch(`/api/points?${params.toString()}`, { cache: "no-store" });
       const data = await res.json();
-      setPoints(Array.isArray(data) ? data : []);
+      const results = Array.isArray(data) ? data : [];
+      setPoints(results);
+
+      // 🌟 כשיש חיפוש פעיל ונמצאו תוצאות - טסים לאזור הגרעין
+      if (searchQuery.trim() && results.length > 0 && mapInstanceRef.current) {
+        let targetPoint = results[0];
+
+        // אם זו יוזמה - מחפשים את הראשון שהתחיל את היוזמה (ללא parentId והכי ותיק)
+        const chaiPoints = results.filter((p: any) => p.category === "chai");
+        if (chaiPoints.length > 0) {
+          const originalStarter = chaiPoints
+            .filter((p: any) => !p.parentId)
+            .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+
+          targetPoint = originalStarter || chaiPoints[chaiPoints.length - 1];
+        }
+
+        if (targetPoint?.latitude && targetPoint?.longitude) {
+          mapInstanceRef.current.flyTo({
+            center: [Number(targetPoint.longitude), Number(targetPoint.latitude)],
+            zoom: 13,
+            duration: 1800,
+            essential: true,
+          });
+        }
+      }
     }
     search();
   }, [searchQuery, activeCategory]);
-
+  
   useEffect(() => {
     const refresh = async () => {
       const res = await fetch("/api/points", { cache: "no-store" });

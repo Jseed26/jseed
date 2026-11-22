@@ -257,43 +257,46 @@ export default function MyPointsPage() {
     return (
         <div className="min-h-screen bg-[#070709] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/20 via-[#070709] to-[#070709] text-zinc-100 p-4 sm:p-8 pb-32 relative font-sans selection:bg-yellow-500/30" dir={lang === "he" ? "rtl" : "ltr"}>
 
-            {/* Header & Back Button */}
-            <div className="max-w-3xl mx-auto flex justify-between items-center mb-8 pt-2">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-l from-yellow-300 to-yellow-600 truncate pr-2">
-                    {userName}
-                </h1>
+           {/* 🌟 עטיפה מקובעת לכותרת ולטאבים */}
+            <div className="sticky top-0 z-40 bg-[#070709]/95 backdrop-blur-md pt-4 pb-3 -mx-4 px-4 sm:-mx-8 sm:px-8 mb-6 border-b border-zinc-800/60">
+                {/* Header & Back Button */}
+                <div className="max-w-3xl mx-auto flex justify-between items-center mb-4">
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-l from-yellow-300 to-yellow-600 truncate pr-2">
+                        {userName}
+                    </h1>
 
-                <button
-                    onClick={() => router.push("/")}
-                    className="bg-zinc-900/80 backdrop-blur-md border border-zinc-800 text-yellow-500 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-zinc-800 hover:border-yellow-500/50 shadow-lg flex items-center gap-2"
-                    dir="ltr"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-                    {t.toMap[lang]}
-                </button>
-            </div>
+                    <button
+                        onClick={() => router.push("/")}
+                        className="bg-zinc-900/80 backdrop-blur-md border border-zinc-800 text-yellow-500 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:bg-zinc-800 hover:border-yellow-500/50 shadow-lg flex items-center gap-2"
+                        dir="ltr"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                        {t.toMap[lang]}
+                    </button>
+                </div>
 
-            {/* Modern Tabs Navigation */}
-            <div className="max-w-3xl mx-auto mb-8">
-                <div className="flex gap-2 bg-zinc-900/40 p-1.5 rounded-2xl border border-zinc-800/50 overflow-x-auto custom-scrollbar snap-x">
-                    {[
-                        { id: "my", label: t.mySeeds[lang] },
-                        { id: "history", label: t.history[lang] },
-                        { id: "saved", label: <span className="flex items-center gap-1.5">{t.saved[lang]} <img src="/icons/ui/save/active.png" className="w-3.5 h-3.5 object-contain" /></span> },
-                        { id: "notifications", label: <span className="flex items-center gap-1.5 relative">{t.notifications[lang]} 🔔 {unreadCount > 0 && isLoggedIn && <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</span> },
-                        { id: "settings", label: <span className="flex items-center gap-1.5">{t.settings[lang]} ⚙️</span> }
-                    ].map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }}
-                            className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${tab === item.id
-                                    ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50"
-                                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
-                                }`}
-                        >
-                            {item.label}
-                        </button>
-                    ))}
+                {/* Modern Tabs Navigation */}
+                <div className="max-w-3xl mx-auto">
+                    <div className="flex gap-2 bg-zinc-900/40 p-1.5 rounded-2xl border border-zinc-800/50 overflow-x-auto custom-scrollbar snap-x">
+                        {[
+                            { id: "my", label: t.mySeeds[lang] },
+                            { id: "history", label: t.history[lang] },
+                            { id: "saved", label: <span className="flex items-center gap-1.5">{t.saved[lang]} <img src="/icons/ui/save/active.png" className="w-3.5 h-3.5 object-contain" /></span> },
+                            { id: "notifications", label: <span className="flex items-center gap-1.5 relative">{t.notifications[lang]} 🔔 {unreadCount > 0 && isLoggedIn && <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</span> },
+                            { id: "settings", label: <span className="flex items-center gap-1.5">{t.settings[lang]} ⚙️</span> }
+                        ].map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }}
+                                className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${tab === item.id
+                                        ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50"
+                                        : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
+                                    }`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
