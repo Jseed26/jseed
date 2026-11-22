@@ -103,6 +103,7 @@ export async function POST(req: Request) {
                     await prisma.notification.create({
                         data: {
                             userId: point.userId,
+                            pointId: pointId,
                             message: `מישהו פתח הרגע את הגרעין שלך: "${point.name}" במפה! 👀`
                         }
                     });

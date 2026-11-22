@@ -296,6 +296,8 @@ export async function POST(req: Request) {
     const parentIdStr = formData.get("parentId") as string;
     const parentId = parentIdStr && parentIdStr !== "null" ? parseInt(parentIdStr) : null;
 
+    const allowComments = formData.get("allowComments") !== "false"; // ברירת מחדל: true
+
     let final_name_he = name;
     let final_name_en = name;
     let final_desc_he = description;
@@ -353,6 +355,17 @@ export async function POST(req: Request) {
       }
     }
 
+    // 🌟 1. מיקום לפי IP/VPN אזורי עבור "השתתפתי ביוזמה" (עובד אוטומטית ב-Vercel)
+    if (category === "chai_support") {
+      const ipLat = req.headers.get("x-vercel-ip-latitude");
+      const ipLng = req.headers.get("x-vercel-ip-longitude");
+      if (ipLat && ipLng) {
+        finalLatitude = Number(ipLat);
+        finalLongitude = Number(ipLng);
+      }
+    }
+
+    // 🌟 2. שמירת הגרעין במסד הנתונים (הוספנו רק את allowComments בסוף)
     const newPoint = await prisma.point.create({
       data: {
         name: final_name_he,
@@ -368,6 +381,7 @@ export async function POST(req: Request) {
         website,
         userId: session.user.id,
         parentId: parentId,
+        allowComments, // 🌟 זו השורה שנוספה
       },
     });
 
@@ -428,6 +442,7 @@ export async function POST(req: Request) {
           if (uid !== session.user.id) {
             notificationsData.push({
               userId: uid,
+              pointId: newPoint.id,
               message: `מישהו נוסף הצטרף ליוזמה "${name}"! 🌱`,
               isRead: false
             });
@@ -494,6 +509,9 @@ export async function PUT(req: Request, context: any) {
     const reqLat = formData.get("latitude");
     const reqLng = formData.get("longitude");
 
+    const allowCommentsRaw = formData.get("allowComments");
+    const allowComments = allowCommentsRaw !== null ? allowCommentsRaw === "true" : existing.allowComments;
+
     let latitude = existing.latitude;
     let longitude = existing.longitude;
     let isMapPicked = false;
@@ -518,7 +536,7 @@ export async function PUT(req: Request, context: any) {
     const updated = await prisma.point.update({
       where: { id: pointId },
       data: {
-        name, description, category, address, website, latitude, longitude,
+        name, description, category, address, website, latitude, longitude, allowComments,
       },
     });
 

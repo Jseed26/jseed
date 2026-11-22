@@ -66,6 +66,9 @@ export async function PUT(req: Request, context: any) {
             return Response.json({ error: "Not found" }, { status: 404 });
         }
 
+        const allowCommentsRaw = formData.get("allowComments");
+        const allowComments = allowCommentsRaw !== null ? allowCommentsRaw === "true" : existing.allowComments;
+
         /*
         ================================================================================
         📍 GEO UPDATE (אם כתובת השתנתה)
@@ -132,7 +135,7 @@ export async function PUT(req: Request, context: any) {
         💾 UPDATE DB
         ================================================================================
         */
-        const updated = await prisma.point.update({
+       const updated = await prisma.point.update({
             where: { id: pointId },
             data: {
                 name,
@@ -142,10 +145,8 @@ export async function PUT(req: Request, context: any) {
                 website,
                 latitude,
                 longitude,
-
-                // שומרים את מערך התמונות המעודכן
+                allowComments, 
                 imageUrls: finalImageUrls,
-                // תאימות לאחור: השדה הישן יקבל את התמונה הראשונה, או null אם אין תמונות בכלל
                 imageUrl: finalImageUrls.length > 0 ? finalImageUrls[0] : null,
             },
         });

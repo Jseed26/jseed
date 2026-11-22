@@ -47,13 +47,13 @@ function updateGroupedIconElement(
 ) {
   const iconUrl = `/icons/categories/${category}/${isViewed ? "viewed" : "default"}.png`;
 
-  let baseSize = 10;
+ let baseSize = 16; 
   if (zoom >= 15) {
-    baseSize = 32;
+    baseSize = 34;
   } else if (zoom >= 11) {
-    baseSize = 24;
+    baseSize = 26;
   } else if (zoom >= 6) {
-    baseSize = 16;
+    baseSize = 20;
   }
 
   const badgeSize = baseSize < 20 ? 14 : baseSize < 28 ? 16 : 20;
@@ -156,9 +156,15 @@ export function useMapMarkers({
         .headless-popup .maplibregl-popup-content, .headless-popup .leaflet-popup-content-wrapper { background: transparent !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important; }
         .headless-popup .maplibregl-popup-tip, .headless-popup .leaflet-popup-tip-container { display: none !important; }
         .jseed-custom-modal { position: absolute; background: #111827; border: 1px solid #374151; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); color: white; z-index: 1000; cursor: default; width: 400px; max-height: 65vh; overflow-y: auto; overflow-x: hidden; }
-        .jseed-custom-modal::-webkit-scrollbar { width: 6px; }
-        .jseed-custom-modal::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 8px; }
-        .jseed-custom-modal::-webkit-scrollbar-thumb { background: rgba(251, 191, 36, 0.4); border-radius: 8px; }
+        .jseed-custom-modal::-webkit-scrollbar,
+        .point-desc-container::-webkit-scrollbar,
+        .comments-section::-webkit-scrollbar { width: 6px; }
+        .jseed-custom-modal::-webkit-scrollbar-track,
+        .point-desc-container::-webkit-scrollbar-track,
+        .comments-section::-webkit-scrollbar-track { background: #000000; border-radius: 8px; }
+        .jseed-custom-modal::-webkit-scrollbar-thumb,
+        .point-desc-container::-webkit-scrollbar-thumb,
+        .comments-section::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 8px; }
         @media (max-width: 450px) { .jseed-custom-modal { width: 320px; } }
         .jseed-modal-tip { position: absolute; width: 0; height: 0; border-style: solid; }
         .jseed-modal-up { bottom: 25px; left: 0; transform: translateX(-50%); }
@@ -249,6 +255,7 @@ export function useMapMarkers({
     container.addEventListener("wheel", (e) => e.stopPropagation());
 
     const isChai = point.category === "chai";
+    const allowComments = (point as any).allowComments !== false;
     
     const saveIconSrc = isSaved ? "/icons/ui/save/active.png" : "/icons/ui/save/default.png";
     const joinIconSrc = "/icons/ui/participants/default.png"; 
@@ -371,15 +378,24 @@ export function useMapMarkers({
                 : ""
             }
 
+           ${
+              allowComments
+                ? `
             <button class="toggle-comments-btn" style="background: none; border: none; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; transition: opacity 0.2s;" title="הצג תגובות">
               <img src="${commentsIconSrc}" alt="Comments" style="width: 18px; height: 18px; object-fit: contain;" />
               <span class="comments-count" style="font-size: 11px; color: #9ca3af; font-weight: bold;">
                 ${t.commentsTitle}
               </span>
             </button>
+            `
+                : ""
+            }
           </div>
         </div>
 
+        ${
+          allowComments
+            ? `
         <div class="comments-section" style="display: none; margin-top: 8px; max-height: 160px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;">
           <div class="comments-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
           </div>
@@ -389,6 +405,9 @@ export function useMapMarkers({
             <button class="send-comment-btn" style="background: none; border: none; color: #fbbf24; font-weight: bold; font-size: 13px; cursor: pointer; padding: 0 4px;">${t.send}</button>
           </div>
         </div>
+        `
+            : ""
+        }
 
         <div style="display: flex; justify-content: space-around; margin-top: 10px; padding-top: 8px; border-top: 1px solid #374151;">
           ${!isChai ? `
@@ -634,6 +653,7 @@ export function useMapMarkers({
     const shareBtn = container.querySelector(".native-share-btn") as HTMLButtonElement;
     if (shareBtn) {
       shareBtn.onclick = async (e) => {
+        fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(console.error);
         e.preventDefault();
         e.stopPropagation();
         if (navigator.share) {

@@ -98,3 +98,28 @@ body {
     outline: none !important;
     -webkit-tap-highlight-color: transparent;
 }
+
+/* גלגלת כהה (אפור על שחור) לכל האתר */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #000000; /* Firefox: אפור על שחור */
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000; /* המסלול בשחור */
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563; /* הגלגלת שזזה באפור */
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; /* אפור מעט בהיר יותר בריחוף */
+}

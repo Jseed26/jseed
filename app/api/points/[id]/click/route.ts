@@ -40,6 +40,7 @@ export async function POST(req: Request, context: any) {
                 await prisma.notification.create({
                     data: {
                         userId: updatedPoint.userId, 
+                        pointId: pointId,
                         message: `מישהו הרגע נכנס לקישור של הגרעין שלך: "${updatedPoint.name}"! 🔗`,
                     }
                 });

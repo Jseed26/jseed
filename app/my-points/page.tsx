@@ -32,6 +32,8 @@ type Point = {
         clicks: number;
         joins: number;
     };
+
+    allowComments?: boolean;
 };
 
 type Notification = {
@@ -223,6 +225,32 @@ export default function MyPointsPage() {
         }
     }
 
+    async function toggleComments(point: Point) {
+        const nextVal = point.allowComments === false ? true : false;
+        const formData = new FormData();
+        formData.append("name", point.name);
+        formData.append("description", point.description || "");
+        formData.append("category", point.category);
+        formData.append("address", point.address || "");
+        formData.append("website", point.website || "");
+        formData.append("allowComments", String(nextVal));
+        (point.imageUrls || (point.imageUrl ? [point.imageUrl] : [])).forEach(url => {
+            formData.append("existingImages", url);
+        });
+
+        const res = await fetch(`/api/points/${point.id}`, {
+            method: "PUT",
+            body: formData,
+        });
+
+        if (res.ok) {
+            setPoints((prev) =>
+                prev.map((p) => (p.id === point.id ? { ...p, allowComments: nextVal } : p))
+            );
+            window.dispatchEvent(new Event("points-updated"));
+        }
+    }
+
     if (status === "loading") {
         return (
             <div className="min-h-screen bg-[#070709] text-yellow-500 flex items-center justify-center font-bold">
@@ -257,7 +285,7 @@ export default function MyPointsPage() {
     return (
         <div className="min-h-screen bg-[#070709] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/20 via-[#070709] to-[#070709] text-zinc-100 p-4 sm:p-8 pb-32 relative font-sans selection:bg-yellow-500/30" dir={lang === "he" ? "rtl" : "ltr"}>
 
-           {/* 🌟 עטיפה מקובעת לכותרת ולטאבים */}
+            {/* 🌟 עטיפה מקובעת לכותרת ולטאבים */}
             <div className="sticky top-0 z-40 bg-[#070709]/95 backdrop-blur-md pt-4 pb-3 -mx-4 px-4 sm:-mx-8 sm:px-8 mb-6 border-b border-zinc-800/60">
                 {/* Header & Back Button */}
                 <div className="max-w-3xl mx-auto flex justify-between items-center mb-4">
@@ -289,8 +317,8 @@ export default function MyPointsPage() {
                                 key={item.id}
                                 onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }}
                                 className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${tab === item.id
-                                        ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50"
-                                        : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
+                                    ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50"
+                                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
                                     }`}
                             >
                                 {item.label}
@@ -570,6 +598,22 @@ export default function MyPointsPage() {
                                                             )}
                                                         </div>
 
+                                                        {tab === "my" && (
+                                                            <div className="flex items-center justify-between mt-3 bg-zinc-950/60 border border-zinc-800/80 px-4 py-2.5 rounded-2xl">
+                                                                <span className="text-xs font-bold text-zinc-300">
+                                                                    💬 {lang === "he" ? "אפשר תגובות על הגרעין" : "Allow comments"}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleComments(p)}
+                                                                    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${p.allowComments !== false ? "bg-yellow-500" : "bg-zinc-700"}`}
+                                                                    dir="ltr"
+                                                                >
+                                                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-zinc-900 transition-transform ${p.allowComments !== false ? "translate-x-5" : "translate-x-1"}`} />
+                                                                </button>
+                                                            </div>
+                                                        )}
+
                                                         <button
                                                             onClick={() => router.push(`/?point=${p.id}`)}
                                                             className="w-full sm:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 text-black px-6 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition hover:shadow-[0_0_15px_rgba(251,191,36,0.3)] shadow-md"
@@ -655,6 +699,7 @@ export default function MyPointsPage() {
                         website: editingPoint.website,
                         lat: editingPoint.latitude,
                         lng: editingPoint.longitude,
+                        allowComments: editingPoint.allowComments ?? true,
                         existingImages: editingPoint.imageUrls && editingPoint.imageUrls.length > 0
                             ? editingPoint.imageUrls
                             : (editingPoint.imageUrl ? [editingPoint.imageUrl] : [])

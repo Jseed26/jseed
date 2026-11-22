@@ -1598,6 +1598,7 @@ export default function Map({
                 formData.append("category", form.category);
                 formData.append("latitude", String(finalLat));
                 formData.append("longitude", String(finalLng));
+                formData.append("allowComments", String(form.allowComments));
 
                 if (form.parentId) formData.append("parentId", String(form.parentId));
 

@@ -127,6 +127,7 @@ model Point {
   comments Comment[]
   analytics PointAnalytics?
   actionLogs     PointActionLog[]
+  allowComments  Boolean  @default(true)
 }
 
 model ViewedPoint {
@@ -159,7 +160,7 @@ model Notification {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
-  
+  pointId        Int?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

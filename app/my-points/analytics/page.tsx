@@ -207,7 +207,7 @@ export default function UserAnalyticsDashboard() {
                             <h2 className="text-lg font-bold text-white mb-1">חשיפה ומעורבות ב-30 הימים האחרונים</h2>
                             <p className="text-xs text-gray-400 mb-6">מציג נתוני צפיות (כחול) ואינטראקציות נוספות (זהב) לאורך זמן.</p>
                         </div>
-                        <div className="flex items-end justify-start gap-1 h-56 pt-8 pb-2 px-1 border-b border-gray-800 overflow-x-auto overflow-y-hidden custom-scrollbar">
+                        <div className="flex items-end justify-start gap-1 h-56 pt-8 pb-2 px-1 border-b border-gray-800 overflow-x-auto overflow-y-hidden">
                             {chartData.map((day, idx) => {
                                 const vHeight = Math.max(0, (day.views / maxChartValue) * 100);
                                 const iHeight = Math.max(0, (day.interactions / maxChartValue) * 100);
