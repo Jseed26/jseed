@@ -1079,7 +1079,7 @@ export default function Map({
 
     const newMap = new maptilersdk.Map({
       container,
-      style: "https://api.maptiler.com/maps/hybrid-v4/style.json?key=1eZTTOxJLWMsKdfO1otY", 
+      style: "https://api.maptiler.com/maps/01a20470-90c0-7a10-b5d5-3e7437660158/style.json?key=1eZTTOxJLWMsKdfO1otY", 
       center: [20, 25], 
       
       // 🌟 הגבלת הזום אאוט: העלינו את הערכים כדי שלא נתרחק מדי לתוך החלל השחור
