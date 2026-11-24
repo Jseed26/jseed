@@ -10,8 +10,8 @@ function getFlagEmoji(countryCode: string | null) {
     if (!countryCode) return "🌍";
     const codePoints = countryCode
         .toUpperCase()
-        .split('')
-        .map(char => 127397 + char.charCodeAt(0));
+        .split("")
+        .map((char) => 127397 + char.charCodeAt(0));
     return String.fromCodePoint(...codePoints);
 }
 
@@ -24,9 +24,19 @@ const CATEGORY_META: Record<string, { label: string; subLabel: string; icon: str
 };
 
 export default async function AdminDashboard({
-    searchParams
+    searchParams,
 }: {
-    searchParams: Promise<{ q?: string; sort?: string; cat?: string; rangeType?: string; offset?: string; showUser?: string }>
+    searchParams: Promise<{
+        q?: string;
+        userQ?: string;
+        userScope?: string;
+        sort?: string;
+        cat?: string;
+        rangeType?: string;
+        offset?: string;
+        showUser?: string;
+        inspectPoint?: string;
+    }>;
 }) {
     const session = await auth();
 
@@ -35,7 +45,7 @@ export default async function AdminDashboard({
     }
 
     const user = await prisma.user.findUnique({
-        where: { id: session.user.id }
+        where: { id: session.user.id },
     });
 
     if (!user?.isAdmin) {
@@ -44,35 +54,104 @@ export default async function AdminDashboard({
 
     const resolvedSearchParams = await searchParams;
     const searchQuery = resolvedSearchParams?.q?.trim() || "";
+    const userSearchQuery = resolvedSearchParams?.userQ?.trim() || "";
+    const userScope = resolvedSearchParams?.userScope || "period"; // "period" | "all"
     const sortMode = resolvedSearchParams?.sort || "";
     const filterCat = resolvedSearchParams?.cat || "";
     const showUserId = resolvedSearchParams?.showUser || "";
+    const inspectPointId = resolvedSearchParams?.inspectPoint ? Number(resolvedSearchParams.inspectPoint) : null;
 
     const rangeType = resolvedSearchParams?.rangeType || "week";
     const offset = parseInt(resolvedSearchParams?.offset || "0", 10) || 0;
 
     let periodDays = 7;
     let labelHe = "שבוע";
-    if (rangeType === "month") { periodDays = 30; labelHe = "חודש"; }
-    else if (rangeType === "year") { periodDays = 365; labelHe = "שנה"; }
+    if (rangeType === "month") {
+        periodDays = 30;
+        labelHe = "חודש";
+    } else if (rangeType === "year") {
+        periodDays = 365;
+        labelHe = "שנה";
+    }
 
-    const endDate = new Date(Date.now() - (offset * periodDays * 24 * 60 * 60 * 1000));
-    const startDate = new Date(endDate.getTime() - (periodDays * 24 * 60 * 60 * 1000));
+    const endDate = new Date(Date.now() - offset * periodDays * 24 * 60 * 60 * 1000);
+    const startDate = new Date(endDate.getTime() - periodDays * 24 * 60 * 60 * 1000);
 
     const userDateFilter = { updatedAt: { gte: startDate, lt: endDate } };
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
+    // פונקציית עזר לבניית קישורים תוך שמירה על כל הפילטרים הפעילים
+    const buildUrl = (overrides: Record<string, string | number | null | undefined> = {}, hash = "") => {
+        const params = new URLSearchParams();
+        const merged: Record<string, string> = {
+            rangeType,
+            offset: String(offset),
+            cat: filterCat,
+            sort: sortMode,
+            q: searchQuery,
+            userQ: userSearchQuery,
+            userScope,
+            showUser: showUserId,
+            inspectPoint: inspectPointId ? String(inspectPointId) : "",
+        };
+
+        Object.entries(overrides).forEach(([k, v]) => {
+            if (v === null || v === undefined || v === "") {
+                delete merged[k];
+            } else {
+                merged[k] = String(v);
+            }
+        });
+
+        Object.entries(merged).forEach(([k, v]) => {
+            if (v !== "") params.set(k, v);
+        });
+
+        const qs = params.toString();
+        return `/admin${qs ? `?${qs}` : ""}${hash}`;
+    };
+
+    // ================= מודאל פרטי משתמש מלא =================
     let modalUser = null;
     if (showUserId) {
         modalUser = await prisma.user.findUnique({
             where: { id: showUserId },
             include: {
                 points: {
-                    orderBy: { createdAt: "desc" }
-                }
-            }
+                    include: {
+                        analytics: true,
+                        _count: { select: { viewedBy: true, savedBy: true } },
+                    },
+                    orderBy: { createdAt: "desc" },
+                },
+                savedPoints: {
+                    include: {
+                        point: { select: { id: true, name: true, category: true } },
+                    },
+                    orderBy: { savedAt: "desc" },
+                    take: 10,
+                },
+                comments: {
+                    include: {
+                        point: { select: { id: true, name: true } },
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 10,
+                },
+                _count: {
+                    select: {
+                        points: true,
+                        savedPoints: true,
+                        viewedPoints: true,
+                        comments: true,
+                    },
+                },
+            },
         });
     }
 
+    // ================= מדדי ליבה כלליים ובתקופה =================
+    const totalAllTimeUsers = await prisma.user.count();
     const totalUsers = await prisma.user.count({ where: userDateFilter });
     const totalVisitors = await prisma.visitor.count({ where: userDateFilter });
     const totalSessionsCount = totalUsers + totalVisitors;
@@ -94,31 +173,123 @@ export default async function AdminDashboard({
     const webVisitorsCount = await prisma.visitor.count({ where: { platform: "WEB", ...userDateFilter } });
     const totalWeb = webUsersCount + webVisitorsCount;
 
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const onlineUsers = await prisma.user.count({ where: { updatedAt: { gte: fiveMinutesAgo } } });
     const onlineVisitors = await prisma.visitor.count({ where: { updatedAt: { gte: fiveMinutesAgo } } });
     const totalOnlineNow = onlineUsers + onlineVisitors;
 
+    // ================= שליפת כל הגרעינים והסטטיסטיקות =================
     const allPointsWithStats = await prisma.point.findMany({
         include: {
             user: { select: { id: true, name: true, email: true } },
+            analytics: true,
+            _count: { select: { viewedBy: true, savedBy: true } },
             viewedBy: {
                 where: { viewedAt: { gte: startDate, lt: endDate } },
-                select: { userId: true, viewedAt: true }
+                select: { userId: true, viewedAt: true },
             },
             savedBy: {
                 where: { savedAt: { gte: startDate, lt: endDate } },
-                select: { userId: true, savedAt: true }
+                select: { userId: true, savedAt: true },
             },
             comments: {
-                include: { user: { select: { name: true } } },
-                orderBy: { createdAt: "desc" }
-            }
+                include: { user: { select: { id: true, name: true } } },
+                orderBy: { createdAt: "desc" },
+            },
         },
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
     });
 
-    const pointsInDateRange = allPointsWithStats.filter(p => p.createdAt >= startDate && p.createdAt < endDate);
+    // העשרת כל גרעין עם ספירת תתי-גרעינים ומדדים מצטברים
+    const enrichedPoints = allPointsWithStats.map((p) => {
+        const cleanName = (p.name || "").trim().toLowerCase();
+        const createdSeeds = allPointsWithStats.filter(
+            (other) =>
+                other.id !== p.id &&
+                other.category === "chai" &&
+                (other.parentId === p.id ||
+                    (cleanName !== "" && (other.name || "").trim().toLowerCase() === cleanName))
+        ).length;
+
+        const allTimeViews = p.analytics?.views || p._count.viewedBy || 0;
+        const allTimeSaves = p._count.savedBy || 0;
+        const allTimeShares = p.analytics?.shares || 0;
+        const allTimeClicks = p.analytics?.clicks || p.linkClicks || 0;
+        const allTimeJoins = p.analytics?.joins || 0;
+
+        return {
+            ...p,
+            createdSeeds,
+            allTimeViews,
+            allTimeSaves,
+            allTimeShares,
+            allTimeClicks,
+            allTimeJoins,
+        };
+    });
+
+    // סיכום כללי (כל הזמנים) לכל המערכת
+    const nonSupportAllTime = enrichedPoints.filter((p) => p.category !== "chai_support");
+    const globalTotals = nonSupportAllTime.reduce(
+        (acc, p) => {
+            acc.seeds += 1;
+            acc.views += p.allTimeViews;
+            acc.saves += p.allTimeSaves;
+            acc.shares += p.allTimeShares;
+            acc.clicks += p.allTimeClicks;
+            acc.joins += p.allTimeJoins;
+            return acc;
+        },
+        { seeds: 0, views: 0, saves: 0, shares: 0, clicks: 0, joins: 0 }
+    );
+
+    // ================= מודאל פירוט גרעין ספציפי =================
+    const inspectedPoint = inspectPointId
+        ? enrichedPoints.find((p) => p.id === inspectPointId) || null
+        : null;
+
+    let inspectedPointLogs: { createdAt: Date; action: string; country: string | null }[] = [];
+    if (inspectedPoint) {
+        inspectedPointLogs = await prisma.pointActionLog.findMany({
+            where: { pointId: inspectedPoint.id },
+            select: { createdAt: true, action: true, country: true },
+            orderBy: { createdAt: "asc" },
+        });
+    }
+
+    // נתוני 30 יום ומדינות עבור הגרעין הנבדק
+    const inspectedChart30: { dateStr: string; count: number }[] = [];
+    const inspectedCountries: { country: string; count: number; percent: number }[] = [];
+    if (inspectedPoint) {
+        const baseToday = new Date();
+        baseToday.setHours(0, 0, 0, 0);
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(baseToday);
+            d.setDate(d.getDate() - i);
+            const nextD = new Date(d);
+            nextD.setDate(d.getDate() + 1);
+            const cnt = inspectedPointLogs.filter((l) => l.createdAt >= d && l.createdAt < nextD).length;
+            inspectedChart30.push({ dateStr: `${d.getDate()}/${d.getMonth() + 1}`, count: cnt });
+        }
+
+        const cMap: Record<string, number> = {};
+        inspectedPointLogs.forEach((l) => {
+            const c = l.country || "IL";
+            cMap[c] = (cMap[c] || 0) + 1;
+        });
+        const totalL = inspectedPointLogs.length || 1;
+        Object.entries(cMap)
+            .sort((a, b) => b[1] - a[1])
+            .forEach(([country, count]) => {
+                inspectedCountries.push({
+                    country,
+                    count,
+                    percent: Math.round((count / totalL) * 100),
+                });
+            });
+    }
+
+    // ================= סיכומי תקופה וקטגוריות =================
+    const pointsInDateRange = enrichedPoints.filter((p) => p.createdAt >= startDate && p.createdAt < endDate);
     const totalPointsCount = pointsInDateRange.length;
 
     let totalViewsAll = 0;
@@ -128,11 +299,19 @@ export default async function AdminDashboard({
     const categoryKeys = ["leaf", "star", "triangle", "circle", "chai"];
     const categoryStatsMap: Record<string, any> = {};
 
-    categoryKeys.forEach(k => {
-        categoryStatsMap[k] = { key: k, pointsCount: 0, views: 0, saves: 0, clicks: 0, totalInteractions: 0, uniqueUsersSet: new Set<string>() };
+    categoryKeys.forEach((k) => {
+        categoryStatsMap[k] = {
+            key: k,
+            pointsCount: 0,
+            views: 0,
+            saves: 0,
+            clicks: 0,
+            totalInteractions: 0,
+            uniqueUsersSet: new Set<string>(),
+        };
     });
 
-    allPointsWithStats.forEach(p => {
+    enrichedPoints.forEach((p) => {
         const cat = categoryStatsMap[p.category] ? p.category : "leaf";
         const vCount = p.viewedBy.length;
         const sCount = p.savedBy.length;
@@ -149,34 +328,37 @@ export default async function AdminDashboard({
         categoryStatsMap[cat].views += vCount;
         categoryStatsMap[cat].saves += sCount;
         categoryStatsMap[cat].clicks += cCount;
-        categoryStatsMap[cat].totalInteractions += (vCount + sCount + cCount);
+        categoryStatsMap[cat].totalInteractions += vCount + sCount + cCount;
 
         if (p.userId) categoryStatsMap[cat].uniqueUsersSet.add(p.userId);
-        p.viewedBy.forEach(v => categoryStatsMap[cat].uniqueUsersSet.add(v.userId));
-        p.savedBy.forEach(s => categoryStatsMap[cat].uniqueUsersSet.add(s.userId));
+        p.viewedBy.forEach((v) => categoryStatsMap[cat].uniqueUsersSet.add(v.userId));
+        p.savedBy.forEach((s) => categoryStatsMap[cat].uniqueUsersSet.add(s.userId));
     });
 
     const grandTotalInteractions = totalViewsAll + totalSavesAll + totalClicksAll;
 
-    const categoryStats = categoryKeys.map(k => {
+    const categoryStats = categoryKeys.map((k) => {
         const item = categoryStatsMap[k];
-        const percentage = grandTotalInteractions > 0
-            ? Math.round((item.totalInteractions / grandTotalInteractions) * 100)
-            : (totalPointsCount > 0 ? Math.round((item.pointsCount / totalPointsCount) * 100) : 0);
+        const percentage =
+            grandTotalInteractions > 0
+                ? Math.round((item.totalInteractions / grandTotalInteractions) * 100)
+                : totalPointsCount > 0
+                ? Math.round((item.pointsCount / totalPointsCount) * 100)
+                : 0;
 
         return { ...item, meta: CATEGORY_META[k], uniqueUsers: item.uniqueUsersSet.size, percentage };
     });
 
-    // 🌟 שליפת יומן הפעילויות החדש של הסטטיסטיקות! 🌟
+    // יומן פעילויות בתקופה
     const logsInDateRange = await prisma.pointActionLog.findMany({
         where: { createdAt: { gte: startDate, lt: endDate } },
-        select: { createdAt: true, country: true, action: true }
+        select: { createdAt: true, country: true, action: true },
     });
 
     const dayNamesHe = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
     const chartData: { label: string; dateStr: string; count: number; fullDate: Date }[] = [];
 
-    let currentDayForChart = new Date(startDate);
+    const currentDayForChart = new Date(startDate);
     currentDayForChart.setHours(0, 0, 0, 0);
     const endDayForChart = new Date(endDate);
 
@@ -185,39 +367,43 @@ export default async function AdminDashboard({
         nextD.setDate(currentDayForChart.getDate() + 1);
 
         let legacyActivity = 0;
-        allPointsWithStats.forEach(p => {
+        enrichedPoints.forEach((p) => {
             if (p.createdAt >= currentDayForChart && p.createdAt < nextD) legacyActivity++;
-            p.viewedBy.forEach(v => { if (v.viewedAt >= currentDayForChart && v.viewedAt < nextD) legacyActivity++; });
-            p.savedBy.forEach(s => { if (s.savedAt >= currentDayForChart && s.savedAt < nextD) legacyActivity++; });
+            p.viewedBy.forEach((v) => {
+                if (v.viewedAt >= currentDayForChart && v.viewedAt < nextD) legacyActivity++;
+            });
+            p.savedBy.forEach((s) => {
+                if (s.savedAt >= currentDayForChart && s.savedAt < nextD) legacyActivity++;
+            });
         });
 
-        // סופר מהיומן החדש שלנו!
-        const logsActivity = logsInDateRange.filter(log => log.createdAt >= currentDayForChart && log.createdAt < nextD).length;
-        
+        const logsActivity = logsInDateRange.filter(
+            (log) => log.createdAt >= currentDayForChart && log.createdAt < nextD
+        ).length;
+
         chartData.push({
             label: `יום ${dayNamesHe[currentDayForChart.getDay()]}`,
             dateStr: `${currentDayForChart.getDate()}/${currentDayForChart.getMonth() + 1}`,
             fullDate: new Date(currentDayForChart),
-            count: legacyActivity + logsActivity, // משלב ישן וחדש כדי שלא יאבד מידע
+            count: legacyActivity + logsActivity,
         });
 
         currentDayForChart.setDate(currentDayForChart.getDate() + 1);
     }
 
-    const maxDailyCount = Math.max(...chartData.map(d => d.count), 1);
+    const maxDailyCount = Math.max(...chartData.map((d) => d.count), 1);
 
     const usersInDateRange = await prisma.user.findMany({
         where: userDateFilter,
-        select: { country: true }
+        select: { country: true },
     });
 
-    // 🌟 שימוש ביומן ליצירת מפת מדינות עדכנית ופעילה 🌟
     const countryCounts: Record<string, number> = {};
-    usersInDateRange.forEach(u => {
+    usersInDateRange.forEach((u) => {
         const c = u.country || "IL";
         countryCounts[c] = (countryCounts[c] || 0) + 1;
     });
-    logsInDateRange.forEach(log => {
+    logsInDateRange.forEach((log) => {
         const c = log.country || "IL";
         countryCounts[c] = (countryCounts[c] || 0) + 1;
     });
@@ -226,51 +412,85 @@ export default async function AdminDashboard({
     const top5Countries = sortedCountries.slice(0, 5);
     const otherCountries = sortedCountries.slice(5);
 
+    // ================= שליפת וסינון משתמשים =================
+    const shouldFetchAllUsers = userScope === "all" || Boolean(userSearchQuery);
     const users = await prisma.user.findMany({
-        where: userDateFilter,
-        select: {
-            id: true, name: true, email: true, timeSpentMins: true, platform: true, country: true, updatedAt: true,
-            _count: { select: { points: true, savedPoints: true, viewedPoints: true } }
+        where: {
+            ...(shouldFetchAllUsers ? {} : userDateFilter),
+            ...(userSearchQuery
+                ? {
+                      OR: [
+                          { name: { contains: userSearchQuery, mode: "insensitive" } },
+                          { email: { contains: userSearchQuery, mode: "insensitive" } },
+                          { country: { contains: userSearchQuery, mode: "insensitive" } },
+                      ],
+                  }
+                : {}),
         },
-        orderBy: [{ updatedAt: "desc" }, { timeSpentMins: "desc" }]
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            isAdmin: true,
+            timeSpentMins: true,
+            platform: true,
+            country: true,
+            updatedAt: true,
+            _count: { select: { points: true, savedPoints: true, viewedPoints: true, comments: true } },
+        },
+        orderBy: [{ updatedAt: "desc" }, { timeSpentMins: "desc" }],
+        take: 100,
     });
 
-    let filteredAdminPoints = [...allPointsWithStats];
+    // ================= סינון ודירוג גרעינים =================
+    let filteredAdminPoints = [...enrichedPoints];
 
     if (filterCat) {
-        filteredAdminPoints = filteredAdminPoints.filter(p => p.category === filterCat);
+        filteredAdminPoints = filteredAdminPoints.filter((p) => p.category === filterCat);
     }
 
     if (searchQuery) {
         const qLower = searchQuery.toLowerCase();
-        filteredAdminPoints = filteredAdminPoints.filter(p =>
-            p.name.toLowerCase().includes(qLower) ||
-            (p.name_en && p.name_en.toLowerCase().includes(qLower)) ||
-            (p.description && p.description.toLowerCase().includes(qLower)) ||
-            (p.address && p.address.toLowerCase().includes(qLower)) ||
-            (p.user?.name && p.user.name.toLowerCase().includes(qLower)) ||
-            (p.user?.email && p.user.email.toLowerCase().includes(qLower)) ||
-            String(p.id) === qLower
+        filteredAdminPoints = filteredAdminPoints.filter(
+            (p) =>
+                p.name.toLowerCase().includes(qLower) ||
+                (p.name_en && p.name_en.toLowerCase().includes(qLower)) ||
+                (p.description && p.description.toLowerCase().includes(qLower)) ||
+                (p.address && p.address.toLowerCase().includes(qLower)) ||
+                (p.user?.name && p.user.name.toLowerCase().includes(qLower)) ||
+                (p.user?.email && p.user.email.toLowerCase().includes(qLower)) ||
+                String(p.id) === qLower
         );
     }
 
     if (sortMode === "saved") {
-        filteredAdminPoints.sort((a, b) => b.savedBy.length - a.savedBy.length);
+        filteredAdminPoints.sort((a, b) => b.allTimeSaves - a.allTimeSaves);
     } else if (sortMode === "clicks") {
-        filteredAdminPoints.sort((a, b) => (b.linkClicks || 0) - (a.linkClicks || 0));
+        filteredAdminPoints.sort((a, b) => b.allTimeClicks - a.allTimeClicks);
+    } else if (sortMode === "shares") {
+        filteredAdminPoints.sort((a, b) => b.allTimeShares - a.allTimeShares);
     } else if (sortMode === "views") {
-        filteredAdminPoints.sort((a, b) => b.viewedBy.length - a.viewedBy.length);
+        filteredAdminPoints.sort((a, b) => b.allTimeViews - a.allTimeViews);
     } else if (sortMode === "recent") {
         filteredAdminPoints.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
     const isFilteringPoints = Boolean(searchQuery || sortMode || filterCat);
     const displayedAdminPoints = isFilteringPoints
-        ? filteredAdminPoints.slice(0, 30)
-        : [...allPointsWithStats]
-            .sort((a, b) => ((b.savedBy.length * 2) + b.linkClicks + b.viewedBy.length) - ((a.savedBy.length * 2) + a.linkClicks + a.viewedBy.length))
-            .slice(0, 5);
+        ? filteredAdminPoints.slice(0, 40)
+        : [...enrichedPoints]
+              .filter((p) => p.category !== "chai_support")
+              .sort(
+                  (a, b) =>
+                      b.allTimeSaves * 2 +
+                      b.allTimeShares * 2 +
+                      b.allTimeClicks +
+                      b.allTimeViews -
+                      (a.allTimeSaves * 2 + a.allTimeShares * 2 + a.allTimeClicks + a.allTimeViews)
+              )
+              .slice(0, 6);
 
+    // ================= Server Actions =================
     async function deletePointAction(formData: FormData) {
         "use server";
         const currentSession = await auth();
@@ -279,7 +499,14 @@ export default async function AdminDashboard({
 
         const pointId = Number(formData.get("pointId"));
         if (pointId) {
-            await prisma.point.delete({ where: { id: pointId } });
+            const target = await prisma.point.findUnique({ where: { id: pointId } });
+            if (target) {
+                await prisma.point.updateMany({
+                    where: { parentId: pointId },
+                    data: { parentId: target.parentId },
+                });
+                await prisma.point.delete({ where: { id: pointId } });
+            }
             revalidatePath("/admin");
         }
     }
@@ -297,16 +524,27 @@ export default async function AdminDashboard({
         }
     }
 
-    const getRangeUrl = (newRange: string) => `/admin?rangeType=${newRange}&offset=0&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
-    const getOffsetUrl = (newOffset: number) => `/admin?rangeType=${rangeType}&offset=${newOffset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
-    const getCloseModalUrl = () => `/admin?rangeType=${rangeType}&offset=${offset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}`;
-
     const avgTimeRingPercent = Math.min(100, Math.round((Number(avgSessionMins) / 15) * 100));
+
+    // חישובי סיכום עבור המשתמש שבמודאל
+    const modalUserTotals = modalUser
+        ? modalUser.points.reduce(
+              (acc, mp) => {
+                  acc.views += mp.analytics?.views || mp._count.viewedBy || 0;
+                  acc.saves += mp._count.savedBy || 0;
+                  acc.shares += mp.analytics?.shares || 0;
+                  acc.clicks += mp.analytics?.clicks || mp.linkClicks || 0;
+                  acc.joins += mp.analytics?.joins || 0;
+                  return acc;
+              },
+              { views: 0, saves: 0, shares: 0, clicks: 0, joins: 0 }
+          )
+        : null;
 
     return (
         <div className="min-h-screen bg-[#070709] text-white p-4 sm:p-8 font-sans" dir="rtl">
             {/* ================= HEADER ================= */}
-            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 pb-6 border-b border-yellow-500/20">
+            <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 pb-6 border-b border-yellow-500/20">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/50 flex items-center justify-center shadow-[0_0_20px_rgba(251,191,36,0.2)]">
                         <img src="/icons/ui/logo/logo2.png" alt="JSeed" className="w-8 h-8 object-contain" />
@@ -315,17 +553,27 @@ export default async function AdminDashboard({
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-l from-yellow-300 via-yellow-500 to-yellow-600">
                             JSeed - דשבורד ניהול ובקרה
                         </h1>
-                        <p className="text-gray-400 text-sm mt-0.5">מציג נתונים מ- {startDate.toLocaleDateString('he-IL')} עד {endDate.toLocaleDateString('he-IL')}</p>
+                        <p className="text-gray-400 text-sm mt-0.5">
+                            מציג נתונים מ- {startDate.toLocaleDateString("he-IL")} עד {endDate.toLocaleDateString("he-IL")}
+                        </p>
                     </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
                     <div className="flex items-center gap-2 shrink-0">
-                        <Link href={getOffsetUrl(offset + 1)} className="bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm font-bold" title={`ל${labelHe} הקודם`}>
+                        <Link
+                            href={buildUrl({ offset: offset + 1 })}
+                            className="bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm font-bold"
+                            title={`ל${labelHe} הקודם`}
+                        >
                             ← הקודם
                         </Link>
                         {offset > 0 ? (
-                            <Link href={getOffsetUrl(offset - 1)} className="bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm font-bold" title={`ל${labelHe} הבא`}>
+                            <Link
+                                href={buildUrl({ offset: offset - 1 })}
+                                className="bg-gray-800 text-yellow-500 px-3 py-2 rounded-lg hover:bg-gray-700 transition text-sm font-bold"
+                                title={`ל${labelHe} הבא`}
+                            >
                                 הבא →
                             </Link>
                         ) : (
@@ -334,13 +582,28 @@ export default async function AdminDashboard({
                     </div>
 
                     <div className="flex bg-black/60 border border-gray-800 rounded-xl p-1 justify-between shadow-inner overflow-x-auto shrink-0">
-                        <Link href={getRangeUrl("week")} className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition ${rangeType === "week" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"}`}>
+                        <Link
+                            href={buildUrl({ rangeType: "week", offset: 0 })}
+                            className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+                                rangeType === "week" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"
+                            }`}
+                        >
                             שבוע
                         </Link>
-                        <Link href={getRangeUrl("month")} className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition ${rangeType === "month" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"}`}>
+                        <Link
+                            href={buildUrl({ rangeType: "month", offset: 0 })}
+                            className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+                                rangeType === "month" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"
+                            }`}
+                        >
                             חודש
                         </Link>
-                        <Link href={getRangeUrl("year")} className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition ${rangeType === "year" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"}`}>
+                        <Link
+                            href={buildUrl({ rangeType: "year", offset: 0 })}
+                            className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+                                rangeType === "year" ? "bg-yellow-500 text-black shadow-md" : "text-gray-400 hover:text-white"
+                            }`}
+                        >
                             שנה
                         </Link>
                     </div>
@@ -355,7 +618,47 @@ export default async function AdminDashboard({
             </div>
 
             <div className="max-w-7xl mx-auto space-y-8">
-                {/* 🌟 שורה 1: מדדי ליבה מרכזיים */}
+                {/* 🌟 רצועת מבט-על כללי (כל הזמנים) */}
+                <div className="bg-gradient-to-l from-yellow-500/10 via-[#121216] to-[#121216] border border-yellow-500/30 rounded-2xl p-4 sm:p-5 shadow-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <span className="text-xs font-extrabold text-yellow-400 tracking-wide">
+                            🌐 מבט-על כללי על הפלטפורמה (כל הזמנים)
+                        </span>
+                        <span className="text-[11px] text-gray-400">נתונים מצטברים מכלל הגרעינים והמשתמשים</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center">
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl">
+                            <div className="text-lg font-black text-white">{totalAllTimeUsers.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">משתמשים רשומים</div>
+                        </div>
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl">
+                            <div className="text-lg font-black text-yellow-400">{globalTotals.seeds.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">סה״כ גרעינים</div>
+                        </div>
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl">
+                            <div className="text-lg font-black text-white">{globalTotals.views.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">👁️ צפיות</div>
+                        </div>
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl">
+                            <div className="text-lg font-black text-yellow-400">{globalTotals.saves.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">⭐ שמירות</div>
+                        </div>
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl">
+                            <div className="text-lg font-black text-yellow-200">{globalTotals.shares.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">📤 שיתופים</div>
+                        </div>
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl">
+                            <div className="text-lg font-black text-blue-400">{globalTotals.clicks.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">🔗 כניסות לאתר</div>
+                        </div>
+                        <div className="bg-black/50 border border-gray-800/80 p-2.5 rounded-xl col-span-2 sm:col-span-1">
+                            <div className="text-lg font-black text-green-400">{globalTotals.joins.toLocaleString()}</div>
+                            <div className="text-[10px] text-gray-400">🤝 השתתפויות</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 🌟 שורה 1: מדדי ליבה מרכזיים (בתקופה הנבחרת) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                     <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-green-500/40 p-5 rounded-2xl relative shadow-[0_0_25px_rgba(34,197,94,0.08)] flex flex-col justify-between">
                         <div className="flex justify-between items-center">
@@ -401,7 +704,16 @@ export default async function AdminDashboard({
                         <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
                             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                                 <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#27272a" strokeWidth="3.5" />
-                                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#fbbf24" strokeWidth="3.5" strokeDasharray={`${avgTimeRingPercent} ${100 - avgTimeRingPercent}`} strokeLinecap="round" />
+                                <circle
+                                    cx="18"
+                                    cy="18"
+                                    r="15.915"
+                                    fill="transparent"
+                                    stroke="#fbbf24"
+                                    strokeWidth="3.5"
+                                    strokeDasharray={`${avgTimeRingPercent} ${100 - avgTimeRingPercent}`}
+                                    strokeLinecap="round"
+                                />
                             </svg>
                             <span className="absolute text-[11px] font-bold text-yellow-400">{avgSessionMins}m</span>
                         </div>
@@ -409,7 +721,7 @@ export default async function AdminDashboard({
 
                     <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 p-5 rounded-2xl shadow-[0_0_20px_rgba(251,191,36,0.05)] flex flex-col justify-between">
                         <div className="flex justify-between items-center">
-                            <span className="text-gray-300 text-sm font-bold">אינטראקציות בגרעינים</span>
+                            <span className="text-gray-300 text-sm font-bold">אינטראקציות בטווח</span>
                         </div>
                         <div className="my-3">
                             <span className="text-4xl font-black text-yellow-400">{grandTotalInteractions.toLocaleString()}</span>
@@ -527,25 +839,83 @@ export default async function AdminDashboard({
                     </div>
                 </div>
 
-                {/* 🌟 שורה 4: מנוע חיפוש ודירוג גרעינים (Data Explorer) */}
+                {/* 🌟 שורה 4: מנוע חיפוש ודירוג גרעינים מורחב */}
                 <div id="seed-explorer" className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-yellow-400">🔍 דירוג גרעינים ותגובות</h2>
-                            <p className="text-xs text-gray-400 mt-0.5">הנתונים המופיעים כאן חושבו רק לתקופה שבחרת.</p>
+                            <h2 className="text-xl font-bold text-yellow-400">🔍 חיפוש ודירוג גרעינים (נתונים מלאים לכל גרעין)</h2>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                                {isFilteringPoints
+                                    ? `מציג ${displayedAdminPoints.length} תוצאות תואמות לחיפוש`
+                                    : "מציג את הגרעינים המובילים · חפשי כל גרעין כדי לראות את מלוא הנתונים והתגובות שלו"}
+                            </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            <Link href={getRangeUrl(rangeType).replace(`sort=${sortMode}`, "sort=saved")} className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "saved" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"}`}>🌟 הכי שמורים</Link>
-                            <Link href={getRangeUrl(rangeType).replace(`sort=${sortMode}`, "sort=views")} className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "views" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"}`}>👀 הכי נצפים</Link>
-                            <Link href={getRangeUrl(rangeType).replace(`sort=${sortMode}`, "sort=recent")} className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${sortMode === "recent" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"}`}>🆕 אחרונים</Link>
+                            <Link
+                                href={buildUrl({ sort: "views" }, "#seed-explorer")}
+                                scroll={false}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                                    sortMode === "views" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"
+                                }`}
+                            >
+                                👀 הכי נצפים
+                            </Link>
+                            <Link
+                                href={buildUrl({ sort: "saved" }, "#seed-explorer")}
+                                scroll={false}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                                    sortMode === "saved" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"
+                                }`}
+                            >
+                                🌟 הכי שמורים
+                            </Link>
+                            <Link
+                                href={buildUrl({ sort: "shares" }, "#seed-explorer")}
+                                scroll={false}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                                    sortMode === "shares" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"
+                                }`}
+                            >
+                                📤 הכי משותפים
+                            </Link>
+                            <Link
+                                href={buildUrl({ sort: "clicks" }, "#seed-explorer")}
+                                scroll={false}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                                    sortMode === "clicks" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"
+                                }`}
+                            >
+                                🔗 כניסות לאתר
+                            </Link>
+                            <Link
+                                href={buildUrl({ sort: "recent" }, "#seed-explorer")}
+                                scroll={false}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                                    sortMode === "recent" ? "bg-yellow-500 text-black border-yellow-400" : "bg-black/60 text-gray-300 border-gray-700"
+                                }`}
+                            >
+                                🆕 אחרונים
+                            </Link>
                         </div>
                     </div>
 
                     <form method="GET" action="/admin#seed-explorer" className="flex flex-col sm:flex-row gap-3 mb-6">
                         <input type="hidden" name="rangeType" value={rangeType} />
                         <input type="hidden" name="offset" value={offset.toString()} />
-                        <input type="text" name="q" defaultValue={searchQuery} placeholder='חפשי לפי שם, תיאור, כתובת, מייל או ID...' className="flex-1 bg-black/80 border border-gray-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-yellow-500" />
-                        <select name="cat" defaultValue={filterCat} className="bg-black/80 border border-gray-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-yellow-500">
+                        {userSearchQuery && <input type="hidden" name="userQ" value={userSearchQuery} />}
+                        {userScope && <input type="hidden" name="userScope" value={userScope} />}
+                        <input
+                            type="text"
+                            name="q"
+                            defaultValue={searchQuery}
+                            placeholder="חפשי גרעין לפי שם, תיאור, כתובת, שם מעלה, מייל או ID..."
+                            className="flex-1 bg-black/80 border border-gray-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-yellow-500"
+                        />
+                        <select
+                            name="cat"
+                            defaultValue={filterCat}
+                            className="bg-black/80 border border-gray-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-yellow-500"
+                        >
                             <option value="">כל הקטגוריות</option>
                             <option value="leaf">קהילה</option>
                             <option value="star">רוח</option>
@@ -554,58 +924,142 @@ export default async function AdminDashboard({
                             <option value="chai">יוזמות</option>
                         </select>
                         <input type="hidden" name="sort" value={sortMode} />
-                        <button type="submit" className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold text-sm hover:bg-yellow-400 transition">חיפוש</button>
+                        <button type="submit" className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold text-sm hover:bg-yellow-400 transition">
+                            חיפוש
+                        </button>
                         {isFilteringPoints && (
-                            <Link href={`/admin?rangeType=${rangeType}&offset=${offset}#seed-explorer`} className="bg-gray-800 text-gray-300 px-5 py-3 rounded-xl hover:bg-gray-700 transition flex items-center justify-center text-sm border border-gray-700">איפוס</Link>
+                            <Link
+                                href={buildUrl({ q: "", cat: "", sort: "" }, "#seed-explorer")}
+                                scroll={false}
+                                className="bg-gray-800 text-gray-300 px-5 py-3 rounded-xl hover:bg-gray-700 transition flex items-center justify-center text-sm border border-gray-700"
+                            >
+                                איפוס
+                            </Link>
                         )}
                     </form>
 
                     {displayedAdminPoints.length === 0 ? (
-                        <p className="text-gray-400 text-center py-8">לא נמצאו גרעינים או פעילות בטווח זה.</p>
+                        <p className="text-gray-400 text-center py-8">לא נמצאו גרעינים תואמים לחיפוש.</p>
                     ) : (
                         <div className="space-y-4">
                             {displayedAdminPoints.map((p) => {
                                 const catMeta = CATEGORY_META[p.category] || CATEGORY_META.leaf;
-                                const images = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+                                const images = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : p.imageUrl ? [p.imageUrl] : [];
 
                                 return (
-                                    <div key={p.id} className="bg-black/50 border border-gray-800 hover:border-yellow-500/40 rounded-2xl p-4 transition">
-                                        <div className="flex flex-col lg:flex-row justify-between gap-4">
+                                    <div key={p.id} className="bg-black/50 border border-gray-800 hover:border-yellow-500/40 rounded-2xl p-4 sm:p-5 transition">
+                                        <div className="flex flex-col xl:flex-row justify-between gap-4">
                                             <div className="flex flex-col sm:flex-row gap-4 flex-1">
                                                 {images.length > 0 ? (
-                                                    <img src={images[0]} alt={p.name} className="w-full sm:w-24 h-24 object-cover rounded-xl border border-gray-700 shrink-0" />
+                                                    <img
+                                                        src={images[0]}
+                                                        alt={p.name}
+                                                        className="w-full sm:w-24 h-24 object-cover rounded-xl border border-gray-700 shrink-0"
+                                                    />
                                                 ) : (
-                                                    <div className="w-full sm:w-24 h-24 bg-gray-900 rounded-xl border border-gray-800 flex items-center justify-center text-gray-600 text-xs shrink-0">ללא תמונה</div>
+                                                    <div className="w-full sm:w-24 h-24 bg-gray-900 rounded-xl border border-gray-800 flex items-center justify-center text-gray-600 text-xs shrink-0">
+                                                        ללא תמונה
+                                                    </div>
                                                 )}
-                                                <div className="space-y-1 flex-1">
-                                                    <div className="flex items-center gap-2">
+                                                <div className="space-y-1.5 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
                                                         <span className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-md font-mono">#{p.id}</span>
-                                                        <span className="text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2.5 py-0.5 rounded-full font-bold">{catMeta.label}</span>
+                                                        <span className="text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2.5 py-0.5 rounded-full font-bold">
+                                                            {catMeta.label}
+                                                        </span>
                                                         <h3 className="text-lg font-bold text-white">{p.name}</h3>
                                                     </div>
+
+                                                    {p.description && (
+                                                        <p className="text-xs text-gray-400 line-clamp-2 max-w-2xl">{p.description}</p>
+                                                    )}
+
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-400 pt-1">
                                                         <div>📍 {p.address || "סומן במפה"}</div>
+                                                        <div>📅 נוצר ב: {new Date(p.createdAt).toLocaleDateString("he-IL")}</div>
                                                         {p.userId ? (
-                                                            <Link href={`?rangeType=${rangeType}&offset=${offset}&cat=${filterCat}&sort=${sortMode}&q=${encodeURIComponent(searchQuery)}&showUser=${p.userId}#seed-explorer`} className="hover:text-yellow-400 transition flex items-center flex-wrap gap-1">
+                                                            <Link
+                                                                href={buildUrl({ showUser: p.userId }, "#seed-explorer")}
+                                                                scroll={false}
+                                                                className="text-yellow-400/90 hover:text-yellow-300 underline underline-offset-4 transition flex items-center flex-wrap gap-1 font-bold"
+                                                                title="לחצי לצפייה בכל פרטי המשתמש והגרעינים שלו"
+                                                            >
                                                                 <span>👤 {p.user?.name || "ללא שם"}</span>
-                                                                {p.user?.email && <span className="text-gray-500">({p.user.email})</span>}
+                                                                {p.user?.email && <span className="text-gray-400 font-normal">({p.user.email})</span>}
                                                             </Link>
                                                         ) : (
                                                             <div>👤 ללא שם (אורח)</div>
                                                         )}
+                                                        {p.website && (
+                                                            <a
+                                                                href={p.website}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-blue-400 hover:underline truncate"
+                                                            >
+                                                                🌐 {p.website}
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-end gap-3 border-t lg:border-t-0 border-gray-800 pt-3 lg:pt-0 shrink-0">
-                                                <div className="flex gap-2">
-                                                    <div className="bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg text-center min-w-[55px]">
-                                                        <div className="text-sm font-black text-white">{p.viewedBy.length}</div>
-                                                        <div className="text-[10px] text-gray-400">צפיות</div>
+
+                                            {/* מדדים מלאים + כפתורי פעולה לכל גרעין */}
+                                            <div className="flex flex-col justify-between items-start xl:items-end gap-3 border-t xl:border-t-0 border-gray-800 pt-3 xl:pt-0 shrink-0">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <div className="bg-gray-900 border border-gray-800 px-2.5 py-1.5 rounded-lg text-center min-w-[54px]" title={`בתקופה: ${p.viewedBy.length}`}>
+                                                        <div className="text-sm font-black text-white">{p.allTimeViews}</div>
+                                                        <div className="text-[10px] text-gray-400">👀 צפיות</div>
                                                     </div>
-                                                    <div className="bg-yellow-500/10 border border-yellow-500/30 px-3 py-1.5 rounded-lg text-center min-w-[55px]">
-                                                        <div className="text-sm font-black text-yellow-400">{p.savedBy.length}</div>
-                                                        <div className="text-[10px] text-yellow-500/80">שמירות</div>
+                                                    <div className="bg-yellow-500/10 border border-yellow-500/30 px-2.5 py-1.5 rounded-lg text-center min-w-[54px]" title={`בתקופה: ${p.savedBy.length}`}>
+                                                        <div className="text-sm font-black text-yellow-400">{p.allTimeSaves}</div>
+                                                        <div className="text-[10px] text-yellow-500/80">⭐ שמירות</div>
                                                     </div>
+                                                    <div className="bg-gray-900 border border-gray-800 px-2.5 py-1.5 rounded-lg text-center min-w-[54px]">
+                                                        <div className="text-sm font-black text-yellow-200">{p.allTimeShares}</div>
+                                                        <div className="text-[10px] text-gray-400">📤 שיתופים</div>
+                                                    </div>
+                                                    <div className="bg-gray-900 border border-gray-800 px-2.5 py-1.5 rounded-lg text-center min-w-[54px]">
+                                                        <div className="text-sm font-black text-blue-400">{p.allTimeClicks}</div>
+                                                        <div className="text-[10px] text-gray-400">🔗 לאתר</div>
+                                                    </div>
+                                                    {p.category === "chai" && (
+                                                        <>
+                                                            <div className="bg-green-500/10 border border-green-500/30 px-2.5 py-1.5 rounded-lg text-center min-w-[54px]">
+                                                                <div className="text-sm font-black text-green-400">{p.allTimeJoins}</div>
+                                                                <div className="text-[10px] text-green-400/80">🤝 השתתפו</div>
+                                                            </div>
+                                                            <div className="bg-yellow-500/10 border border-yellow-500/30 px-2.5 py-1.5 rounded-lg text-center min-w-[54px]">
+                                                                <div className="text-sm font-black text-yellow-300">{p.createdSeeds}</div>
+                                                                <div className="text-[10px] text-yellow-400/80">🌱 גרעינים</div>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                   <Link
+                                                        href={`/my-points/analytics?pointId=${p.id}&from=admin`}
+                                                        className="bg-yellow-500/15 hover:bg-yellow-500 hover:text-black border border-yellow-500/40 text-yellow-400 px-3 py-1.5 rounded-lg text-xs font-bold transition"
+                                                    >
+                                                        📊 פירוט גרעין
+                                                    </Link>
+                                                    <Link
+                                                        href={`/?point=${p.id}`}
+                                                        className="bg-gray-800 hover:bg-gray-700 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"
+                                                    >
+                                                        🗺️ במפה
+                                                    </Link>
+                                                    <form action={deletePointAction}>
+                                                        <input type="hidden" name="pointId" value={p.id} />
+                                                        <button
+                                                            type="submit"
+                                                            className="bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold transition"
+                                                            title="מחק גרעין לצמיתות"
+                                                        >
+                                                            🗑️ מחיקה
+                                                        </button>
+                                                    </form>
                                                 </div>
                                             </div>
                                         </div>
@@ -616,17 +1070,33 @@ export default async function AdminDashboard({
                                                     💬 צפה בתגובות ({p.comments.length}) <span className="text-[10px] opacity-70 group-open:rotate-180 transition-transform">▼</span>
                                                 </summary>
                                                 <div className="mt-3 space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                                                    {p.comments.map(c => (
+                                                    {p.comments.map((c) => (
                                                         <div key={c.id} className="bg-black/40 p-2.5 rounded-lg border border-gray-800 flex justify-between items-start gap-3 hover:border-gray-700 transition">
                                                             <div>
                                                                 <div className="text-[11px] text-gray-500 mb-0.5">
-                                                                    <strong className="text-gray-300">{c.user?.name || "ללא שם"}</strong> • {new Date(c.createdAt).toLocaleDateString('he-IL')} {new Date(c.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                    {c.user?.id ? (
+                                                                        <Link
+                                                                            href={buildUrl({ showUser: c.user.id }, "#seed-explorer")}
+                                                                            scroll={false}
+                                                                            className="font-bold text-gray-300 hover:text-yellow-400"
+                                                                        >
+                                                                            {c.user?.name || "ללא שם"}
+                                                                        </Link>
+                                                                    ) : (
+                                                                        <strong className="text-gray-300">{c.user?.name || "ללא שם"}</strong>
+                                                                    )}{" "}
+                                                                    • {new Date(c.createdAt).toLocaleDateString("he-IL")}{" "}
+                                                                    {new Date(c.createdAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
                                                                 </div>
                                                                 <div className="text-sm text-gray-200">{c.content}</div>
                                                             </div>
                                                             <form action={deleteCommentAction}>
                                                                 <input type="hidden" name="commentId" value={c.id} />
-                                                                <button type="submit" className="text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-900/50 p-1.5 rounded-md text-xs transition" title="מחק תגובה זו">
+                                                                <button
+                                                                    type="submit"
+                                                                    className="text-red-400 hover:text-red-300 bg-red-950/30 hover:bg-red-900/50 p-1.5 rounded-md text-xs transition"
+                                                                    title="מחק תגובה זו"
+                                                                >
                                                                     🗑️ מחיקה
                                                                 </button>
                                                             </form>
@@ -646,9 +1116,67 @@ export default async function AdminDashboard({
                     )}
                 </div>
 
-                {/* 🌟 שורה 5: טבלת משתמשים */}
-                <div className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
-                    <h2 className="text-xl font-bold text-yellow-400 mb-4">👥 משתמשים פעילים בתקופה</h2>
+                {/* 🌟 שורה 5: חיפוש וניהול משתמשים */}
+                <div id="users-section" className="bg-gradient-to-b from-[#141418] to-[#0c0c0f] border border-yellow-500/30 rounded-2xl p-6 shadow-xl">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+                        <div>
+                            <h2 className="text-xl font-bold text-yellow-400">
+                                👥 {shouldFetchAllUsers ? `משתמשים במערכת (${users.length})` : `משתמשים פעילים בתקופה (${users.length})`}
+                            </h2>
+                            <p className="text-xs text-gray-400 mt-0.5">לחצי על שם משתמש כדי לפתוח כרטיס מידע מלא עליו ועל הגרעינים שלו.</p>
+                        </div>
+
+                        <div className="flex bg-black/60 border border-gray-800 rounded-xl p-1 text-xs font-bold">
+                            <Link
+                                href={buildUrl({ userScope: "period" }, "#users-section")}
+                                scroll={false}
+                                className={`px-3 py-1.5 rounded-lg transition ${
+                                    !shouldFetchAllUsers ? "bg-yellow-500 text-black" : "text-gray-400 hover:text-white"
+                                }`}
+                            >
+                                פעילים בתקופה
+                            </Link>
+                            <Link
+                                href={buildUrl({ userScope: "all" }, "#users-section")}
+                                scroll={false}
+                                className={`px-3 py-1.5 rounded-lg transition ${
+                                    shouldFetchAllUsers ? "bg-yellow-500 text-black" : "text-gray-400 hover:text-white"
+                                }`}
+                            >
+                                כל הרשומים ({totalAllTimeUsers})
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* שורת חיפוש משתמשים */}
+                    <form method="GET" action="/admin#users-section" className="flex flex-col sm:flex-row gap-3 mb-5">
+                        <input type="hidden" name="rangeType" value={rangeType} />
+                        <input type="hidden" name="offset" value={offset.toString()} />
+                        {searchQuery && <input type="hidden" name="q" value={searchQuery} />}
+                        {filterCat && <input type="hidden" name="cat" value={filterCat} />}
+                        {sortMode && <input type="hidden" name="sort" value={sortMode} />}
+                        <input type="hidden" name="userScope" value="all" />
+                        <input
+                            type="text"
+                            name="userQ"
+                            defaultValue={userSearchQuery}
+                            placeholder="חפשי משתמש לפי שם, אימייל או קוד מדינה (למשל IL, US)..."
+                            className="flex-1 bg-black/80 border border-gray-700 p-3 rounded-xl text-white text-sm focus:outline-none focus:border-yellow-500"
+                        />
+                        <button type="submit" className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold text-sm hover:bg-yellow-400 transition">
+                            חיפוש משתמש
+                        </button>
+                        {userSearchQuery && (
+                            <Link
+                                href={buildUrl({ userQ: "", userScope: "period" }, "#users-section")}
+                                scroll={false}
+                                className="bg-gray-800 text-gray-300 px-5 py-3 rounded-xl hover:bg-gray-700 transition flex items-center justify-center text-sm border border-gray-700"
+                            >
+                                איפוס
+                            </Link>
+                        )}
+                    </form>
+
                     <div className="overflow-x-auto border border-gray-800 rounded-xl">
                         <table className="w-full text-right border-collapse text-sm">
                             <thead>
@@ -657,97 +1185,397 @@ export default async function AdminDashboard({
                                     <th className="p-4">שם ומייל</th>
                                     <th className="p-4 text-center">מדינה</th>
                                     <th className="p-4">פלטפורמה</th>
-                                    {/* 🌟 הוספנו את זמן השהייה חזרה */}
                                     <th className="p-4 text-center">זמן באתר</th>
                                     <th className="p-4 text-center">גרעינים שיצר</th>
                                     <th className="p-4 text-center">שמירות</th>
+                                    <th className="p-4 text-center">פרטים</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.map((u) => (
-                                    <tr key={u.id} className="border-b border-gray-800/70 hover:bg-white/[0.02]">
-                                        <td className="p-4 whitespace-nowrap">
-                                            {u.updatedAt >= fiveMinutesAgo ? (
-                                                <span className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-400 px-2.5 py-1 rounded-full text-xs font-bold">מחובר</span>
-                                            ) : (
-                                                <span className="text-gray-500 text-xs">לא מקוון</span>
-                                            )}
+                                {users.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={8} className="p-8 text-center text-gray-500">
+                                            לא נמצאו משתמשים תואמים.
                                         </td>
-                                        <td className="p-4">
-                                            <Link href={`?rangeType=${rangeType}&offset=${offset}&showUser=${u.id}`} className="hover:text-yellow-400 transition block">
-                                                <div className="font-bold text-white">{u.name || "ללא שם"}</div>
-                                                {u.email && <div className="text-gray-500 text-[10px]">{u.email}</div>}
-                                            </Link>
-                                        </td>
-                                        <td className="p-4 text-center text-xl">{getFlagEmoji(u.country)}</td>
-                                        <td className="p-4 text-xs">{u.platform === "PWA" ? "📱 אפליקציה" : "💻 אתר"}</td>
-                                        
-                                        {/* 🌟 הוספנו את שליפת הדקות */}
-                                        <td className="p-4 text-center text-gray-300 font-mono text-xs">{u.timeSpentMins} דק'</td>
-                                        
-                                        <td className="p-4 text-center font-bold text-white">{u._count.points}</td>
-                                        <td className="p-4 text-center font-bold text-yellow-400">{u._count.savedPoints}</td>
                                     </tr>
-                                ))}
+                                ) : (
+                                    users.map((u) => (
+                                        <tr key={u.id} className="border-b border-gray-800/70 hover:bg-white/[0.02]">
+                                            <td className="p-4 whitespace-nowrap">
+                                                {u.updatedAt >= fiveMinutesAgo ? (
+                                                    <span className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-400 px-2.5 py-1 rounded-full text-xs font-bold">
+                                                        מחובר
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-500 text-xs">לא מקוון</span>
+                                                )}
+                                            </td>
+                                            <td className="p-4">
+                                                <Link
+                                                    href={buildUrl({ showUser: u.id }, "#users-section")}
+                                                    scroll={false}
+                                                    className="hover:text-yellow-400 transition block"
+                                                >
+                                                    <div className="font-bold text-white flex items-center gap-2">
+                                                        <span>{u.name || "ללא שם"}</span>
+                                                        {u.isAdmin && (
+                                                            <span className="text-[10px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 px-1.5 py-0.5 rounded">
+                                                                מנהל
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {u.email && <div className="text-gray-500 text-[11px]">{u.email}</div>}
+                                                </Link>
+                                            </td>
+                                            <td className="p-4 text-center text-xl">{getFlagEmoji(u.country)}</td>
+                                            <td className="p-4 text-xs">{u.platform === "PWA" ? "📱 אפליקציה" : "💻 אתר"}</td>
+                                            <td className="p-4 text-center text-gray-300 font-mono text-xs">{u.timeSpentMins} דק&apos;</td>
+                                            <td className="p-4 text-center font-bold text-white">{u._count.points}</td>
+                                            <td className="p-4 text-center font-bold text-yellow-400">{u._count.savedPoints}</td>
+                                            <td className="p-4 text-center">
+                                                <Link
+                                                    href={buildUrl({ showUser: u.id }, "#users-section")}
+                                                    scroll={false}
+                                                    className="bg-yellow-500/10 hover:bg-yellow-500 hover:text-black border border-yellow-500/40 text-yellow-400 px-3 py-1 rounded-lg text-xs font-bold transition"
+                                                >
+                                                    כרטיס משתמש
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
-
             </div>
 
-            {/* 🌟 מודאל פרטי משתמש */}
-            {modalUser && (
+            {/* ================= מודאל 1: כרטיס משתמש מלא ================= */}
+            {modalUser && modalUserTotals && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-[#141418] border border-yellow-500/50 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl relative p-6 custom-scrollbar">
-                        <Link href={getCloseModalUrl()} className="absolute top-4 left-4 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 p-2 rounded-full leading-none transition">
-                            ✕
+                    <div className="bg-[#141418] border border-yellow-500/50 rounded-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto shadow-2xl relative p-6 custom-scrollbar space-y-6">
+                        <Link
+                            href={buildUrl({ showUser: null })}
+                            scroll={false}
+                            className="sticky top-0 float-left text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full text-xs font-bold transition z-10"
+                        >
+                            ✕ סגור
                         </Link>
 
-                        <div className="flex items-center gap-4 mb-6 border-b border-gray-800 pb-5">
-                            <div className="text-5xl">{getFlagEmoji(modalUser.country)}</div>
-                            <div>
-                                <h3 className="text-2xl font-bold text-yellow-400">{modalUser.name || "ללא שם"}</h3>
-                                <p className="text-gray-300">{modalUser.email}</p>
+                        {/* כותרת ופרטי זיהוי */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 border-b border-gray-800 pb-5">
+                            <div className="w-16 h-16 rounded-2xl bg-yellow-500/15 border border-yellow-500/40 flex items-center justify-center text-3xl shrink-0">
+                                {modalUser.image ? (
+                                    <img src={modalUser.image} alt="" className="w-full h-full object-cover rounded-2xl" />
+                                ) : (
+                                    getFlagEmoji(modalUser.country)
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-2xl font-extrabold text-yellow-400">{modalUser.name || "ללא שם"}</h3>
+                                    {modalUser.isAdmin && (
+                                        <span className="text-xs bg-yellow-500 text-black px-2 py-0.5 rounded-md font-black">
+                                            מנהל מערכת
+                                        </span>
+                                    )}
+                                    {modalUser.updatedAt >= fiveMinutesAgo ? (
+                                        <span className="text-xs bg-green-500/15 border border-green-500/40 text-green-400 px-2.5 py-0.5 rounded-full font-bold">
+                                            ● מחובר כעת
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs bg-gray-800 text-gray-400 px-2.5 py-0.5 rounded-full">
+                                            פעילות אחרונה: {new Date(modalUser.updatedAt).toLocaleDateString("he-IL")}{" "}
+                                            {new Date(modalUser.updatedAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-sm text-gray-300">{modalUser.email}</p>
+                                <div className="flex flex-wrap gap-3 text-xs text-gray-400 pt-1">
+                                    <span>🌍 מדינה: <strong className="text-gray-200">{modalUser.country || "לא ידוע"}</strong></span>
+                                    <span>📱 פלטפורמה: <strong className="text-gray-200">{modalUser.platform === "PWA" ? "אפליקציה (PWA)" : "דפדפן (WEB)"}</strong></span>
+                                    <span>⏱️ זמן באתר: <strong className="text-yellow-400">{modalUser.timeSpentMins} דקות</strong></span>
+                                    <span>🆔 <span className="font-mono text-[11px]">{modalUser.id}</span></span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="mb-4 flex items-center justify-between">
-                            <h4 className="text-lg font-bold text-white">גרעינים שהעלה ({modalUser.points.length})</h4>
+                        {/* 6 קוביות סיכום של המשתמש */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-center">
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-white">{modalUser._count.points}</div>
+                                <div className="text-[10px] text-gray-400">גרעינים שיצר</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-yellow-400">{modalUser._count.savedPoints}</div>
+                                <div className="text-[10px] text-gray-400">גרעינים ששמר</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-gray-200">{modalUser._count.viewedPoints}</div>
+                                <div className="text-[10px] text-gray-400">גרעינים שצפה</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-blue-400">{modalUser._count.comments}</div>
+                                <div className="text-[10px] text-gray-400">תגובות שכתב</div>
+                            </div>
+                            <div className="bg-black/50 border border-yellow-500/20 p-3 rounded-xl">
+                                <div className="text-xl font-black text-white">{modalUserTotals.views}</div>
+                                <div className="text-[10px] text-gray-400">צפיות בגרעיניו</div>
+                            </div>
+                            <div className="bg-black/50 border border-yellow-500/20 p-3 rounded-xl">
+                                <div className="text-xl font-black text-yellow-300">
+                                    {modalUserTotals.saves + modalUserTotals.shares + modalUserTotals.clicks + modalUserTotals.joins}
+                                </div>
+                                <div className="text-[10px] text-gray-400">אינטראקציות עליו</div>
+                            </div>
                         </div>
 
-                        {modalUser.points.length === 0 ? (
-                            <p className="text-gray-500 text-sm bg-black/30 p-4 rounded-xl border border-gray-800 text-center">
-                                משתמש זה עדיין לא העלה גרעינים.
-                            </p>
-                        ) : (
-                            <div className="space-y-3">
-                                {modalUser.points.map(mp => (
-                                    <div key={mp.id} className="bg-black/50 border border-gray-800 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-yellow-500/30 transition">
-                                        <div>
-                                            <div className="font-bold text-white text-sm">{mp.name}</div>
-                                            <div className="text-xs text-gray-500 mt-1">נוצר ב: {new Date(mp.createdAt).toLocaleDateString('he-IL')}</div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="text-xs bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-lg text-gray-300">
-                                                {CATEGORY_META[mp.category]?.label || mp.category}
+                        {/* רשימת הגרעינים שהעלה המשתמש */}
+                        <div>
+                            <h4 className="text-base font-bold text-yellow-400 mb-3">
+                                🌱 גרעינים שהעלה ({modalUser.points.length})
+                            </h4>
+
+                            {modalUser.points.length === 0 ? (
+                                <p className="text-gray-500 text-sm bg-black/30 p-4 rounded-xl border border-gray-800 text-center">
+                                    משתמש זה עדיין לא העלה גרעינים.
+                                </p>
+                            ) : (
+                                <div className="space-y-2.5 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                                    {modalUser.points.map((mp) => {
+                                        const v = mp.analytics?.views || mp._count.viewedBy || 0;
+                                        const s = mp._count.savedBy || 0;
+                                        const sh = mp.analytics?.shares || 0;
+                                        const cl = mp.analytics?.clicks || mp.linkClicks || 0;
+                                        return (
+                                            <div
+                                                key={mp.id}
+                                                className="bg-black/50 border border-gray-800 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-yellow-500/30 transition"
+                                            >
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[11px] font-mono text-gray-500">#{mp.id}</span>
+                                                        <span className="font-bold text-white text-sm">{mp.name}</span>
+                                                        <span className="text-[11px] bg-gray-800 px-2 py-0.5 rounded text-gray-300">
+                                                            {CATEGORY_META[mp.category]?.label || mp.category}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[11px] text-gray-500 mt-1">
+                                                        נוצר ב: {new Date(mp.createdAt).toLocaleDateString("he-IL")} · 👀 {v} · ⭐ {s} · 📤 {sh} · 🔗 {cl}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <Link
+                                                        href={`/my-points/analytics?pointId=${mp.id}&from=admin`}
+                                                        className="text-xs bg-yellow-500/15 hover:bg-yellow-500 hover:text-black border border-yellow-500/40 text-yellow-400 px-2.5 py-1.5 rounded-lg font-bold transition"
+                                                    >
+                                                        📊 נתונים
+                                                    </Link>
+                                                    <Link
+                                                        href={`/?point=${mp.id}`}
+                                                        className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 px-2.5 py-1.5 rounded-lg font-bold transition"
+                                                    >
+                                                        🗺️ מפה
+                                                    </Link>
+                                                </div>
                                             </div>
-                                        </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* גרעינים ששמר ותגובות אחרונות */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-800">
+                            <div>
+                                <h4 className="text-sm font-bold text-gray-300 mb-2">⭐ שמירות אחרונות ({modalUser.savedPoints.length})</h4>
+                                {modalUser.savedPoints.length === 0 ? (
+                                    <p className="text-xs text-gray-500 bg-black/30 p-3 rounded-xl">אין גרעינים שמורים.</p>
+                                ) : (
+                                    <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                                        {modalUser.savedPoints.map((sp) => (
+                                            <div key={sp.id} className="bg-black/40 border border-gray-800/80 px-3 py-2 rounded-lg flex justify-between items-center text-xs">
+                                                <span className="text-gray-200 truncate">{sp.point.name}</span>
+                                                <Link href={`/?point=${sp.point.id}`} className="text-yellow-400 hover:underline shrink-0 mr-2">
+                                                    צפה
+                                                </Link>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        )}
+
+                            <div>
+                                <h4 className="text-sm font-bold text-gray-300 mb-2">💬 תגובות אחרונות ({modalUser.comments.length})</h4>
+                                {modalUser.comments.length === 0 ? (
+                                    <p className="text-xs text-gray-500 bg-black/30 p-3 rounded-xl">לא כתב תגובות עדיין.</p>
+                                ) : (
+                                    <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                                        {modalUser.comments.map((cm) => (
+                                            <div key={cm.id} className="bg-black/40 border border-gray-800/80 px-3 py-2 rounded-lg text-xs">
+                                                <div className="text-[10px] text-yellow-400/80 font-bold truncate">על: {cm.point.name}</div>
+                                                <div className="text-gray-300 truncate">{cm.content}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
+            {/* ================= מודאל 2: פירוט מלא לגרעין בודד ================= */}
+            {inspectedPoint && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-[#141418] border border-yellow-500/50 rounded-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto shadow-2xl relative p-6 custom-scrollbar space-y-6">
+                        <Link
+                            href={buildUrl({ inspectPoint: null })}
+                            scroll={false}
+                            className="sticky top-0 float-left text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full text-xs font-bold transition z-10"
+                        >
+                            ✕ סגור
+                        </Link>
+
+                        <div className="border-b border-gray-800 pb-4 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-mono bg-gray-800 text-gray-400 px-2 py-0.5 rounded">#{inspectedPoint.id}</span>
+                                <span className="text-xs bg-yellow-500/15 border border-yellow-500/40 text-yellow-400 px-2.5 py-0.5 rounded-full font-bold">
+                                    {CATEGORY_META[inspectedPoint.category]?.label || inspectedPoint.category}
+                                </span>
+                                <h3 className="text-2xl font-extrabold text-white">{inspectedPoint.name}</h3>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
+                                <span>📍 {inspectedPoint.address || "סומן במפה"}</span>
+                                <span>📅 נוצר ב: {new Date(inspectedPoint.createdAt).toLocaleDateString("he-IL")}</span>
+                                {inspectedPoint.userId && (
+                                    <Link
+                                        href={buildUrl({ inspectPoint: null, showUser: inspectedPoint.userId })}
+                                        scroll={false}
+                                        className="text-yellow-400 hover:underline font-bold"
+                                    >
+                                        👤 הועלה ע״י: {inspectedPoint.user?.name || inspectedPoint.user?.email || "משתמש"}
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* מדדים מלאים של הגרעין */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 text-center">
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-white">{inspectedPoint.allTimeViews}</div>
+                                <div className="text-[10px] text-gray-400">👀 צפיות</div>
+                            </div>
+                            <div className="bg-black/50 border border-yellow-500/25 p-3 rounded-xl">
+                                <div className="text-xl font-black text-yellow-400">{inspectedPoint.allTimeSaves}</div>
+                                <div className="text-[10px] text-gray-400">⭐ שמירות</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-yellow-200">{inspectedPoint.allTimeShares}</div>
+                                <div className="text-[10px] text-gray-400">📤 שיתופים</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-blue-400">{inspectedPoint.allTimeClicks}</div>
+                                <div className="text-[10px] text-gray-400">🔗 לאתר</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-green-400">{inspectedPoint.allTimeJoins}</div>
+                                <div className="text-[10px] text-gray-400">🤝 השתתפו</div>
+                            </div>
+                            <div className="bg-black/50 border border-gray-800 p-3 rounded-xl">
+                                <div className="text-xl font-black text-yellow-300">{inspectedPoint.createdSeeds}</div>
+                                <div className="text-[10px] text-gray-400">🌱 תתי-גרעינים</div>
+                            </div>
+                        </div>
+
+                        {/* גרף 30 יום + מדינות של הגרעין */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-2 bg-black/50 border border-gray-800 p-4 rounded-xl">
+                                <div className="text-xs font-bold text-yellow-400 mb-3">פעילות ב-30 הימים האחרונים</div>
+                                {(() => {
+                                    const maxVal = Math.max(...inspectedChart30.map((d) => d.count), 1);
+                                    return (
+                                        <div className="flex items-end gap-1 h-32 pt-4 border-b border-gray-800">
+                                            {inspectedChart30.map((d, idx) => {
+                                                const hPct = Math.round((d.count / maxVal) * 100);
+                                                return (
+                                                    <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end">
+                                                        <div
+                                                            className="w-full bg-yellow-400 rounded-t-sm"
+                                                            style={{
+                                                                height: `${hPct}%`,
+                                                                minHeight: d.count > 0 ? "4px" : "2px",
+                                                                opacity: d.count > 0 ? 1 : 0.2,
+                                                            }}
+                                                            title={`${d.dateStr}: ${d.count} פעולות`}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            <div className="bg-black/50 border border-gray-800 p-4 rounded-xl">
+                                <div className="text-xs font-bold text-yellow-400 mb-3">מאיפה צפו ({inspectedPointLogs.length})</div>
+                                {inspectedCountries.length === 0 ? (
+                                    <p className="text-xs text-gray-500">אין עדיין לוגים לגרעין זה.</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                        {inspectedCountries.map((c) => (
+                                            <div key={c.country} className="flex items-center justify-between text-xs bg-gray-900/70 px-2.5 py-1.5 rounded-lg">
+                                                <span>
+                                                    {getFlagEmoji(c.country)} {c.country}
+                                                </span>
+                                                <span className="font-bold text-yellow-400">{c.percent}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* תקציב ותובנת AI אם קיימים */}
+                        {(inspectedPoint.budget != null || inspectedPoint.analytics?.aiInsight) && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                {inspectedPoint.budget != null && (
+                                    <div className="bg-black/50 border border-gray-800 p-4 rounded-xl">
+                                        <div className="font-bold text-yellow-400 mb-1">💰 תקציב מוגדר</div>
+                                        <div className="text-lg font-black text-white">₪{inspectedPoint.budget.toLocaleString()}</div>
+                                    </div>
+                                )}
+                                {inspectedPoint.analytics?.aiInsight && (
+                                    <div className="bg-black/50 border border-gray-800 p-4 rounded-xl">
+                                        <div className="font-bold text-yellow-400 mb-1">✨ תובנת AI שמורה</div>
+                                        <p className="text-gray-300 leading-relaxed">{inspectedPoint.analytics.aiInsight}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-2 pt-2 border-t border-gray-800">
+                            <Link
+                                href={`/?point=${inspectedPoint.id}`}
+                                className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-xl text-xs font-extrabold transition"
+                            >
+                                🗺️ פתח גרעין במפה
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style
+                dangerouslySetInnerHTML={{
+                    __html: `
                 .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.3); border-radius: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(251,191,36,0.6); }
-            `}} />
+            `,
+                }}
+            />
         </div>
     );
 }

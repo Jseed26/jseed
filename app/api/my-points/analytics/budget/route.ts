@@ -8,7 +8,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const currentUserId = session.user.id;
+
     try {
+        const currentUser = await prisma.user.findUnique({
+            where: { id: currentUserId },
+            select: { isAdmin: true },
+        });
+        const isAdmin = Boolean(currentUser?.isAdmin);
+
         const { pointId, budget } = await req.json();
         const numericId = Number(pointId);
         if (!numericId) {
@@ -16,7 +24,7 @@ export async function POST(req: Request) {
         }
 
         const existing = await prisma.point.findFirst({
-            where: { id: numericId, userId: session.user.id },
+            where: isAdmin ? { id: numericId } : { id: numericId, userId: currentUserId },
         });
         if (!existing) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });

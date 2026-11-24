@@ -8,16 +8,26 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const currentUserId = session.user.id;
+
     try {
+        const currentUser = await prisma.user.findUnique({
+            where: { id: currentUserId },
+            select: { isAdmin: true },
+        });
+        const isAdmin = Boolean(currentUser?.isAdmin);
+
         const { pointId, question, forceRefresh } = await req.json();
         const isAll = !pointId || pointId === "ALL";
         const numericId = !isAll ? Number(pointId) : null;
 
         const points = await prisma.point.findMany({
-            where: {
-                userId: session.user.id,
-                ...(numericId ? { id: numericId } : {}),
-            },
+            where: isAdmin && numericId
+                ? { id: numericId }
+                : {
+                      userId: currentUserId,
+                      ...(numericId ? { id: numericId } : {}),
+                  },
             include: {
                 _count: { select: { viewedBy: true, savedBy: true } },
                 analytics: true,

@@ -21,9 +21,9 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -100,6 +100,8 @@ export default function UserAnalyticsDashboard() {
     const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
     const [selectedPointId, setSelectedPointId] = useState<string>("ALL");
 
+    const [isFromAdmin, setIsFromAdmin] = useState(false);
+
     // מצבי AI
     const [aiInsight, setAiInsight] = useState<string>("");
     const [isLoadingInsight, setIsLoadingInsight] = useState(false);
@@ -112,29 +114,36 @@ export default function UserAnalyticsDashboard() {
     const [isSavingBudget, setIsSavingBudget] = useState(false);
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const pointId = params.get("pointId");
-        if (pointId) setSelectedPointId(pointId);
-    }, []);
-
-    useEffect(() => {
         if (status === "unauthenticated") {
             router.push("/auth");
-        } else if (status === "authenticated") {
-            fetch("/api/my-points/analytics")
-                .then((res) => res.json())
-                .then((data) => {
-                    if (!data.error) {
-                        setLogs(data.logs || []);
-                        setPointStats(data.pointStats || []);
-                        setUserPoints(data.userPoints || []);
-                        setBenchmarkPoints(data.benchmarkPoints || []);
-                        setGlobalStats(data.globalStats || null);
-                    }
-                    setIsLoading(false);
-                })
-                .catch(() => setIsLoading(false));
+            return;
         }
+        if (status !== "authenticated") return;
+
+        const params = new URLSearchParams(window.location.search);
+        const pointIdParam = params.get("pointId");
+        const fromAdminParam = params.get("from") === "admin";
+
+        if (pointIdParam) setSelectedPointId(pointIdParam);
+        if (fromAdminParam) setIsFromAdmin(true);
+
+        const apiUrl = pointIdParam
+            ? `/api/my-points/analytics?pointId=${encodeURIComponent(pointIdParam)}`
+            : "/api/my-points/analytics";
+
+        fetch(apiUrl)
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.error) {
+                    setLogs(data.logs || []);
+                    setPointStats(data.pointStats || []);
+                    setUserPoints(data.userPoints || []);
+                    setBenchmarkPoints(data.benchmarkPoints || []);
+                    setGlobalStats(data.globalStats || null);
+                }
+                setIsLoading(false);
+            })
+            .catch(() => setIsLoading(false));
     }, [status, router]);
 
     useEffect(() => {
@@ -165,16 +174,16 @@ export default function UserAnalyticsDashboard() {
                         prev.map((p) =>
                             p.id === Number(selectedPointId)
                                 ? {
-                                      ...p,
-                                      analytics: {
-                                          views: p.analytics?.views || 0,
-                                          clicks: p.analytics?.clicks || 0,
-                                          shares: p.analytics?.shares || 0,
-                                          joins: p.analytics?.joins || 0,
-                                          aiInsight: data.insight,
-                                          aiInsightAt: new Date().toISOString(),
-                                      },
-                                  }
+                                    ...p,
+                                    analytics: {
+                                        views: p.analytics?.views || 0,
+                                        clicks: p.analytics?.clicks || 0,
+                                        shares: p.analytics?.shares || 0,
+                                        joins: p.analytics?.joins || 0,
+                                        aiInsight: data.insight,
+                                        aiInsightAt: new Date().toISOString(),
+                                    },
+                                }
                                 : p
                         )
                     );
@@ -317,8 +326,8 @@ export default function UserAnalyticsDashboard() {
     const growthPct = prev30Logs.length > 0
         ? Math.round(((activeLast30 - prev30Logs.length) / prev30Logs.length) * 100)
         : activeLast30 > 0
-        ? 100
-        : 0;
+            ? 100
+            : 0;
 
     const userActionCounts: Record<string, number> = {};
     last30Logs.forEach((l) => {
@@ -365,16 +374,16 @@ export default function UserAnalyticsDashboard() {
     const engagementScore = totals.views === 0
         ? 0
         : Math.min(
-              100,
-              Math.round(
-                  saveRate * 0.3 +
-                      shareRate * 0.2 +
-                      clickRate * 0.15 +
-                      joinRate * 0.2 +
-                      createdRate * 0.15 +
-                      (totals.views > 10 ? 20 : 5)
-              )
-          );
+            100,
+            Math.round(
+                saveRate * 0.3 +
+                shareRate * 0.2 +
+                clickRate * 0.15 +
+                joinRate * 0.2 +
+                createdRate * 0.15 +
+                (totals.views > 10 ? 20 : 5)
+            )
+        );
 
     const monthlySeasonal = Array.from({ length: 12 }, (_, mIdx) => ({
         monthIndex: mIdx,
@@ -498,7 +507,7 @@ export default function UserAnalyticsDashboard() {
         const title = selectedPointObj ? selectedPointObj.name : "כל הגרעינים שלי ב-JSeed";
         const reportText = `📊 דוח שקיפות והשפעה — ${title}\n👁️ צפיות: ${totals.views}\n⭐ שמירות: ${totals.saves}\n📤 שיתופים: ${totals.shares}\n🔗 כניסות לאתר: ${totals.clicks}\n🤝 השתתפויות: ${totals.joins}\n🌱 יצרו גרעין: ${totals.createdSeeds}${totals.budget > 0 ? `\n💰 תקציב: ₪${totals.budget.toLocaleString()} (₪${costPerParticipant} לכל פעולה)` : ""}`;
         if (navigator.share) {
-            navigator.share({ title: `דוח JSeed - ${title}`, text: reportText }).catch(() => {});
+            navigator.share({ title: `דוח JSeed - ${title}`, text: reportText }).catch(() => { });
         } else {
             navigator.clipboard.writeText(reportText);
             alert("דוח השקיפות הועתק ללוח!");
@@ -522,28 +531,37 @@ export default function UserAnalyticsDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto print:hidden">
-                        <select
-                            className="bg-zinc-950 border border-zinc-700 text-white p-2.5 rounded-xl text-sm focus:outline-none focus:border-yellow-500 flex-1 sm:flex-none font-bold"
-                            value={selectedPointId}
-                            onChange={(e) => setSelectedPointId(e.target.value)}
-                        >
-                            <option value="ALL">כל הגרעינים שלי ({userPoints.length})</option>
-                            {userPoints.map((p) => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </select>
-                        <button
-                            onClick={() => window.print()}
-                            className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition whitespace-nowrap"
-                        >
-                            📄 הפק דוח (PDF)
-                        </button>
-                        <Link
-                            href="/my-points?tab=my"
-                            className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition whitespace-nowrap border border-zinc-700"
-                        >
-                            חזרה
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto print:hidden">
+                            {!isFromAdmin ? (
+                                <select
+                                    className="bg-zinc-950 border border-zinc-700 text-white p-2.5 rounded-xl text-sm focus:outline-none focus:border-yellow-500 flex-1 sm:flex-none font-bold"
+                                    value={selectedPointId}
+                                    onChange={(e) => setSelectedPointId(e.target.value)}
+                                >
+                                    <option value="ALL">כל הגרעינים שלי ({userPoints.length})</option>
+                                    {userPoints.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <span className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-2 rounded-xl text-xs font-bold">
+                                    תצוגת מנהל · גרעין #{selectedPointId}
+                                </span>
+                            )}
+                            <button
+                                onClick={() => window.print()}
+                                className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2.5 rounded-xl text-sm font-bold transition whitespace-nowrap"
+                            >
+                                📄 הפק דוח (PDF)
+                            </button>
+                            <Link
+                                href={isFromAdmin ? "/admin#seed-explorer" : "/my-points?tab=my"}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition whitespace-nowrap border border-zinc-700"
+                            >
+                                {isFromAdmin ? "חזרה לאדמין" : "חזרה"}
+                            </Link>
+                        </div>
+
                     </div>
                 </div>
 
@@ -1066,11 +1084,10 @@ export default function UserAnalyticsDashboard() {
                                         return (
                                             <span
                                                 key={idx}
-                                                className={`w-1.5 h-1.5 rounded-full ${
-                                                    isBright
+                                                className={`w-1.5 h-1.5 rounded-full ${isBright
                                                         ? "bg-yellow-400 shadow-[0_0_8px_#fbbf24]"
                                                         : "bg-yellow-500/25"
-                                                }`}
+                                                    }`}
                                             />
                                         );
                                     })}

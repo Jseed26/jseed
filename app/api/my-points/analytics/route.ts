@@ -3,7 +3,7 @@ import { auth } from "@/src/lib/auth/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -11,16 +11,28 @@ export async function GET() {
     }
 
     const currentUserId = session.user.id;
+    const { searchParams } = new URL(req.url);
+    const requestedPointId = searchParams.get("pointId");
+    const numericPointId =
+        requestedPointId && requestedPointId !== "ALL" && !Number.isNaN(Number(requestedPointId))
+            ? Number(requestedPointId)
+            : null;
 
     try {
-        const userPoints = await prisma.point.findMany({
-            where: { userId: currentUserId },
+        const currentUser = await prisma.user.findUnique({
+            where: { id: currentUserId },
+            select: { isAdmin: true },
+        });
+        const isAdmin = Boolean(currentUser?.isAdmin);
+
+        // אם מנהל ביקש לראות גרעין ספציפי — נשלוף אותו גם אם הוא שייך למשתמש אחר
+        let userPoints = await prisma.point.findMany({
+            where: isAdmin && numericPointId ? { id: numericPointId } : { userId: currentUserId },
             select: { id: true, name: true, category: true },
         });
 
-        const pointIds = userPoints.map((p) => p.id);
-
-        if (pointIds.length === 0) {
+        // גיבוי למקרה שמנהל נכנס עם pointId שלא קיים
+        if (userPoints.length === 0 && !isAdmin) {
             return Response.json({
                 logs: [],
                 pointStats: [],
@@ -30,27 +42,31 @@ export async function GET() {
             });
         }
 
-        // שולפים לוגים של השנה האחרונה עבור גרף 30 יום, צמיחה חודשית ושיאים עונתיים (12 חודשים)
+        const pointIds = userPoints.map((p) => p.id);
+
         const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
 
-        const logs = await prisma.pointActionLog.findMany({
-            where: {
-                pointId: { in: pointIds },
-                createdAt: { gte: oneYearAgo },
-            },
-            orderBy: { createdAt: "asc" },
-        });
+        const logs = pointIds.length > 0
+            ? await prisma.pointActionLog.findMany({
+                  where: {
+                      pointId: { in: pointIds },
+                      createdAt: { gte: oneYearAgo },
+                  },
+                  orderBy: { createdAt: "asc" },
+              })
+            : [];
 
-        const rawPointStats = await prisma.point.findMany({
-            where: { id: { in: pointIds } },
-            include: {
-                _count: { select: { viewedBy: true, savedBy: true } },
-                analytics: true,
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        const rawPointStats = pointIds.length > 0
+            ? await prisma.point.findMany({
+                  where: { id: { in: pointIds } },
+                  include: {
+                      _count: { select: { viewedBy: true, savedBy: true } },
+                      analytics: true,
+                  },
+                  orderBy: { createdAt: "desc" },
+              })
+            : [];
 
-        // שליפת כלל הנקודות במערכת (ללא חשיפת פרטים אישיים) לחישובי רדיוס, פערים, השוואה ומקרו
         const allSystemPoints = await prisma.point.findMany({
             select: {
                 id: true,
@@ -69,7 +85,6 @@ export async function GET() {
             },
         });
 
-        // חישוב כמה תתי-גרעינים נוצרו תחת כל גרעין של המשתמש ("יצרו גרעין")
         const pointStats = rawPointStats.map((p) => {
             const cleanName = (p.name || "").trim().toLowerCase();
             const createdSeeds = allSystemPoints.filter(
@@ -109,7 +124,6 @@ export async function GET() {
             };
         });
 
-        // נתוני מקרו גלובליים עבור כרטיסים 5 ו-12 (הרשת העולמית ומצב העולם היהודי 2026)
         const allGlobalLogs = await prisma.pointActionLog.findMany({
             select: { country: true, createdAt: true, pointId: true },
         });
