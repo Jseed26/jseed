@@ -653,7 +653,11 @@ export function useMapMarkers({
     const shareBtn = container.querySelector(".native-share-btn") as HTMLButtonElement;
     if (shareBtn) {
       shareBtn.onclick = async (e) => {
-        fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(console.error);
+        fetch(`/api/points/${point.id}/click`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "SHARE" }),
+        }).catch(console.error);
         e.preventDefault();
         e.stopPropagation();
         if (navigator.share) {
@@ -741,9 +745,11 @@ export function useMapMarkers({
     const linkBtn = container.querySelector(".point-website-link") as HTMLAnchorElement;
     if (linkBtn) {
       linkBtn.onclick = () => {
-        fetch(`/api/points/${point.id}/click`, { method: "POST" }).catch(
-          console.error
-        );
+        fetch(`/api/points/${point.id}/click`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "CLICK" }),
+        }).catch(console.error);
       };
     }
 

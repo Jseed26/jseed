@@ -39,6 +39,7 @@ type Point = {
         views: number;
         clicks: number;
         joins: number;
+        shares?: number;
     };
     allowComments?: boolean;
     comments?: PointComment[];
@@ -72,6 +73,7 @@ const t = {
     views: { he: "צפיות", en: "Views" },
     saves: { he: "שמירות", en: "Saves" },
     shares: { he: "שיתופים", en: "Shares" },
+    clicks: { he: "כניסות לאתר", en: "Site Clicks" },
     edit: { he: "ערוך", en: "Edit" },
     delete: { he: "מחק", en: "Delete" },
     viewOnMap: { he: "צפה במפה", en: "View on Map" },
@@ -358,7 +360,7 @@ export default function MyPointsPage() {
                 {/* Modern Tabs Navigation */}
                 <div className="max-w-3xl mx-auto">
                     <div className="flex gap-2 bg-zinc-900/40 p-1.5 rounded-2xl border border-zinc-800/50 overflow-x-auto custom-scrollbar snap-x">
-                       {[
+                        {[
                             { id: "my", title: t.mySeeds[lang], label: t.mySeeds[lang] },
                             { id: "history", title: t.history[lang], label: t.history[lang] },
                             {
@@ -660,8 +662,15 @@ export default function MyPointsPage() {
 
                                                             <span className="flex items-center gap-1.5" title={lang === "he" ? "שיתופים (וואטסאפ, העתקת קישור וכו')" : "Shares"}>
                                                                 <span className="text-base">📤</span>
-                                                                {p.analytics?.clicks || p.linkClicks || 0} {t.shares[lang]}
+                                                                {p.analytics?.shares || 0} {t.shares[lang]}
                                                             </span>
+
+                                                            {p.website && (
+                                                                <span className="flex items-center gap-1.5" title={lang === "he" ? "כניסות לקישור האתר" : "Website clicks"}>
+                                                                    <span className="text-base">🔗</span>
+                                                                    {p.analytics?.clicks || p.linkClicks || 0} {t.clicks[lang]}
+                                                                </span>
+                                                            )}
 
                                                             {isChai && (
                                                                 <span className="flex items-center gap-1.5 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-lg border border-yellow-500/20" title={lang === "he" ? "השתתפויות ותמיכות" : "Joins and supports"}>

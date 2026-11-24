@@ -41,7 +41,9 @@ model PointAnalytics {
   views     Int      @default(0) // כמה פעמים פתחו את הבועה של הגרעין הזה
   clicks    Int      @default(0) // כמה פעמים לחצו על כפתור "למעבר לאתר" בגרעין הזה
   joins     Int      @default(0) // כמה פעמים משתמשים לחצו על השתתפות מהירה (לחיצת הידיים)
-  
+  shares    Int      @default(0)
+  aiInsight String?
+  aiInsightAt DateTime?
   updatedAt DateTime @updatedAt
 }
 
@@ -128,6 +130,7 @@ model Point {
   analytics PointAnalytics?
   actionLogs     PointActionLog[]
   allowComments  Boolean  @default(true)
+  budget         Int?
 }
 
 model ViewedPoint {

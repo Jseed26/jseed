@@ -6,50 +6,80 @@ export async function POST(req: Request, context: any) {
         const session = await auth();
         const params = await context.params;
         const pointId = Number(params.id);
-        
-        // 🌍 שולפים את המדינה מה-Headers
+
+        const body = await req.json().catch(() => ({}));
+        const type: "SHARE" | "CLICK" = body?.type === "SHARE" ? "SHARE" : "CLICK";
+
         const country = req.headers.get("x-vercel-ip-country") || "IL";
 
-        // עדכון המונה הכולל ב-Point
+        if (type === "SHARE") {
+            const point = await prisma.point.findUnique({
+                where: { id: pointId },
+                select: { userId: true, name: true },
+            });
+
+            await prisma.pointAnalytics.upsert({
+                where: { pointId },
+                update: { shares: { increment: 1 } },
+                create: { pointId, shares: 1 },
+            });
+
+            await prisma.pointActionLog.create({
+                data: {
+                    pointId,
+                    action: "SHARE",
+                    country,
+                    userId: session?.user?.id || null,
+                },
+            });
+
+            if (point?.userId && (!session?.user?.id || session.user.id !== point.userId)) {
+                await prisma.notification.create({
+                    data: {
+                        userId: point.userId,
+                        pointId,
+                        message: `מישהו הרגע שיתף את הגרעין שלך: "${point.name}"! 📤`,
+                    },
+                });
+            }
+
+            return Response.json({ success: true, type: "SHARE" });
+        }
+
+        // ברירת מחדל: CLICK (כניסה לקישור האתר)
         const updatedPoint = await prisma.point.update({
             where: { id: pointId },
             data: { linkClicks: { increment: 1 } },
         });
-        
-        // 🌟 🌟 🌟 עדכון סטטיסטיקת קליקים (Clicks) על הגרעין הספציפי ב-PointAnalytics 🌟 🌟 🌟
-        await (prisma as any).pointAnalytics.upsert({
-            where: { pointId: pointId },
+
+        await prisma.pointAnalytics.upsert({
+            where: { pointId },
             update: { clicks: { increment: 1 } },
-            create: { pointId: pointId, clicks: 1 }
-        });
-        
-        // 🌟 🌟 🌟 תיעוד הפעולה ביומן המפורט (PointActionLog) 🌟 🌟 🌟
-        await (prisma as any).pointActionLog.create({
-            data: {
-                pointId: pointId,
-                action: "CLICK",
-                country: country,
-                userId: session?.user?.id || null, // יכול להיות גם אורח שלחץ
-            }
+            create: { pointId, clicks: 1 },
         });
 
-        // 🌟 🌟 🌟 התראה: מישהו לחץ על הקישור שלך 🌟 🌟 🌟
-        if (updatedPoint.userId) {
-            // נוודא שהבעלים לא לחץ על הקישור של עצמו (אם הוא מחובר)
-            if (!session?.user?.id || session.user.id !== updatedPoint.userId) {
-                await prisma.notification.create({
-                    data: {
-                        userId: updatedPoint.userId, 
-                        pointId: pointId,
-                        message: `מישהו הרגע נכנס לקישור של הגרעין שלך: "${updatedPoint.name}"! 🔗`,
-                    }
-                });
-            }
+        await prisma.pointActionLog.create({
+            data: {
+                pointId,
+                action: "CLICK",
+                country,
+                userId: session?.user?.id || null,
+            },
+        });
+
+        if (updatedPoint.userId && (!session?.user?.id || session.user.id !== updatedPoint.userId)) {
+            await prisma.notification.create({
+                data: {
+                    userId: updatedPoint.userId,
+                    pointId,
+                    message: `מישהו הרגע נכנס לקישור של הגרעין שלך: "${updatedPoint.name}"! 🔗`,
+                },
+            });
         }
 
-        return Response.json({ success: true });
+        return Response.json({ success: true, type: "CLICK" });
     } catch (error) {
-        console.error("Click counting error:", error);
-        return Response.json({ error: "Failed to count click" }, { status: 500 });
+        console.error("Click/Share counting error:", error);
+        return Response.json({ error: "Failed to count action" }, { status: 500 });
     }
 }
