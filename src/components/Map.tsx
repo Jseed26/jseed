@@ -74,7 +74,7 @@
 //   const [map, setMap] = useState<L.Map | null>(null);
 //   const [points, setPoints] = useState<Point[]>([]);
 //   const [modal, setModal] = useState<ModalState>(null);
-  
+
 //   const [isPickingLocation, setIsPickingLocation] = useState(false);
 //   const [draftFormState, setDraftFormState] = useState<any>(null);
 
@@ -97,7 +97,7 @@
 //   // 🌟 סטייט למגירה - מתחיל כרגיל פתוח למחצה (peek)
 //   const [drawerMode, setDrawerMode] = useState<DrawerMode>('peek');
 //   const [hasStarted, setHasStarted] = useState(false);
-  
+
 //   const [suggestions, setSuggestions] = useState<any[]>([]);
 //   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 //   const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
@@ -275,7 +275,7 @@
 //     if (typeof window !== "undefined") {
 //       sessionStorage.setItem("jseed_app_started", "true");
 //     }
-    
+
 //     if (mapInstanceRef.current) {
 //       fetch("https://ipapi.co/json/")
 //         .then(res => res.json())
@@ -474,7 +474,7 @@
 //   const drawerWidthClass = drawerMode === 'peek' 
 //     ? "w-[35%] md:w-[30%]" 
 //     : "w-[95%] md:w-[65%]";
-  
+
 //   let drawerTransform = "translateX(0)";
 //   if (drawerMode === 'closed') {
 //     drawerTransform = isHe ? "translateX(100%)" : "translateX(-100%)";
@@ -482,13 +482,13 @@
 
 //   return (
 //     <div className={`relative w-full h-full overflow-hidden ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
-      
+
 //       <div className="absolute inset-0 z-0">
 //         <div ref={mapRef} className="w-full h-full min-h-[50vh] bg-black relative" />
 //       </div>
 
 //       <div className="absolute inset-0 z-[400] pointer-events-none">
-        
+
 //         {isCompassMode && !isPickingLocation && (
 //           <div className="absolute inset-0 flex items-center justify-center pb-8">
 //             <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="rgba(17,24,39,0.9)" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.3))" }}>
@@ -638,7 +638,7 @@
 //                    setPoints((prev) => [...prev, data]);
 //                    setViewedIds((prev) => [...prev, data.id]);
 //                    if (map) map.setView([finalLat, finalLng], 16);
-                   
+
 //                    setSuccessToast(tMap.thankYouMsg[lang]);
 //                    setTimeout(() => setSuccessToast(null), 3000); 
 //                 }
@@ -755,7 +755,7 @@
 //                 <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80 shrink-0">
 //                   <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
 //                 </div>
-                
+
 //                 <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
 //                   {isLoadingSuggestions ? (
 //                     <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
@@ -865,7 +865,7 @@
 //           </div>
 //         </div>
 //       </div>
-      
+
 //     </div>
 //   );
 // }
@@ -899,8 +899,8 @@ type ModalState = {
   prefilledCategory?: string;
   draftData?: any;
   parentId?: number | null;
-  mode?: "create" | "edit"; 
-  pointId?: number; 
+  mode?: "create" | "edit";
+  pointId?: number;
 } | null;
 
 const tMap = {
@@ -939,9 +939,9 @@ function getDistanceInKm(lat1: number, lon1: number, lat2: number, lon2: number)
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -985,7 +985,7 @@ export default function Map({
   const [map, setMap] = useState<maptilersdk.Map | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
-  
+
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [draftFormState, setDraftFormState] = useState<any>(null);
 
@@ -1009,11 +1009,13 @@ export default function Map({
   // 🌟 הלשונית מתחילה סגורה מראש!
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('closed');
   const [hasStarted, setHasStarted] = useState(false);
-  
+
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null); 
+  const [selectedSuggestion, setSelectedSuggestion] = useState<any | null>(null);
   const suggestionNodeRef = useRef<HTMLDivElement>(null);
+  const suggestionsListRef = useRef<HTMLDivElement>(null); // 🌟 הפניה לרשימה הנגללת
+  const savedScrollTopRef = useRef<number>(0); // 🌟 שומר את מיקום הגלילה
 
   useEffect(() => {
     const checkGps = () => setGpsEnabled(localStorage.getItem("jseed_gps_disabled") !== "true");
@@ -1045,7 +1047,7 @@ export default function Map({
             setIsPickingLocation(true);
             router.replace('/', { scroll: false });
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     }
   }, [searchParams, router]);
@@ -1068,7 +1070,7 @@ export default function Map({
       .finally(() => setIsLoadingSuggestions(false));
   }, []);
 
-// 🌟 אתחול הגלובוס התלת-ממדי של MapTiler
+  // 🌟 אתחול הגלובוס התלת-ממדי של MapTiler
   useEffect(() => {
     if (!mapRef.current) return;
     if (mapInstanceRef.current) return;
@@ -1080,14 +1082,14 @@ export default function Map({
 
     const newMap = new maptilersdk.Map({
       container,
-      style: "https://api.maptiler.com/maps/01a20470-90c0-7a10-b5d5-3e7437660158/style.json?key=1eZTTOxJLWMsKdfO1otY", 
-      center: [20, 25], 
-      
+      style: "https://api.maptiler.com/maps/01a20470-90c0-7a10-b5d5-3e7437660158/style.json?key=1eZTTOxJLWMsKdfO1otY",
+      center: [20, 25],
+
       // 🌟 הגבלת הזום אאוט: העלינו את הערכים כדי שלא נתרחק מדי לתוך החלל השחור
-      zoom: isMobile ? 1.5 : 2.0, 
-      minZoom: isMobile ? 1.2 : 1.8, 
+      zoom: isMobile ? 1.5 : 2.0,
+      minZoom: isMobile ? 1.2 : 1.8,
       maxZoom: 18,
-      projection: "globe", 
+      projection: "globe",
       navigationControl: false,
       geolocateControl: false,
 
@@ -1117,7 +1119,7 @@ export default function Map({
             });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     });
 
     return () => {
@@ -1136,7 +1138,7 @@ export default function Map({
         const data = await res.json();
         setViewedIds(data.map((p: Point) => p.id));
       }
-    } catch (err) {}
+    } catch (err) { }
   };
 
   useEffect(() => {
@@ -1149,7 +1151,7 @@ export default function Map({
           const data = await res.json();
           setSavedIds(data.map((p: Point) => p.id));
         }
-      } catch (err) {}
+      } catch (err) { }
     }
     loadSaved();
   }, [isLoggedIn]);
@@ -1191,7 +1193,7 @@ export default function Map({
     }
     search();
   }, [searchQuery, activeCategory]);
-  
+
   useEffect(() => {
     const refresh = async () => {
       const res = await fetch("/api/points", { cache: "no-store" });
@@ -1217,7 +1219,7 @@ export default function Map({
     if (typeof window !== "undefined") {
       sessionStorage.setItem("jseed_app_started", "true");
     }
-    
+
     if (mapInstanceRef.current) {
       fetch("https://ipapi.co/json/")
         .then(res => res.json())
@@ -1281,7 +1283,7 @@ export default function Map({
     const handleClick = (e: maptilersdk.MapMouseEvent) => {
       if (!hasStarted) {
         startUserJourney();
-        return; 
+        return;
       }
 
       if (drawerMode === 'open') {
@@ -1349,17 +1351,17 @@ export default function Map({
     // 🌟 קודם כל מסננים לפי קטגוריה, לפני רדיוס ה-GPS!
     let filteredByCategory = points;
     if (activeCategory) {
-       filteredByCategory = points.filter((p) => {
-         // אם בחרנו חי, אנחנו רוצים גם את היוזמות וגם את התומכים!
-         if (activeCategory === "chai") {
-           return p.category === "chai" || p.category === "chai_support";
-         }
-         return p.category === activeCategory;
-       });
+      filteredByCategory = points.filter((p) => {
+        // אם בחרנו חי, אנחנו רוצים גם את היוזמות וגם את התומכים!
+        if (activeCategory === "chai") {
+          return p.category === "chai" || p.category === "chai_support";
+        }
+        return p.category === activeCategory;
+      });
     }
 
     if (!filterRadius || !userLocation) return filteredByCategory;
-    
+
     // ואז מסננים לפי מרחק
     return filteredByCategory.filter((p) => {
       const distKm = getDistanceInKm(
@@ -1395,9 +1397,9 @@ export default function Map({
       </div>
     `;
 
-    userMarkerRef.current = new maptilersdk.Marker({ 
-        element: el,
-        offset: [0, -15] // 🌟 הוספנו Offset: 0 בציר X, מינוס 15 פיקסלים בציר Y (למעלה)
+    userMarkerRef.current = new maptilersdk.Marker({
+      element: el,
+      offset: [0, -15] // 🌟 הוספנו Offset: 0 בציר X, מינוס 15 פיקסלים בציר Y (למעלה)
     })
       .setLngLat([userLocation.lng, userLocation.lat])
       .addTo(map);
@@ -1443,6 +1445,9 @@ export default function Map({
   });
 
   const handleSuggestionClick = (point: any) => {
+    if (suggestionsListRef.current) {
+      savedScrollTopRef.current = suggestionsListRef.current.scrollTop; // 🌟 שמירת המיקום
+    }
     if (!hasStarted) {
       startUserJourney();
       setDrawerMode('open');
@@ -1452,8 +1457,15 @@ export default function Map({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pointId: point.id }),
-    }).catch(() => {});
+    }).catch(() => { });
   };
+
+  // 🌟 שחזור מיקום הגלילה כשלוחצים "חזרה להצעות"
+  useEffect(() => {
+    if (!selectedSuggestion && suggestionsListRef.current) {
+      suggestionsListRef.current.scrollTop = savedScrollTopRef.current;
+    }
+  }, [selectedSuggestion]);
 
   useEffect(() => {
     if (selectedSuggestion && suggestionNodeRef.current && map) {
@@ -1466,10 +1478,10 @@ export default function Map({
 
   const isHe = lang === 'he';
 
-  const drawerWidthClass = drawerMode === 'peek' 
-    ? "w-[20%] md:w-[30%]" 
+  const drawerWidthClass = drawerMode === 'peek'
+    ? "w-[20%] md:w-[30%]"
     : "w-[95%] md:w-[65%]";
-  
+
   let drawerTransform = "translateX(0)";
   if (drawerMode === 'closed') {
     drawerTransform = isHe ? "translateX(100%)" : "translateX(-100%)";
@@ -1477,13 +1489,13 @@ export default function Map({
 
   return (
     <div className={`relative w-full h-full overflow-hidden ${isPickingLocation ? 'cursor-crosshair' : ''}`}>
-      
+
       <div className="absolute inset-0 z-0">
         <div ref={mapRef} className="w-full h-full min-h-[50vh] bg-black relative" />
       </div>
 
       <div className="absolute inset-0 z-[400] pointer-events-none">
-        
+
         {isCompassMode && !isPickingLocation && (
           <div className="absolute inset-0 flex items-center justify-center pb-8">
             <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="rgba(17,24,39,0.9)" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.3))" }}>
@@ -1506,7 +1518,7 @@ export default function Map({
             <div className="bg-gray-900/90 backdrop-blur-sm border border-yellow-500 text-yellow-500 font-bold px-6 py-3 rounded-full shadow-2xl animate-pulse whitespace-nowrap text-sm sm:text-base">
               {tMap.pickLocationMsg[lang]}
             </div>
-            <button 
+            <button
               onClick={() => {
                 setIsPickingLocation(false);
                 setModal({
@@ -1539,7 +1551,7 @@ export default function Map({
                 website: modal.draftData?.website,
                 images: modal.draftData?.images,
                 existingImages: modal.draftData?.existingImages,
-                parentId: modal.parentId || modal.draftData?.parentId 
+                parentId: modal.parentId || modal.draftData?.parentId
               }}
               onClose={() => {
                 setModal(null);
@@ -1548,9 +1560,9 @@ export default function Map({
               onPickLocation={(currentFormState) => {
                 setDraftFormState({
                   ...currentFormState,
-                  lat: modal.lat, 
+                  lat: modal.lat,
                   lng: modal.lng,
-                  address: "", 
+                  address: "",
                   parentId: modal.parentId,
                   editPointId: modal.pointId
                 });
@@ -1581,7 +1593,7 @@ export default function Map({
                         return;
                       }
                     }
-                  } catch (err) {}
+                  } catch (err) { }
                 } else if (!isPickedFromMap) {
                   const useCompass = window.confirm(tMap.noAddress[lang]);
                   if (!useCompass) {
@@ -1628,22 +1640,22 @@ export default function Map({
 
                 if (isEditing) {
                   window.dispatchEvent(new Event("points-updated"));
-                  localStorage.removeItem("jseed_edit_draft"); 
-                  router.push("/my-points"); 
+                  localStorage.removeItem("jseed_edit_draft");
+                  router.push("/my-points");
                 } else {
                   setPoints((prev) => [...prev, data]);
                   setViewedIds((prev) => [...prev, data.id]);
                   if (map) map.flyTo({ center: [finalLng, finalLat], zoom: 16 });
-                  
+
                   setSuccessToast(tMap.thankYouMsg[lang]);
-                  setTimeout(() => setSuccessToast(null), 3000); 
+                  setTimeout(() => setSuccessToast(null), 3000);
                 }
               }}
             />
           </div>
         )}
 
-       {hasStarted && (
+        {hasStarted && (
           <div className="pointer-events-auto">
             {/* 🌟 העלינו את הכפתור מ-bottom-6 ל-bottom-[50px] */}
             <button
@@ -1722,8 +1734,8 @@ export default function Map({
                   {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((dist) => (
                     <button
                       key={dist}
-                      onClick={() => { 
-                        setFilterRadius(dist); 
+                      onClick={() => {
+                        setFilterRadius(dist);
                         setShowRadiusMenu(false);
                         setShowLocationMarker(true);
                       }}
@@ -1739,7 +1751,7 @@ export default function Map({
         )}
       </div>
 
-      <div 
+      <div
         className={`absolute top-0 bottom-0 z-[500] flex ${isHe ? 'right-0' : 'left-0'} ${drawerWidthClass} transition-all duration-500 ease-in-out pointer-events-none`}
         style={{ transform: drawerTransform }}
       >
@@ -1751,59 +1763,58 @@ export default function Map({
                 <div className="flex justify-between items-center p-5 border-b border-gray-700/50 bg-gray-800/80 shrink-0">
                   <h3 className="text-yellow-500 font-bold text-xl">{tMap.suggestionsTitle[lang]}</h3>
                 </div>
-                
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                  {isLoadingSuggestions ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
-                      <p className="font-medium">{tMap.loadingSuggestions[lang]}</p>
-                    </div>
-                  ) : suggestions.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center px-4">
-                      <p className="font-medium">{tMap.noSuggestions[lang]}</p>
-                    </div>
-                  ) : (
-                    <div className={`grid gap-6 ${drawerMode === 'peek' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
-                      {suggestions.map((point) => {
-                        const pointName = isHe ? point.name : (point.name_en || point.name);
-                        const pointDesc = isHe ? point.description : (point.description_en || point.description);
-                        const hasImage = point.imageUrls && point.imageUrls.length > 0;
 
-                        return (
-                          <div 
-                            key={point.id} 
-                            onClick={() => handleSuggestionClick(point)}
-                            className="group relative flex flex-col bg-gray-800/80 rounded-[28px] overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
-                          >
-                            <div className={`w-full ${hasImage ? 'h-[45vh] md:h-52' : 'h-32'} bg-gray-950 relative shrink-0`}>
-                              {hasImage ? (
-                                <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                                  <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
-                                </div>
-                              )}
-                            </div>
+                <div ref={suggestionsListRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar">                  {isLoadingSuggestions ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500"></div>
+                    <p className="font-medium">{tMap.loadingSuggestions[lang]}</p>
+                  </div>
+                ) : suggestions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 text-center px-4">
+                    <p className="font-medium">{tMap.noSuggestions[lang]}</p>
+                  </div>
+                ) : (
+                  <div className={`grid gap-6 ${drawerMode === 'peek' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
+                    {suggestions.map((point) => {
+                      const pointName = isHe ? point.name : (point.name_en || point.name);
+                      const pointDesc = isHe ? point.description : (point.description_en || point.description);
+                      const hasImage = point.imageUrls && point.imageUrls.length > 0;
 
-                            <div className="p-5 flex flex-col gap-2">
-                              <h4 className="text-xl font-bold text-white line-clamp-2 leading-tight">{pointName}</h4>
-                              {pointDesc && (
-                                <p className="text-base text-gray-300 line-clamp-3 mt-1 leading-relaxed">
-                                  {pointDesc}
-                                </p>
-                              )}
-                            </div>
+                      return (
+                        <div
+                          key={point.id}
+                          onClick={() => handleSuggestionClick(point)}
+                          className="group relative flex flex-col bg-gray-800/80 rounded-[28px] overflow-hidden cursor-pointer border border-gray-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:-translate-y-1"
+                        >
+                          <div className={`w-full ${hasImage ? 'h-[45vh] md:h-52' : 'h-32'} bg-gray-950 relative shrink-0`}>
+                            {hasImage ? (
+                              <img src={point.imageUrls[0]} alt={pointName} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                                <img src={`/icons/categories/${point.category}/active.png`} alt={point.category} className="w-12 h-12 object-contain opacity-40 group-hover:opacity-60 transition-opacity" />
+                              </div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+
+                          <div className="p-5 flex flex-col gap-2">
+                            <h4 className="text-xl font-bold text-white line-clamp-2 leading-tight">{pointName}</h4>
+                            {pointDesc && (
+                              <p className="text-base text-gray-300 line-clamp-3 mt-1 leading-relaxed">
+                                {pointDesc}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 </div>
               </>
             ) : (
               <div className="flex flex-col h-full bg-gray-900 overflow-hidden">
                 <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-gray-800/90 backdrop-blur-md border-b border-gray-700 shadow-md shrink-0">
-                  <button 
+                  <button
                     onClick={() => setSelectedSuggestion(null)}
                     className="flex items-center gap-2 text-yellow-500 font-bold hover:text-yellow-400 transition"
                   >
@@ -1815,13 +1826,13 @@ export default function Map({
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-5 pb-8">
-                  <div 
-                    ref={suggestionNodeRef} 
+                  <div
+                    ref={suggestionNodeRef}
                     className="bg-[#111827] border border-gray-700 rounded-2xl p-4 shadow-2xl relative"
                   ></div>
 
                   <div className="flex justify-center mt-5 mb-2">
-                    <button 
+                    <button
                       onClick={() => {
                         if (!hasStarted) {
                           setHasStarted(true);
@@ -1847,7 +1858,7 @@ export default function Map({
           </div>
         </div>
 
-        <div 
+        <div
           onClick={() => {
             if (drawerMode === 'closed' || drawerMode === 'peek') {
               setDrawerMode('open');
@@ -1864,7 +1875,7 @@ export default function Map({
           </div>
         </div>
       </div>
-      
+
     </div>
   );
 }

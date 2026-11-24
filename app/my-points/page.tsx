@@ -312,8 +312,12 @@ export default function MyPointsPage() {
 
     const userName = isLoggedIn && session?.user?.name ? session.user.name : t.myArea[lang];
 
+    const sortedMyPoints = [...points].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
     const displayPoints = tab === "my"
-        ? points
+        ? sortedMyPoints
         : tab === "history"
             ? historyPoints
             : savedCategory
@@ -354,17 +358,39 @@ export default function MyPointsPage() {
                 {/* Modern Tabs Navigation */}
                 <div className="max-w-3xl mx-auto">
                     <div className="flex gap-2 bg-zinc-900/40 p-1.5 rounded-2xl border border-zinc-800/50 overflow-x-auto custom-scrollbar snap-x">
-                        {[
-                            { id: "my", label: t.mySeeds[lang] },
-                            { id: "history", label: t.history[lang] },
-                            { id: "saved", label: <span className="flex items-center gap-1.5">{t.saved[lang]} <img src="/icons/ui/save/active.png" className="w-3.5 h-3.5 object-contain" /></span> },
-                            { id: "notifications", label: <span className="flex items-center gap-1.5 relative">{t.notifications[lang]} 🔔 {unreadCount > 0 && isLoggedIn && <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</span> },
-                            { id: "settings", label: <span className="flex items-center gap-1.5">{t.settings[lang]} ⚙️</span> }
+                       {[
+                            { id: "my", title: t.mySeeds[lang], label: t.mySeeds[lang] },
+                            { id: "history", title: t.history[lang], label: t.history[lang] },
+                            {
+                                id: "saved",
+                                title: t.saved[lang],
+                                label: <img src="/icons/ui/save/active.png" alt={t.saved[lang]} className="w-4 h-4 object-contain mx-auto" />
+                            },
+                            {
+                                id: "notifications",
+                                title: t.notifications[lang],
+                                label: (
+                                    <span className="relative flex items-center justify-center">
+                                        🔔
+                                        {unreadCount > 0 && isLoggedIn && (
+                                            <span className="absolute -top-2 -right-2.5 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full leading-none">
+                                                {unreadCount}
+                                            </span>
+                                        )}
+                                    </span>
+                                )
+                            },
+                            {
+                                id: "settings",
+                                title: t.settings[lang],
+                                label: <span className="flex items-center justify-center">⚙️</span>
+                            }
                         ].map((item) => (
                             <button
                                 key={item.id}
+                                title={item.title}
                                 onClick={() => { handleTabChange(item.id as any); setSavedCategory(null); }}
-                                className={`flex-1 min-w-max px-4 py-2.5 rounded-xl text-sm font-bold transition-all snap-center ${tab === item.id
+                                className={`flex-1 min-w-max px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all snap-center flex items-center justify-center ${tab === item.id
                                     ? "bg-zinc-800 text-yellow-400 shadow-md border border-zinc-700/50"
                                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30"
                                     }`}
